@@ -13,6 +13,8 @@ export const Strings = {
     wrongRole:
       'Tài khoản này không dùng được trên ứng dụng di động. Vui lòng dùng trang web quản lý.',
     sessionExpired: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    devBypass: 'Vào màn hình chính (dev)',
+    devBypassHint: 'Chỉ có ở bản phát triển. Chạm hai lần để vào màn hình chính bằng tài khoản giả',
   },
   privacy: {
     title: 'Chính sách bảo mật',
