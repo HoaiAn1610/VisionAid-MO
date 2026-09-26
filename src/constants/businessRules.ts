@@ -1,0 +1,34 @@
+// Giá trị mặc định — nếu có key tương ứng trong /system-configs/public thì ghi đè lúc runtime.
+export const BusinessRules = {
+  // AI thresholds
+  YOLO_DEFAULT_CONFIDENCE: 0.5, // yolo_confidence_threshold
+  FACENET_DEFAULT_SIMILARITY: 0.75, // facenet_similarity_threshold (so sánh STRICT >)
+  YOLO_MAX_INFERENCE_MS: 500,
+
+  // TTS
+  TTS_COOLDOWN_SECONDS: 3, // tts_cooldown_seconds — per object class
+  TTS_MIN_SPEED: 0.5,
+  TTS_MAX_SPEED: 2.0,
+  TTS_SPEED_STEP: 0.25,
+  TTS_MIN_VOLUME: 0.0,
+  TTS_MAX_VOLUME: 1.0,
+  TTS_MAX_LATENCY_MS: 1000,
+
+  // Emergency
+  FALL_GRACE_PERIOD_SECONDS: 15, // fall_grace_period_seconds
+  DANGEROUS_COMMAND_CONFIRM_TIMEOUT_SECONDS: 10,
+
+  // Battery
+  LOW_BATTERY_THRESHOLD_PERCENT: 10,
+
+  // Performance targets
+  VOICE_COMMAND_MAX_LATENCY_MS: 2000,
+  OCR_TARGET_P95_MS: 3000,
+  FACE_TARGET_P95_MS: 3000,
+
+  // Face registry upload formats (tham chiếu — upload do web xử lý)
+  ALLOWED_IMAGE_EXTENSIONS: ['.jpg', '.jpeg', '.png'],
+
+  // Auth
+  PASSWORD_MIN_LENGTH: 8,
+} as const;
