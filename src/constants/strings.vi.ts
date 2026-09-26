@@ -41,8 +41,8 @@ export const Strings = {
     faceNeedsNetwork: 'Tính năng nhận diện người quen cần kết nối mạng',
   },
   distance: {
-    NEAR: 'ở gần',
-    MEDIUM: 'phía trước',
-    FAR: 'ở xa',
+    Near: 'ở gần',
+    Medium: 'phía trước',
+    Far: 'ở xa',
   },
 } as const;

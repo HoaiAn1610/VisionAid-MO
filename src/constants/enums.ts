@@ -1,25 +1,22 @@
-// Khớp DB v8.0 — CLAUDE.md mục 7
-export type UserRole = 'Admin' | 'CenterAdmin' | 'Caregiver' | 'VisuallyImpaired'; // JWT claim
-export type DbUserRole = 'ADMIN' | 'CENTER_ADMIN' | 'CAREGIVER' | 'VISUALLY_IMPAIRED'; // có thể xuất hiện trong response API (TBC)
-// → Luôn so sánh role qua isVisuallyImpaired() trong src/utils/role.ts
-export type TtsVoiceGender = 'MALE' | 'FEMALE';
-export type DetectionMode = 'MINIMAL' | 'FULL';
-export type DistanceRange = 'NEAR' | 'MEDIUM' | 'FAR';
-export type RecognitionResult = 'MATCHED' | 'NOT_MATCHED' | 'LOW_CONFIDENCE' | 'ERROR';
-export type OcrRequestType = 'TEXT_READING' | 'QR_CODE';
-export type TriggerMethod = 'VOICE_COMMAND' | 'TAP';
-export type OcrResultStatus = 'SUCCESS' | 'LOW_CONFIDENCE' | 'FAILED' | 'RETRIED';
-export type DetectionMethod = 'ACCELEROMETER_CAMERA' | 'MANUAL' | 'VOICE_COMMAND' | 'GESTURE';
+// Khớp backend (JsonStringEnumConverter mặc định → tên enum C# PascalCase).
+// Nguồn: docs/api/openapi.json + VisionAid-BE/src/Shared (đối chiếu 2026-09-27).
+// DB lưu SCREAMING_SNAKE_CASE nhưng JSON API KHÔNG dùng dạng đó.
+export type UserRole = 'Admin' | 'CenterAdmin' | 'Caregiver' | 'VisuallyImpaired';
+export type TtsVoiceGender = 'Male' | 'Female';
+export type DetectionMode = 'Minimal' | 'Full';
+export type DistanceRange = 'Near' | 'Medium' | 'Far';
+export type RecognitionResult = 'Matched' | 'NotMatched' | 'LowConfidence' | 'Error';
+export type OcrRequestType = 'TextReading' | 'QrCode';
+export type TriggerMethod = 'VoiceCommand' | 'Tap';
+export type OcrResultStatus = 'Success' | 'LowConfidence' | 'Failed' | 'Retried';
+export type DetectionMethod = 'AccelerometerCamera' | 'Manual' | 'VoiceCommand' | 'Gesture';
 export type AlertStatus =
-  'DETECTED' | 'DISMISSED' | 'SENT' | 'ACKNOWLEDGED' | 'ESCALATED' | 'RESOLVED' | 'CALLED';
-export type CommandStatus = 'SUCCESS' | 'FAILED' | 'UNRECOGNIZED' | 'CONFIRMED' | 'CANCELLED';
-export type RecognitionEngine = 'GOOGLE_SPEECH' | 'WHISPER';
-export type NetworkStatus = 'WIFI' | 'MOBILE_4G' | 'MOBILE_3G' | 'OFFLINE';
-export type DeviceType = 'ANDROID' | 'IOS' | 'WEB';
-export type EmergencyContactType = 'PHONE' | 'ZALO' | 'BOTH';
+  'Detected' | 'Dismissed' | 'Sent' | 'Acknowledged' | 'Escalated' | 'Resolved' | 'Called';
+export type CommandStatus = 'Success' | 'Failed' | 'Unrecognized' | 'Confirmed' | 'Cancelled';
+// Backend nhận chuỗi tự do (không phải enum) — thống nhất giá trị với team
+export type RecognitionEngine = 'GoogleSpeech' | 'Whisper';
+export type NetworkStatus = 'Wifi' | 'Mobile4G' | 'Mobile3G' | 'Offline';
+export type DeviceType = 'Android' | 'Ios' | 'Web';
+export type EmergencyContactType = 'Phone' | 'Zalo' | 'Both';
 export type NotificationType =
-  | 'FALL_DETECTED'
-  | 'EMERGENCY_MANUAL'
-  | 'GEOFENCE_BREACH'
-  | 'ARRIVAL_NOTIFICATION'
-  | 'SYSTEM_ALERT';
+  'FallDetected' | 'EmergencyManual' | 'GeofenceBreach' | 'ArrivalNotification' | 'SystemAlert';

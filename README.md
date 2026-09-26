@@ -6,7 +6,7 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # sửa EXPO_PUBLIC_API_BASE_URL (máy thật dùng IP LAN)
+cp .env.example .env.local   # mặc định trỏ tới server backend đã deploy
 ```
 
 ## Chạy trên Android (Development Build, không dùng Expo Go)

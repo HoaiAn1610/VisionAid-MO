@@ -104,15 +104,15 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 3: Obstacle Detection
 
-| Task                                                                                            | Skill                                | Done khi                                                              |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------- |
-| Distance estimator (NEAR/MEDIUM/FAR theo tỉ lệ bbox)                                            | `/test`                              | Test ngưỡng; không bao giờ ra số mét                                  |
-| Priority selector (danger → distance → confidence) + lọc Minimal/Full                           | `/test`                              | Test cả 2 mode                                                        |
-| Pipeline: frame skipping → inference → NMS → TtsService (DANGER, cooldownKey = class, maxAgeMs) | `/build`, `performance-optimization` | ≤ 500ms/cycle; TTS ≤ 1s                                               |
-| Navigation session start/end (offline tạo session local) + keep-awake                           | `expo-data-fetching`                 | End session gửi được tổng kết                                         |
-| `offlineQueue.ts` + ghi detection event theo batch                                              | `/test`                              | Test flush theo thứ tự ưu tiên, xóa khi 2xx/409, không drop emergency |
-| Đo `inference_time_ms`, pin/giờ                                                                 | `observability-and-instrumentation`  | Có số benchmark ghi vào `docs/benchmarks.md`                          |
-| Review                                                                                          | `/review`, `/ponytail-review`        |                                                                       |
+| Task                                                                                            | Skill                                | Done khi                                                                            |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| Distance estimator (Near/Medium/Far theo tỉ lệ bbox)                                            | `/test`                              | Test ngưỡng; không bao giờ ra số mét                                                |
+| Priority selector (danger → distance → confidence) + lọc Minimal/Full                           | `/test`                              | Test cả 2 mode                                                                      |
+| Pipeline: frame skipping → inference → NMS → TtsService (DANGER, cooldownKey = class, maxAgeMs) | `/build`, `performance-optimization` | ≤ 500ms/cycle; TTS ≤ 1s                                                             |
+| Navigation session start/end (offline tạo session local) + keep-awake                           | `expo-data-fetching`                 | End session gửi được tổng kết                                                       |
+| `offlineQueue.ts` + ghi detection event (flush tuần tự, chưa có batch — GAP-10)                 | `/test`                              | Test flush theo thứ tự ưu tiên, xóa khi 2xx, bỏ 4xx vĩnh viễn, không drop emergency |
+| Đo `inference_time_ms`, pin/giờ                                                                 | `observability-and-instrumentation`  | Có số benchmark ghi vào `docs/benchmarks.md`                                        |
+| Review                                                                                          | `/review`, `/ponytail-review`        |                                                                                     |
 
 ### Sprint 4: Voice Commands
 
@@ -139,14 +139,14 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 6: Location
 
-| Task                                                                                               | Skill                                                     | Done khi                                 |
-| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
-| Chốt: GPS ngoài session (low-power), tên hub method, payload ArrivalNotification, FCM data message | `/spec`, `interview-me` (với team)                        |                                          |
-| Background location task (headless → SQLite → REST batch)                                          | `source-driven-development` (expo-location, task-manager) | Không phụ thuộc SignalR trong background |
-| LocationHubClient (foreground, reconnect)                                                          | `api-and-interface-design`                                | Mất kết nối → vào queue                  |
-| "Tôi đang ở đâu?" online + cache offline (BR-15)                                                   | `/test` cho nhánh cache                                   |                                          |
-| ArrivalNotification → TTS + haptic                                                                 | `/build`                                                  |                                          |
-| FCM token (Firebase cần rebuild dev client)                                                        | `expo-dev-client`, `source-driven-development`            | `google-services.json` qua EAS secrets   |
+| Task                                                                                              | Skill                                                     | Done khi                                 |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
+| Chốt: GPS ngoài session (low-power), GAP-5 (endpoint địa chỉ cho VIU), GAP-7 (cập nhật FCM token) | `/spec`, `interview-me` (với team)                        |                                          |
+| Background location task (headless → SQLite → `POST /api/locations/gps` từng điểm, idempotent)    | `source-driven-development` (expo-location, task-manager) | Không phụ thuộc SignalR trong background |
+| LocationHubClient: chỉ nhận `ArrivalNotification` (foreground, reconnect)                         | `api-and-interface-design`                                | Dedupe với FCM cùng sự kiện              |
+| "Tôi đang ở đâu?" online + cache offline (BR-15)                                                  | `/test` cho nhánh cache                                   |                                          |
+| ArrivalNotification → TTS + haptic                                                                | `/build`                                                  |                                          |
+| FCM token gửi trong `device.fcmToken` lúc login (Firebase cần rebuild dev client)                 | `expo-dev-client`, `source-driven-development`            | `google-services.json` qua EAS secrets   |
 
 ### Sprint 7: Emergency
 
@@ -178,12 +178,15 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ## 5. Việc cần chốt với Backend (chặn sprint)
 
-| Chặn     | Việc cần chốt                                                                     |
-| -------- | --------------------------------------------------------------------------------- |
-| Sprint 2 | Endpoint auth/privacy, dạng `role` trong response, `JsonStringEnumConverter`      |
-| Sprint 3 | `/navigation/sessions/{id}/events` batch                                          |
-| Sprint 5 | `/ocr/qr`, `/face-registry/recognize`                                             |
-| Sprint 6 | `/locations/batch`, reverse-geocode, tên hub method, FCM data message cho Arrival |
-| Sprint 7 | `detectedAt` từ thiết bị, `/snapshot`, `/called`, key độ nhạy fall detection      |
+Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở **CLAUDE.md mục 19**. Tóm tắt theo sprint:
 
-Mỗi mục → một `/spec` ngắn trong `docs/specs/`, gửi team Backend xác nhận rồi mới `/build`.
+| Chặn     | GAP                                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------------- |
+| Sprint 2 | **GAP-1** `privacyConsentAcceptedAt` chưa được trả về (chặn Privacy Consent), GAP-2 role, GAP-13 dạng lỗi |
+| Sprint 3 | GAP-6 system config cho VIU, GAP-10 batch detection event                                                 |
+| Sprint 5 | **GAP-3** ai chạy OCR, **GAP-4** ai chạy nhận diện khuôn mặt (quyết định kiến trúc)                       |
+| Sprint 6 | **GAP-5** địa chỉ cho "Tôi đang ở đâu", GAP-7 cập nhật FCM token, GAP-10 batch GPS                        |
+| Sprint 7 | GAP-9 `detectedAt`, GAP-11 snapshot riêng, GAP-12 `called`, key độ nhạy fall detection                    |
+| Release  | GAP-8 HTTPS                                                                                               |
+
+Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.
