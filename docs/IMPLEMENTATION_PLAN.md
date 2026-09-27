@@ -91,6 +91,8 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 2: Auth + Prototype AI (Risk #2)
 
+**Trạng thái (2026-09-27): ✅ Xong.** Auth (login, chặn role, privacy consent, logout, bootstrap offline) + design system; prototype YOLOv8n TFLite chạy trên máy thật, **ADR 0001 đã chấp nhận** (float16 + GPU: khoảng 30 ms inference, khoảng 65 ms toàn chu kỳ). Mang sang Sprint 3: tự lùi GPU → CPU trong hook detector thật, bỏ màn Detector Lab khi Home có camera.
+
 `/ponytail lite` cho phần auth.
 
 | Task                                                                                        | Skill                                                                                 | Done khi                                                                             |

@@ -63,8 +63,8 @@
 ### Native / Device
 | Chức năng | Package | Ghi chú |
 |---|---|---|
-| Camera + frame processing | `react-native-vision-camera` (+ `react-native-worklets-core`) | Frame processor cho YOLO real-time |
-| On-device AI (YOLOv8n INT8) | `onnxruntime-react-native` | Theo tài liệu dự án. **Fallback** nếu tích hợp frame processor thất bại: `react-native-fast-tflite` (export YOLOv8n → TFLite INT8), hoặc cuối cùng là server-side detection (Risk #2) |
+| Camera + frame processing | `react-native-vision-camera` **4.7.x** (+ `react-native-worklets-core`, `vision-camera-resize-plugin`) | Frame processor cho YOLO real-time. **Giữ v4**: bản tích hợp fast-tflite cho VisionCamera v5 chưa công khai (ADR 0001) |
+| On-device AI (YOLOv8n) | **`react-native-fast-tflite` 3.x** (TFLite, `runSync` trong frame processor; delegate CPU/GPU/NNAPI) | **ADR 0001** (`docs/adr/0001-on-device-inference.md`): không dùng `onnxruntime-react-native` vì không chạy được trong frame processor (chỉ có API bất đồng bộ trên JS thread). Model: input 320×320 RGB float32, output `[1, 84, 2100]` |
 | QR scan | `react-native-vision-camera` code scanner | On-device, không cần mạng để đọc nội dung QR |
 | TTS | `expo-speech` | Giọng tiếng Việt `vi-VN`; bọc trong `TtsService` có priority queue |
 | STT Online | `expo-speech-recognition` (hoặc `@react-native-voice/voice`) | Dùng Google Speech qua Android SpeechRecognizer (không nhúng API key trong app). `@react-native-voice/voice` ít được bảo trì — ưu tiên `expo-speech-recognition` nếu tương thích |
@@ -148,7 +148,7 @@ visionaid-mobile/
 │
 ├── assets/
 │   └── models/
-│       └── yolov8n_int8.onnx             # (hoặc .tflite nếu dùng fallback) — Whisper model tải runtime, không để ở đây
+│       └── yolov8n_float16.tflite        # 6.4MB, chạy GPU delegate (lùi về CPU) — cách export: ADR 0001 §6. Whisper model tải runtime, không để ở đây
 │
 ├── __tests__/ (hoặc *.test.ts cạnh file)
 ├── app.config.ts                         # Permissions, plugins, Android config
@@ -386,7 +386,7 @@ Server revoke mọi token + terminate GPS sessions → client nhận 401 ở l�
 ### 9.1 Obstacle Detection (YOLOv8n — OFFLINE)
 ```
 Camera (vision-camera) → frame processor (frame skipping) → resize/normalize
-→ YOLOv8n INT8 inference (ONNX Runtime) → NMS → lọc confidence >= yolo_confidence_threshold
+→ YOLOv8n inference (TFLite qua react-native-fast-tflite, 320×320) → NMS → lọc confidence >= yolo_confidence_threshold
 → ước lượng distance range → chọn object ưu tiên → TtsService.enqueue(priority)
 ```
 - **Performance:** ≤ 500ms/cycle trên Android mid-range (Galaxy A-series, 4GB RAM); TTS từ lúc detect → phát âm ≤ 1s.
