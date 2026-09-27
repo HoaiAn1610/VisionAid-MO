@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect } from 'react';
 
 import { A11yText } from '@/components/A11yText';
@@ -25,6 +26,11 @@ export default function HomeScreen() {
           })
         }
         style={{ flex: 1 }}
+      />
+      <BigActionButton
+        label={Strings.screens.settings}
+        accessibilityHint={Strings.home.settingsHint}
+        onPress={() => router.push('/settings')}
       />
     </Screen>
   );
