@@ -69,6 +69,12 @@ describe('navigationRepo', () => {
     expect(mockCalls[0]?.params).toEqual(['a', 'b']);
   });
 
+  it('endOpenSessions chỉ đóng phiên còn mở bắt đầu TRƯỚC mốc (không đóng nhầm phiên vừa tạo)', async () => {
+    await repo.endOpenSessions('2026-09-28T01:00:00.000Z');
+    expect(mockCalls[0]?.sql).toMatch(/ended_at IS NULL AND started_at < \?/);
+    expect(mockCalls[0]?.params[1]).toBe('2026-09-28T01:00:00.000Z');
+  });
+
   it('deleteSession xóa cả event của phiên', async () => {
     await repo.deleteSession('L1');
     expect(mockCalls.map((c) => c.sql)).toEqual([

@@ -20,6 +20,8 @@ import { useObstacleDetector, type FrameResult } from './useObstacleDetector';
 const MODEL = require('../../../assets/models/yolov8n_float16.tflite'); // eslint-disable-line @typescript-eslint/no-require-imports -- asset .tflite phải require() để Metro bundle
 const PREFERRED_DELEGATES = ['android-gpu' as const];
 const KEEP_AWAKE_TAG = 'navigation-session';
+/** Không có cảnh báo mới trong khoảng này → dòng trạng thái về "chưa phát hiện" (tránh hiển thị tin cũ). */
+const STATUS_STALE_MS = 4000;
 
 const say = (text: string, priority = TtsPriority.SYSTEM) => ttsService.enqueue({ text, priority });
 
@@ -34,6 +36,9 @@ export function useObstacleNavigation() {
   const [lastAnnouncement, setLastAnnouncement] = useState<string | null>(null);
   const awaitingModel = useRef(false);
   const sessionId = useRef<string | null>(null);
+  const starting = useRef(false);
+  const wantActive = useRef(false);
+  const staleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onResult = useCallback(
     (r: FrameResult) => {
@@ -42,6 +47,8 @@ export function useObstacleNavigation() {
       const request = toTtsRequest(pick);
       if (!ttsService.enqueue(request)) return; // cooldown / trùng → không phải một lần cảnh báo
       setLastAnnouncement(request.text);
+      if (staleTimer.current) clearTimeout(staleTimer.current);
+      staleTimer.current = setTimeout(() => setLastAnnouncement(null), STATUS_STALE_MS);
       if (sessionId.current) logAlert(sessionId.current, pick, r.inferenceMs);
     },
     [mode],
@@ -55,6 +62,7 @@ export function useObstacleNavigation() {
   useEffect(() => {
     if (!active || !modelFatal) return;
     say(Strings.navigation.modelFailed);
+    wantActive.current = false;
     closeSession(sessionId);
   }, [active, modelFatal]);
 
@@ -77,28 +85,47 @@ export function useObstacleNavigation() {
   }, [active, detector.modelState]);
 
   const start = useCallback(async () => {
-    if (!hasPermission) {
-      // Giải thích bằng TTS trước khi hiện hộp thoại hệ thống (CLAUDE.md §14)
-      say(Strings.navigation.cameraExplain, TtsPriority.FEEDBACK);
-      if (!(await requestPermission())) {
-        say(Strings.navigation.cameraDenied);
-        await Linking.openSettings().catch((e: unknown) => logger.warn('Open settings failed', e));
+    // Chạm đúp (TalkBack) / bấm liên tiếp → chỉ một phiên
+    if (starting.current || wantActive.current) return;
+    starting.current = true;
+    try {
+      if (!hasPermission) {
+        // Giải thích bằng TTS trước khi hiện hộp thoại hệ thống (CLAUDE.md §14)
+        say(Strings.navigation.cameraExplain, TtsPriority.FEEDBACK);
+        if (!(await requestPermission())) {
+          say(Strings.navigation.cameraDenied);
+          await Linking.openSettings().catch((e: unknown) =>
+            logger.warn('Open settings failed', e),
+          );
+          return;
+        }
+      }
+      wantActive.current = true;
+      setLastAnnouncement(null);
+      setActive(true);
+      void HapticService.success();
+      const ready = detector.modelState === 'loaded';
+      awaitingModel.current = !ready;
+      say(ready ? Strings.navigation.started : Strings.navigation.modelLoading);
+
+      const id = await startNavigationSession(mode).catch((e: unknown) => {
+        logger.warn('Start session failed', e);
+        return null; // vẫn dẫn đường được, chỉ không ghi log
+      });
+      // Người dùng đã bấm Dừng trong lúc phiên đang được tạo → đóng ngay, không bỏ rơi phiên
+      if (!wantActive.current) {
+        if (id)
+          endNavigationSession(id).catch((e: unknown) => logger.warn('End session failed', e));
         return;
       }
+      sessionId.current = id;
+    } finally {
+      starting.current = false;
     }
-    setLastAnnouncement(null);
-    setActive(true);
-    sessionId.current = await startNavigationSession(mode).catch((e: unknown) => {
-      logger.warn('Start session failed', e);
-      return null; // vẫn dẫn đường được, chỉ không ghi log
-    });
-    void HapticService.success();
-    const ready = detector.modelState === 'loaded';
-    awaitingModel.current = !ready;
-    say(ready ? Strings.navigation.started : Strings.navigation.modelLoading);
   }, [hasPermission, requestPermission, detector.modelState, mode]);
 
   const stop = useCallback(() => {
+    wantActive.current = false;
     setActive(false);
     closeSession(sessionId);
     void HapticService.tap();
@@ -106,7 +133,13 @@ export function useObstacleNavigation() {
   }, []);
 
   // Rời màn hình khi phiên còn chạy (ví dụ đăng xuất) → vẫn đóng phiên
-  useEffect(() => () => closeSession(sessionId), []);
+  useEffect(
+    () => () => {
+      closeSession(sessionId);
+      if (staleTimer.current) clearTimeout(staleTimer.current);
+    },
+    [],
+  );
 
   return {
     active: sessionActive,

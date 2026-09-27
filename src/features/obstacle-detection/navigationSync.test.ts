@@ -143,6 +143,16 @@ describe('syncNavigationSessions', () => {
     expect(db.events).toHaveLength(1);
   });
 
+  it('gọi sync khi đang chạy → chạy bù MỘT lần sau đó (phiên vừa dừng không phải chờ 60s)', async () => {
+    const { db, api, deps } = fakeDeps([session('L1', { serverId: 'S1' })], []);
+    const first = syncNavigationSessions(deps);
+    // Người dùng dừng phiên trong lúc lần sync đầu đang chạy
+    db.sessions = db.sessions.map((s) => ({ ...s, endedAt: '2026-09-28T08:10:00+07:00' }));
+    const second = syncNavigationSessions(deps);
+    await Promise.all([first, second]);
+    expect(api.endSession).toHaveBeenCalledWith('S1', '2026-09-28T08:10:00+07:00');
+  });
+
   it('không chạy song song hai lần sync (tránh gửi trùng event)', async () => {
     const { api, deps } = fakeDeps([session('L1', { serverId: 'S1' })], [event('e1', 'L1')]);
     await Promise.all([syncNavigationSessions(deps), syncNavigationSessions(deps)]);

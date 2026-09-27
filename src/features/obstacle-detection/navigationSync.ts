@@ -57,14 +57,25 @@ function classify(error: unknown): 'retry' | 'drop' | 'gone' {
 }
 
 let running: Promise<void> | null = null;
+let rerunRequested = false;
 
 /**
  * Đồng bộ session + detection event theo thứ tự backend yêu cầu:
  * tạo session (kèm startedAt gốc) → gửi HẾT event (batch) → rồi mới kết thúc session
- * (server từ chối event của session đã kết thúc). Single-flight để không gửi trùng.
+ * (server từ chối event của session đã kết thúc). Single-flight để không gửi trùng; gọi thêm trong
+ * lúc đang chạy → chạy bù đúng một lần sau đó (ví dụ phiên vừa dừng không phải chờ vòng 60s).
  */
 export function syncNavigationSessions(deps: NavSyncDeps): Promise<void> {
-  running ??= run(deps).finally(() => {
+  if (running) {
+    rerunRequested = true;
+    return running;
+  }
+  running = (async () => {
+    do {
+      rerunRequested = false;
+      await run(deps);
+    } while (rerunRequested);
+  })().finally(() => {
     running = null;
   });
   return running;

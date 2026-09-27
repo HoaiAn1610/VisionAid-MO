@@ -53,7 +53,12 @@ export async function recordDetectionEvent(
 
 /** Chạy khi đã đăng nhập: đồng bộ định kỳ + khi có mạng lại (kể cả phiên còn sót từ lần trước). */
 export function startNavigationSyncLoop(): () => void {
-  syncNavigationNow();
+  // ponytail: phiên bị bỏ dở được đóng với thời điểm mở app lại (không biết lúc app bị tắt) → thời lượng
+  // phiên có thể dài hơn thực tế; ghi heartbeat định kỳ nếu cần số liệu chính xác.
+  repo
+    .endOpenSessions(new Date().toISOString())
+    .catch((e: unknown) => logger.warn('Close stale sessions failed', e))
+    .finally(syncNavigationNow);
   const timer = setInterval(syncNavigationNow, SYNC_INTERVAL_MS);
   const unsubscribe = NetworkMonitor.subscribe((status) => {
     if (status !== 'Offline') syncNavigationNow();

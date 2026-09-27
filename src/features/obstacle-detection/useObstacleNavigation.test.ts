@@ -85,6 +85,33 @@ describe('useObstacleNavigation', () => {
     expect(spoken()).toContain(Strings.navigation.stopped);
   });
 
+  it('bấm Dừng khi session chưa tạo xong → session vẫn được đóng (không bị bỏ rơi)', async () => {
+    let resolveStart: (id: string) => void = () => {};
+    (startNavigationSession as jest.Mock).mockImplementationOnce(
+      () => new Promise<string>((r) => (resolveStart = r)),
+    );
+    const { result } = await renderHook(() => useObstacleNavigation());
+    let starting: Promise<void> = Promise.resolve();
+    await act(async () => {
+      starting = result.current.start();
+    });
+    await act(async () => result.current.stop());
+    await act(async () => {
+      resolveStart('L-late');
+      await starting;
+    });
+    expect(endNavigationSession).toHaveBeenCalledWith('L-late');
+    expect(result.current.active).toBe(false);
+  });
+
+  it('bấm Bắt đầu hai lần liên tiếp (TalkBack chạm đúp) → chỉ tạo MỘT session', async () => {
+    const { result } = await renderHook(() => useObstacleNavigation());
+    await act(async () => {
+      await Promise.all([result.current.start(), result.current.start()]);
+    });
+    expect(startNavigationSession).toHaveBeenCalledTimes(1);
+  });
+
   it('vật cản được đọc → ghi event alertIssued với box chuẩn hóa', async () => {
     const { result } = await renderHook(() => useObstacleNavigation());
     await act(() => result.current.start());
@@ -101,6 +128,19 @@ describe('useObstacleNavigation', () => {
         boundingBox: '{"x":0.2,"y":0.2,"w":0.6,"h":0.6}',
       }),
     );
+  });
+
+  it('dòng trạng thái tự về "chưa phát hiện" khi 4s không có cảnh báo mới', async () => {
+    jest.useFakeTimers();
+    const { result } = await renderHook(() => useObstacleNavigation());
+    await act(() => result.current.start());
+    await act(async () => mockDetector.onResult?.(frame('car')));
+    expect(result.current.lastAnnouncement).not.toBeNull();
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
+    });
+    expect(result.current.lastAnnouncement).toBeNull();
+    jest.useRealTimers();
   });
 
   it('câu bị cooldown chặn → KHÔNG ghi event', async () => {

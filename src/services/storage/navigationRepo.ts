@@ -34,6 +34,16 @@ export async function markSessionEnded(localId: string, endedAt: string): Promis
   await db.runAsync('UPDATE nav_sessions SET ended_at = ? WHERE local_id = ?', endedAt, localId);
 }
 
+/** Phiên còn mở từ lần chạy trước (app bị tắt giữa phiên) → đóng để server không giữ phiên treo. */
+export async function endOpenSessions(startedBefore: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE nav_sessions SET ended_at = ? WHERE ended_at IS NULL AND started_at < ?',
+    new Date().toISOString(),
+    startedBefore,
+  );
+}
+
 export async function listSessions(): Promise<StoredSession[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<SessionRow>('SELECT * FROM nav_sessions ORDER BY started_at');

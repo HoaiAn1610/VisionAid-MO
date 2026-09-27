@@ -13,6 +13,7 @@ jest.mock('@/services/storage/navigationRepo', () => ({
   insertSession: jest.fn(async () => {}),
   markSessionEnded: jest.fn(async () => {}),
   insertEvent: jest.fn(async () => {}),
+  endOpenSessions: jest.fn(async () => {}),
 }));
 jest.mock('./navigationSync', () => ({ syncNavigationSessions: jest.fn(async () => {}) }));
 jest.mock('@/api/endpoints/navigation', () => ({}));
@@ -79,9 +80,22 @@ describe('navigationSession', () => {
     expect(repo.insertEvent).toHaveBeenCalledWith(expect.any(String), 'L1', payload);
   });
 
-  it('sync loop: đồng bộ lúc bắt đầu, định kỳ và khi có mạng lại; dọn dẹp khi dừng', () => {
+  it('mở app: đóng các phiên còn mở từ lần trước (app bị tắt giữa chừng) rồi mới đồng bộ', async () => {
+    const stop = startNavigationSyncLoop();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(repo.endOpenSessions).toHaveBeenCalledWith(expect.any(String));
+    expect((repo.endOpenSessions as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      sync.mock.invocationCallOrder[0] ?? Infinity,
+    );
+    stop();
+  });
+
+  it('sync loop: đồng bộ lúc bắt đầu, định kỳ và khi có mạng lại; dọn dẹp khi dừng', async () => {
     jest.useFakeTimers();
     const stop = startNavigationSyncLoop();
+    await Promise.resolve();
+    await Promise.resolve();
     expect(sync).toHaveBeenCalledTimes(1);
     jest.advanceTimersByTime(60_000);
     expect(sync).toHaveBeenCalledTimes(2);
