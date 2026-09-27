@@ -48,7 +48,9 @@
   "userId": "uuid",
   "email": "string",
   "role": "VisuallyImpaired",
-  "organizationId": "uuid|null"
+  "organizationId": "uuid|null",
+  "privacyConsentAcceptedAt": "…+07:00|null",
+  "privacyPolicyVersion": "1.0|null"
 }
 ```
 
@@ -95,7 +97,8 @@ Revoke mọi refresh token + tắt FCM token của device này. Mobile bỏ qua 
 
 ```jsonc
 { "id", "email", "fullName", "phoneNumber", "role", "organizationId", "isActive",
-  "avatarUrl", "lastLoginAt", "deletedAt", "createdAt", "updatedAt" }
+  "avatarUrl", "lastLoginAt", "deletedAt", "createdAt", "updatedAt",
+  "privacyConsentAcceptedAt", "privacyPolicyVersion" }
 ```
 
 ## 3. JWT
@@ -110,7 +113,7 @@ Revoke mọi refresh token + tắt FCM token của device này. Mobile bỏ qua 
 Khởi động: có token? → GET /users/me
   ├ 401 → refresh (single-flight) → OK: retry | 401/403: logout local
   ├ role ≠ VisuallyImpaired → logout + TTS wrongRole
-  ├ chưa đồng ý chính sách (xem Q1) → Privacy Consent
+  ├ privacyConsentAcceptedAt == null hoặc privacyPolicyVersion ≠ EXPO_PUBLIC_PRIVACY_POLICY_VERSION → Privacy Consent
   └ OK → Home
 ```
 
@@ -118,10 +121,10 @@ Interceptor: 401 ở request thường → refresh **một lần** (single-fligh
 
 ## 5. Cần Backend chốt (đánh số GAP khớp CLAUDE.md mục 19)
 
-| #              | Vấn đề                                                                                                                                                                                                         | Đề xuất                                                                            |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **Q1 (GAP-1)** | **Không có endpoint nào trả `privacyConsentAcceptedAt` / `privacyPolicyVersion`** (không có trong `UserResponse` hay `AuthTokenResponse`), nên mobile không biết đã đồng ý chưa → **chặn màn Privacy Consent** | Thêm 2 field vào `UserResponse` của `/users/me` (hoặc vào `AuthTokenResponse`)     |
-| Q2             | `expiresAt` trong token response là hạn refresh token                                                                                                                                                          | Giữ nguyên thì mobile ghi chú; hoặc thêm `accessTokenExpiresAt`                    |
-| Q3 (GAP-2)     | Login không chặn role cho app mobile                                                                                                                                                                           | Chấp nhận (mobile tự chặn), hoặc thêm header `X-Client: mobile` để backend trả 403 |
-| Q4 (GAP-13)    | Lỗi đôi khi là ProblemDetails, đôi khi là `ApiResponse` với `success:false`                                                                                                                                    | Thống nhất một dạng; tạm thời mobile xử lý cả hai                                  |
-| Q5 (GAP-8)     | Server chỉ có HTTP (`51.210.176.94:5002`)                                                                                                                                                                      | Cần HTTPS + domain trước khi build staging/production                              |
+| #              | Vấn đề                                                                                                   | Đề xuất                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| ~~Q1 (GAP-1)~~ | ✅ Đã xử lý (backend commit `f4e2592`): hai field privacy có trong `UserResponse` và `AuthTokenResponse` | —                                                                                  |
+| Q2             | `expiresAt` trong token response là hạn refresh token                                                    | Giữ nguyên thì mobile ghi chú; hoặc thêm `accessTokenExpiresAt`                    |
+| Q3 (GAP-2)     | Login không chặn role cho app mobile                                                                     | Chấp nhận (mobile tự chặn), hoặc thêm header `X-Client: mobile` để backend trả 403 |
+| Q4 (GAP-13)    | Lỗi đôi khi là ProblemDetails, đôi khi là `ApiResponse` với `success:false`                              | Thống nhất một dạng; tạm thời mobile xử lý cả hai                                  |
+| Q5 (GAP-8)     | Server chỉ có HTTP (`51.210.176.94:5002`)                                                                | Cần HTTPS + domain trước khi build staging/production                              |
