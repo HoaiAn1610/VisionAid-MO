@@ -46,29 +46,42 @@ export async function signIn(email: string, password: string): Promise<void> {
     await clearTokens();
     throw new WrongRoleError();
   }
-  await applyUser(await fetchMe());
+  try {
+    await applyUser(await fetchMe());
+  } catch (error) {
+    // Không để token "mồ côi": UI báo lỗi nhưng lần mở app sau lại tự đăng nhập.
+    await clearTokens();
+    throw error;
+  }
 }
 
-/** Lúc mở app: có token → lấy profile; offline → dùng profile cache để app vẫn chạy (offline-first). */
+/**
+ * Lúc mở app (offline-first): có profile cache → vào app NGAY, xác thực lại với server ở nền.
+ * Chỉ đăng xuất khi server nói phiên không hợp lệ (401/403) hoặc role sai; mất mạng / 5xx thì giữ phiên.
+ */
 export async function bootstrapAuth(): Promise<void> {
   const store = useAuthStore.getState();
   if (!(await getTokens())) return store.signOut();
 
+  const cached = parseCachedUser(await getCachedUser());
+  if (cached) store.setUser(cached);
+
   try {
     const user = await fetchMe();
-    if (!isVisuallyImpaired(user.role)) {
-      await clearTokens();
-      return store.signOut();
-    }
+    if (!isVisuallyImpaired(user.role)) return await endSession();
     await applyUser(user);
   } catch (error) {
-    if (error instanceof ApiError && error.status === 0) {
-      const cached = parseCachedUser(await getCachedUser());
-      if (cached) return store.setUser(cached);
-    }
+    const authFailure = error instanceof ApiError && (error.status === 401 || error.status === 403);
+    if (cached && !authFailure) return;
     logger.warn('Auth bootstrap failed', error instanceof ApiError ? error.status : error);
+    if (authFailure) return await endSession();
     store.signOut();
   }
+}
+
+async function endSession(): Promise<void> {
+  await clearTokens();
+  useAuthStore.getState().signOut();
 }
 
 function parseCachedUser(json: string | null): User | null {

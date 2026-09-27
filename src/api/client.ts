@@ -53,9 +53,17 @@ apiClient.interceptors.response.use(
     if (error.response?.status !== 401 || config._retried) throw toApiError(error);
 
     // Chưa có phiên (ví dụ login sai mật khẩu) → trả lỗi nguyên bản, không phải "hết phiên".
-    if (!(await getTokens())) throw toApiError(error);
+    const tokens = await getTokens();
+    if (!tokens) throw toApiError(error);
 
     config._retried = true;
+    // Request này gửi đi bằng token cũ, token đã được làm mới trong lúc chờ → chỉ cần retry.
+    const current = `Bearer ${tokens.accessToken}`;
+    if (config.headers.get('Authorization') !== current) {
+      config.headers.set('Authorization', current);
+      return apiClient.request(config);
+    }
+
     const refreshed = await refreshSingleFlight();
     if (!refreshed) throw toApiError(error);
 
@@ -70,6 +78,7 @@ let refreshPromise: Promise<string | null> | null = null;
  * Single-flight (CLAUDE.md §8): mọi request 401 đồng thời chờ CHUNG một lần refresh.
  * Gửi lại refresh token cũ sau khi đã rotate = reuse → server revoke mọi phiên (BR-34).
  * @returns access token mới, hoặc null nếu phiên đã hết (đã xóa token + báo app).
+ * @throws ApiError status 0 khi không tới được server (phiên được giữ nguyên).
  */
 function refreshSingleFlight(): Promise<string | null> {
   refreshPromise ??= refreshTokens().finally(() => {
@@ -94,8 +103,9 @@ async function refreshTokens(): Promise<string | null> {
     // Backend trả 403 cho MỌI lỗi refresh; lỗi mạng cũng coi như không refresh được lần này.
     const status = error instanceof AxiosError ? error.response?.status : undefined;
     if (status === undefined && error instanceof AxiosError) {
+      // Không tới được server: giữ phiên, báo lỗi mạng cho caller (không phải 401 "sai thông tin").
       logger.warn('Refresh failed (network), session kept');
-      return null;
+      throw toApiError(error);
     }
     logger.warn('Refresh rejected, session expired', status);
     await clearTokens();
