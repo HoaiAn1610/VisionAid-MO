@@ -91,6 +91,8 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 2: Auth + Prototype AI (Risk #2)
 
+**Trạng thái (2026-09-27): ✅ Xong.** Auth (login, chặn role, privacy consent, logout, bootstrap offline) + design system; prototype YOLOv8n TFLite chạy trên máy thật, **ADR 0001 đã chấp nhận** (float16 + GPU: khoảng 30 ms inference, khoảng 65 ms toàn chu kỳ). Mang sang Sprint 3: tự lùi GPU → CPU trong hook detector thật, bỏ màn Detector Lab khi Home có camera.
+
 `/ponytail lite` cho phần auth.
 
 | Task                                                                                        | Skill                                                                                 | Done khi                                                                             |
@@ -110,7 +112,7 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 | Priority selector (danger → distance → confidence) + lọc Minimal/Full                           | `/test`                              | Test cả 2 mode                                                                      |
 | Pipeline: frame skipping → inference → NMS → TtsService (DANGER, cooldownKey = class, maxAgeMs) | `/build`, `performance-optimization` | ≤ 500ms/cycle; TTS ≤ 1s                                                             |
 | Navigation session start/end (offline tạo session local) + keep-awake                           | `expo-data-fetching`                 | End session gửi được tổng kết                                                       |
-| `offlineQueue.ts` + ghi detection event (flush tuần tự, chưa có batch — GAP-10)                 | `/test`                              | Test flush theo thứ tự ưu tiên, xóa khi 2xx, bỏ 4xx vĩnh viễn, không drop emergency |
+| `offlineQueue.ts` + ghi detection event (flush qua `/events/batch`, chia lô ~100)               | `/test`                              | Test flush theo thứ tự ưu tiên, xóa khi 2xx, bỏ 4xx vĩnh viễn, không drop emergency |
 | Đo `inference_time_ms`, pin/giờ                                                                 | `observability-and-instrumentation`  | Có số benchmark ghi vào `docs/benchmarks.md`                                        |
 | Review                                                                                          | `/review`, `/ponytail-review`        |                                                                                     |
 
@@ -139,14 +141,14 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 6: Location
 
-| Task                                                                                              | Skill                                                     | Done khi                                 |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
-| Chốt: GPS ngoài session (low-power), GAP-5 (endpoint địa chỉ cho VIU), GAP-7 (cập nhật FCM token) | `/spec`, `interview-me` (với team)                        |                                          |
-| Background location task (headless → SQLite → `POST /api/locations/gps` từng điểm, idempotent)    | `source-driven-development` (expo-location, task-manager) | Không phụ thuộc SignalR trong background |
-| LocationHubClient: chỉ nhận `ArrivalNotification` (foreground, reconnect)                         | `api-and-interface-design`                                | Dedupe với FCM cùng sự kiện              |
-| "Tôi đang ở đâu?" online + cache offline (BR-15)                                                  | `/test` cho nhánh cache                                   |                                          |
-| ArrivalNotification → TTS + haptic                                                                | `/build`                                                  |                                          |
-| FCM token gửi trong `device.fcmToken` lúc login (Firebase cần rebuild dev client)                 | `expo-dev-client`, `source-driven-development`            | `google-services.json` qua EAS secrets   |
+| Task                                                                                                     | Skill                                                     | Done khi                                 |
+| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
+| Chốt: GPS ngoài session (low-power); dùng `/locations/gps/batch`, `/locations/me`, `PUT /auth/fcm-token` | `/spec`, `interview-me` (với team)                        |                                          |
+| Background location task (headless → SQLite → `POST /api/locations/gps` từng điểm, idempotent)           | `source-driven-development` (expo-location, task-manager) | Không phụ thuộc SignalR trong background |
+| LocationHubClient: chỉ nhận `ArrivalNotification` (foreground, reconnect)                                | `api-and-interface-design`                                | Dedupe với FCM cùng sự kiện              |
+| "Tôi đang ở đâu?" online + cache offline (BR-15)                                                         | `/test` cho nhánh cache                                   |                                          |
+| ArrivalNotification → TTS + haptic                                                                       | `/build`                                                  |                                          |
+| FCM token gửi trong `device.fcmToken` lúc login (Firebase cần rebuild dev client)                        | `expo-dev-client`, `source-driven-development`            | `google-services.json` qua EAS secrets   |
 
 ### Sprint 7: Emergency
 
@@ -180,13 +182,13 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở **CLAUDE.md mục 19**. Tóm tắt theo sprint:
 
-| Chặn     | GAP                                                                                                       |
-| -------- | --------------------------------------------------------------------------------------------------------- |
-| Sprint 2 | **GAP-1** `privacyConsentAcceptedAt` chưa được trả về (chặn Privacy Consent), GAP-2 role, GAP-13 dạng lỗi |
-| Sprint 3 | GAP-6 system config cho VIU, GAP-10 batch detection event                                                 |
-| Sprint 5 | **GAP-3** ai chạy OCR, **GAP-4** ai chạy nhận diện khuôn mặt (quyết định kiến trúc)                       |
-| Sprint 6 | **GAP-5** địa chỉ cho "Tôi đang ở đâu", GAP-7 cập nhật FCM token, GAP-10 batch GPS                        |
-| Sprint 7 | GAP-9 `detectedAt`, GAP-11 snapshot riêng, GAP-12 `called`, key độ nhạy fall detection                    |
-| Release  | GAP-8 HTTPS                                                                                               |
+| Chặn     | GAP                                                                                                   |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                           |
+| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                  |
+| Sprint 5 | **GAP-3** ai chạy OCR, **GAP-4** ai chạy nhận diện khuôn mặt (quyết định kiến trúc)                   |
+| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý                                                                      |
+| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection |
+| Release  | GAP-8 HTTPS                                                                                           |
 
 Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.

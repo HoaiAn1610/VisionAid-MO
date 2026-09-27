@@ -1,13 +1,33 @@
 import type { ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors } from './theme';
+import { colors, spacing } from '@/theme';
 
-export function Screen({ children }: { children: ReactNode }) {
-  return <SafeAreaView style={styles.container}>{children}</SafeAreaView>;
+interface Props {
+  children: ReactNode;
+  /** Nội dung dài hoặc có bàn phím (form) → cuộn được. */
+  scroll?: boolean;
+}
+
+export function Screen({ children, scroll = false }: Props) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      {scroll ? (
+        <KeyboardAvoidingView behavior="height" style={styles.flex}>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={[styles.flex, styles.content]}>{children}</View>
+      )}
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: 16, gap: 16 },
+  safe: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  content: { flexGrow: 1, padding: spacing.lg, gap: spacing.lg },
 });

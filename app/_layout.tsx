@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,6 +8,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthBootstrap } from '@/features/auth/useAuthBootstrap';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { useAuthStore } from '@/stores/authStore';
+
+// Giữ splash tới khi biết trạng thái đăng nhập — tránh màn hình trống, im lặng lúc khởi động.
+void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [queryClient] = useState(
@@ -16,6 +20,10 @@ export default function RootLayout() {
   const status = useAuthStore((s) => s.status);
 
   useAuthBootstrap();
+
+  useEffect(() => {
+    if (status !== 'loading') void SplashScreen.hideAsync();
+  }, [status]);
 
   useEffect(() => {
     NetworkMonitor.start();

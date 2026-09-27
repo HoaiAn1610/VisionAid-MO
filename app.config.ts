@@ -11,10 +11,11 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
+  backgroundColor: '#0B0B0C', // nền gốc (expo-system-ui) — tránh chớp trắng khi chuyển màn
   android: {
     package: IS_DEV ? 'vn.visionaid.mobile.dev' : 'vn.visionaid.mobile',
     adaptiveIcon: {
-      backgroundColor: '#000000',
+      backgroundColor: '#0B0B0C',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
@@ -48,9 +49,32 @@ const config: ExpoConfig = {
         image: './assets/splash-icon.png',
         imageWidth: 200,
         resizeMode: 'contain',
-        backgroundColor: '#000000',
+        backgroundColor: '#0B0B0C',
       },
     ],
+    [
+      'expo-font',
+      {
+        // Atkinson Hyperlegible — thiết kế cho người thị lực kém (Braille Institute).
+        // Nhúng lúc build: không nháy font, không cần tải lúc chạy.
+        fonts: [
+          './node_modules/@expo-google-fonts/atkinson-hyperlegible/400Regular/AtkinsonHyperlegible_400Regular.ttf',
+          './node_modules/@expo-google-fonts/atkinson-hyperlegible/700Bold/AtkinsonHyperlegible_700Bold.ttf',
+        ],
+      },
+    ],
+    [
+      'react-native-vision-camera',
+      {
+        cameraPermissionText:
+          'VisionAid dùng camera để phát hiện vật cản trên đường đi. Hình ảnh được xử lý ngay trên điện thoại.',
+        enableMicrophonePermission: false,
+        enableFrameProcessors: true,
+        enableCodeScanner: true, // quét QR on-device (Sprint 5)
+      },
+    ],
+    // GPU delegate cho TFLite trên Android (libOpenCL.so, không bắt buộc có)
+    ['react-native-fast-tflite', { enableAndroidGpuLibraries: true }],
     'expo-secure-store',
     'expo-sqlite',
     [
