@@ -11,10 +11,11 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
+  backgroundColor: '#0B0B0C', // nền gốc (expo-system-ui) — tránh chớp trắng khi chuyển màn
   android: {
     package: IS_DEV ? 'vn.visionaid.mobile.dev' : 'vn.visionaid.mobile',
     adaptiveIcon: {
-      backgroundColor: '#000000',
+      backgroundColor: '#0B0B0C',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
@@ -48,7 +49,18 @@ const config: ExpoConfig = {
         image: './assets/splash-icon.png',
         imageWidth: 200,
         resizeMode: 'contain',
-        backgroundColor: '#000000',
+        backgroundColor: '#0B0B0C',
+      },
+    ],
+    [
+      'expo-font',
+      {
+        // Atkinson Hyperlegible — thiết kế cho người thị lực kém (Braille Institute).
+        // Nhúng lúc build: không nháy font, không cần tải lúc chạy.
+        fonts: [
+          './node_modules/@expo-google-fonts/atkinson-hyperlegible/400Regular/AtkinsonHyperlegible_400Regular.ttf',
+          './node_modules/@expo-google-fonts/atkinson-hyperlegible/700Bold/AtkinsonHyperlegible_700Bold.ttf',
+        ],
       },
     ],
     'expo-secure-store',
