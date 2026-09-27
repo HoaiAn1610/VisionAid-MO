@@ -1,33 +1,67 @@
+import { useState } from 'react';
+import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
+
 import { A11yText } from '@/components/A11yText';
+import { A11yTextInput } from '@/components/A11yTextInput';
 import { BigActionButton } from '@/components/BigActionButton';
 import { Screen } from '@/components/Screen';
+import { Colors } from '@/components/theme';
 import { Strings } from '@/constants/strings.vi';
-import { useAuthStore } from '@/stores/authStore';
+import { loginErrorMessage, useSignIn } from '@/features/auth/useAuthActions';
 
-// TODO(Sprint 2): form đăng nhập (Zod) + POST /api/auth/login + role guard VIU.
 export default function LoginScreen() {
-  const setUser = useAuthStore((s) => s.setUser);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const signIn = useSignIn();
+
+  const submit = () => signIn.mutate({ email, password });
 
   return (
     <Screen>
-      <A11yText variant="title">{Strings.auth.loginTitle}</A11yText>
-      <A11yText>{Strings.screens.notImplemented}</A11yText>
-      {/* ponytail: user giả chỉ ở bản dev, xóa khi có đăng nhập thật (Sprint 2) */}
-      {__DEV__ && (
-        <BigActionButton
-          label={Strings.auth.devBypass}
-          accessibilityHint={Strings.auth.devBypassHint}
-          onPress={() =>
-            setUser({
-              id: 'dev-user',
-              email: 'dev@visionaid.local',
-              fullName: 'Dev VIU',
-              role: 'VisuallyImpaired',
-              privacyConsentAcceptedAt: new Date().toISOString(),
-            })
-          }
-        />
-      )}
+      <KeyboardAvoidingView behavior="height" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <A11yText variant="title">{Strings.auth.loginTitle}</A11yText>
+          <A11yTextInput
+            label={Strings.auth.emailLabel}
+            hint={Strings.auth.emailHint}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            returnKeyType="next"
+          />
+          <A11yTextInput
+            label={Strings.auth.passwordLabel}
+            hint={Strings.auth.passwordHint}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={submit}
+          />
+          {signIn.isError && (
+            <A11yText accessibilityLiveRegion="assertive" style={styles.error}>
+              {loginErrorMessage(signIn.error)}
+            </A11yText>
+          )}
+          <BigActionButton
+            label={signIn.isPending ? Strings.auth.loggingIn : Strings.auth.loginButton}
+            accessibilityHint={Strings.auth.loginHint}
+            onPress={submit}
+            disabled={signIn.isPending}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  content: { gap: 24, paddingBottom: 24 },
+  error: { color: Colors.danger, fontWeight: '700' },
+});
