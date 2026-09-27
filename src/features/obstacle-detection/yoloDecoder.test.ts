@@ -1,0 +1,77 @@
+import { decodeYoloOutput, nonMaxSuppression, type Detection } from './yoloDecoder';
+
+const CLASSES = 3;
+
+/**
+ * Dựng tensor output YOLOv8 dạng [1, 4 + classes, anchors] (channels-first, như bản export TFLite):
+ * data[c * anchors + i] — c = 0..3 là cx, cy, w, h; c = 4.. là điểm từng class.
+ */
+function tensor(anchors: { box: [number, number, number, number]; scores: number[] }[]) {
+  const n = anchors.length;
+  const data = new Float32Array((4 + CLASSES) * n);
+  anchors.forEach((a, i) => {
+    a.box.forEach((v, c) => (data[c * n + i] = v));
+    a.scores.forEach((s, k) => (data[(4 + k) * n + i] = s));
+  });
+  return { data, n };
+}
+
+describe('decodeYoloOutput', () => {
+  it('lấy class có điểm cao nhất mỗi anchor, lọc theo ngưỡng confidence', () => {
+    const { data, n } = tensor([
+      { box: [0.5, 0.5, 0.2, 0.4], scores: [0.1, 0.9, 0.2] },
+      { box: [0.2, 0.2, 0.1, 0.1], scores: [0.3, 0.2, 0.1] }, // dưới ngưỡng
+    ]);
+    const dets = decodeYoloOutput(data, n, CLASSES, 0.5);
+    expect(dets).toHaveLength(1);
+    expect(dets[0]).toMatchObject({ classId: 1, score: expect.closeTo(0.9, 5) });
+    // cx,cy,w,h → x,y góc trên-trái (chuẩn hóa 0–1)
+    expect(dets[0]?.x).toBeCloseTo(0.4, 5);
+    expect(dets[0]?.y).toBeCloseTo(0.3, 5);
+    expect(dets[0]?.w).toBeCloseTo(0.2, 5);
+    expect(dets[0]?.h).toBeCloseTo(0.4, 5);
+  });
+
+  it('toạ độ theo pixel của input (320) → tự chuẩn hóa về 0–1', () => {
+    const { data, n } = tensor([{ box: [160, 160, 64, 128], scores: [0.8, 0, 0] }]);
+    const [d] = decodeYoloOutput(data, n, CLASSES, 0.5, 320);
+    expect(d?.x).toBeCloseTo(0.4, 5);
+    expect(d?.h).toBeCloseTo(0.4, 5);
+  });
+
+  it('box tràn ra ngoài khung → kẹp trong 0–1', () => {
+    const { data, n } = tensor([{ box: [0.05, 0.95, 0.2, 0.2], scores: [0.8, 0, 0] }]);
+    const [d] = decodeYoloOutput(data, n, CLASSES, 0.5);
+    expect(d?.x).toBe(0);
+    expect((d?.y ?? 0) + (d?.h ?? 0)).toBeCloseTo(1, 5);
+  });
+});
+
+describe('nonMaxSuppression', () => {
+  const det = (classId: number, score: number, x: number): Detection => ({
+    classId,
+    score,
+    x,
+    y: 0.1,
+    w: 0.3,
+    h: 0.3,
+  });
+
+  it('giữ box điểm cao nhất, loại box cùng class chồng lấn mạnh', () => {
+    const kept = nonMaxSuppression([det(0, 0.7, 0.12), det(0, 0.9, 0.1)], 0.5);
+    expect(kept).toEqual([det(0, 0.9, 0.1)]);
+  });
+
+  it('không loại box khác class dù chồng lấn (xe máy đứng cạnh người)', () => {
+    expect(nonMaxSuppression([det(0, 0.9, 0.1), det(1, 0.8, 0.1)], 0.5)).toHaveLength(2);
+  });
+
+  it('giữ box cùng class nhưng không chồng lấn', () => {
+    expect(nonMaxSuppression([det(0, 0.9, 0.0), det(0, 0.8, 0.6)], 0.5)).toHaveLength(2);
+  });
+
+  it('giới hạn số box trả về, sắp xếp theo điểm giảm dần', () => {
+    const many = [0.6, 0.9, 0.7, 0.8].map((s, i) => det(0, s, i * 0.35));
+    expect(nonMaxSuppression(many, 0.5, 2).map((d) => d.score)).toEqual([0.9, 0.8]);
+  });
+});
