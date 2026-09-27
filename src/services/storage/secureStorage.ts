@@ -5,6 +5,7 @@ const KEYS = {
   accessToken: 'va_access_token',
   refreshToken: 'va_refresh_token',
   clientDeviceId: 'va_client_device_id',
+  cachedUser: 'va_cached_user',
 } as const;
 
 export interface TokenPair {
@@ -29,12 +30,22 @@ export async function saveTokens(tokens: TokenPair): Promise<void> {
   ]);
 }
 
-/** Xóa token khi logout — GIỮ clientDeviceId. */
+/** Xóa token + profile cache khi logout / hết phiên — GIỮ clientDeviceId. */
 export async function clearTokens(): Promise<void> {
   await Promise.all([
     SecureStore.deleteItemAsync(KEYS.accessToken),
     SecureStore.deleteItemAsync(KEYS.refreshToken),
+    SecureStore.deleteItemAsync(KEYS.cachedUser),
   ]);
+}
+
+/** Profile gần nhất (JSON) để mở app khi offline — không chứa token. */
+export async function getCachedUser(): Promise<string | null> {
+  return SecureStore.getItemAsync(KEYS.cachedUser);
+}
+
+export async function saveCachedUser(json: string): Promise<void> {
+  await SecureStore.setItemAsync(KEYS.cachedUser, json);
 }
 
 /** UUID v4 sinh một lần khi cài app, dùng chung cho refresh token và FCM token. */

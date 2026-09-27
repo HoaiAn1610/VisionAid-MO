@@ -63,8 +63,8 @@
 ### Native / Device
 | Chức năng | Package | Ghi chú |
 |---|---|---|
-| Camera + frame processing | `react-native-vision-camera` (+ `react-native-worklets-core`) | Frame processor cho YOLO real-time |
-| On-device AI (YOLOv8n INT8) | `onnxruntime-react-native` | Theo tài liệu dự án. **Fallback** nếu tích hợp frame processor thất bại: `react-native-fast-tflite` (export YOLOv8n → TFLite INT8), hoặc cuối cùng là server-side detection (Risk #2) |
+| Camera + frame processing | `react-native-vision-camera` **4.7.x** (+ `react-native-worklets-core`, `vision-camera-resize-plugin`) | Frame processor cho YOLO real-time. **Giữ v4**: bản tích hợp fast-tflite cho VisionCamera v5 chưa công khai (ADR 0001) |
+| On-device AI (YOLOv8n) | **`react-native-fast-tflite` 3.x** (TFLite, `runSync` trong frame processor; delegate CPU/GPU/NNAPI) | **ADR 0001** (`docs/adr/0001-on-device-inference.md`): không dùng `onnxruntime-react-native` vì không chạy được trong frame processor (chỉ có API bất đồng bộ trên JS thread). Model: input 320×320 RGB float32, output `[1, 84, 2100]` |
 | QR scan | `react-native-vision-camera` code scanner | On-device, không cần mạng để đọc nội dung QR |
 | TTS | `expo-speech` | Giọng tiếng Việt `vi-VN`; bọc trong `TtsService` có priority queue |
 | STT Online | `expo-speech-recognition` (hoặc `@react-native-voice/voice`) | Dùng Google Speech qua Android SpeechRecognizer (không nhúng API key trong app). `@react-native-voice/voice` ít được bảo trì — ưu tiên `expo-speech-recognition` nếu tương thích |
@@ -148,7 +148,7 @@ visionaid-mobile/
 │
 ├── assets/
 │   └── models/
-│       └── yolov8n_int8.onnx             # (hoặc .tflite nếu dùng fallback) — Whisper model tải runtime, không để ở đây
+│       └── yolov8n_float16.tflite        # 6.4MB, chạy GPU delegate (lùi về CPU) — cách export: ADR 0001 §6. Whisper model tải runtime, không để ở đây
 │
 ├── __tests__/ (hoặc *.test.ts cạnh file)
 ├── app.config.ts                         # Permissions, plugins, Android config
@@ -187,11 +187,11 @@ Ngoài màn hình: xem profile, đổi mật khẩu, logout (UC-3..6).
 Launch
  ├─ Chưa có token        → Login
  ├─ Role ≠ VisuallyImpaired → từ chối + logout (backend KHÔNG chặn role ở login — mobile tự chặn)
- ├─ privacy_consent_accepted_at == null → Privacy Consent (bắt buộc) — ⚠️ backend chưa trả field này (GAP-1)
+ ├─ privacyConsentAcceptedAt == null (hoặc privacyPolicyVersion ≠ bản hiện tại) → Privacy Consent (bắt buộc)
  └─ OK → Home
-         ├─ Load: /users/me, /users/me/tts-preferences, /users/me/emergency-contacts (cache SQLite)
-         │   (system configs: endpoint chỉ dành cho Admin → mobile dùng BusinessRules mặc định, GAP-6)
-         ├─ FCM token: đã gửi kèm lúc login (device.fcmToken); token đổi → cần login lại / GAP-7
+         ├─ Load: /users/me, /users/me/tts-preferences, /users/me/emergency-contacts (cache SQLite),
+         │        /system-configs/public (ghi đè BusinessRules)
+         ├─ FCM token: gửi kèm lúc login (device.fcmToken); Firebase đổi token → PUT /auth/fcm-token
          ├─ Connect SignalR (/hubs/location) — chỉ để nhận ArrivalNotification
          ├─ Start: BatteryMonitor, NetworkMonitor (FallDetector chỉ chạy trong navigation session — xem 9.7)
          └─ TTS: "VisionAid đã sẵn sàng. Chạm hai lần hoặc nói 'bắt đầu' để dẫn đường."
@@ -280,26 +280,33 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 
 | Method | Endpoint | Body / ghi chú |
 |---|---|---|
-| POST | `/api/auth/login` | `{ email, password, device: { clientDeviceId, fcmToken?, deviceType: "Android", deviceModel?, appVersion? } }` → `ApiResponse<AuthTokenResponse>` `{ accessToken, refreshToken, expiresAt (hạn REFRESH token), userId, email, role, organizationId }`. Sai mật khẩu → 401, tài khoản bị khóa → 403 |
+| POST | `/api/auth/login` | `{ email, password, device: { clientDeviceId, fcmToken?, deviceType: "Android", deviceModel?, appVersion? } }` → `ApiResponse<AuthTokenResponse>` `{ accessToken, refreshToken, expiresAt (hạn REFRESH token), userId, email, role, organizationId, privacyConsentAcceptedAt, privacyPolicyVersion }`. Sai mật khẩu → 401, tài khoản bị khóa → 403 |
 | POST | `/api/auth/refresh` | `{ refreshToken, clientDeviceId }` → cặp token mới (cùng shape như login). Mọi lỗi → **403** |
 | POST | `/api/auth/logout` | `{ clientDeviceId }` → revoke refresh token + tắt FCM của device |
 | POST | `/api/auth/accept-privacy-policy` | `{ policyVersion }` |
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` |
-| GET / PUT | `/api/users/me` | GET → `UserResponse { id, email, fullName, phoneNumber, role, organizationId, isActive, avatarUrl, lastLoginAt, deletedAt, createdAt, updatedAt }` (**không có** privacy consent — GAP-1). PUT `{ fullName?, phoneNumber?, avatarUrl? }` |
+| PUT | `/api/auth/fcm-token` | `{ fcmToken, clientDeviceId, deviceType?, deviceModel?, appVersion? }`: gọi khi Firebase rotate token |
+| GET / PUT | `/api/users/me` | GET → `UserResponse { id, email, fullName, phoneNumber, role, organizationId, isActive, avatarUrl, lastLoginAt, deletedAt, createdAt, updatedAt, privacyConsentAcceptedAt, privacyPolicyVersion }`. PUT `{ fullName?, phoneNumber?, avatarUrl? }` |
 | GET / PUT | `/api/users/me/tts-preferences` | `{ voiceGender, speedRate?, volumeLevel?, detectionMode, primaryLanguage?, secondaryLanguage? }` |
+| GET | `/api/system-configs/public?category=` | **Anonymous**. `PagedResult<{ configKey, configValue (string), valueType, category, minValue?, maxValue?, … }>`: ghi đè `BusinessRules` lúc runtime |
 | GET | `/api/users/me/emergency-contacts` | `EmergencyContactResponse[] { id, contactName, contactType, phoneNumber?, zaloDeepLink?, priorityOrder, isActive, notes? … }` — VIU chỉ đọc |
 | POST / GET | `/api/navigation/sessions` | POST `{ detectionMode, deviceModel?, appVersion?, startedAt? }` → session (có `id`) |
 | PATCH | `/api/navigation/sessions/{id}/end` | `{ endedAt? }`. Session đã end → 422 |
 | POST | `/api/navigation/sessions/{id}/events` | **Từng event một** (không phải batch): `{ objectClass, confidenceScore, distanceRange, boundingBox (string), alertIssued, inferenceTimeMs?, detectedAt, latitude?, longitude? }` |
+| POST | `/api/navigation/sessions/{id}/events/batch` | Mảng các event như trên → `{ … số event, số alert }`. **Dùng cái này khi flush queue** |
 | POST | `/api/ocr/requests` | multipart: `Image?`, `TriggerMethod`, `RawText?`, `ProcessedText?`, `ConfidenceScore?`, `OcrEngine?`, `LanguageDetected?`, `ProcessingTimeMs?`, `ResultStatus`, `ErrorMessage?`, `TtsAnnounced`, `RequestedAt?`, `Latitude?`, `Longitude?` — **chỉ ghi log kết quả, server KHÔNG chạy OCR** (GAP-3) |
 | POST | `/api/ocr/qr-scans` | multipart: `QrContent`, `QrType?`, `IsUrl`, `UrlDomain?`, `TriggerMethod`, `ResultStatus`, `ScannedAt?`, `Latitude?`, `Longitude?`, `Image?` … |
 | POST | `/api/face-registry/recognition-logs` | JSON `{ matchedPersonId?, similarityScore?, recognitionResult, estimatedDistance, processingTimeMs?, recognizedAt?, errorMessage? }` — **chỉ ghi log**, không có endpoint nhận diện (GAP-4) |
+| GET | `/api/face-registry/persons/me?isActive=` | VIU đọc registry **của chính mình**: `FaceRegistryPersonResponse[] { id, displayName, relationship?, isActive, images: [{ embeddingVector?, embeddingModel?, isPrimaryImage, … }] }` → đủ dữ liệu để nhận diện on-device |
 | POST | `/api/voice-commands` | **Từng log một**: `{ rawTranscript?, matchedCommand?, recognitionEngine? (chuỗi tự do), confidenceScore?, executionStatus, requiredConfirmation, confirmedAt?, processingTimeMs?, audioDurationMs?, isOffline, executedAt?, latitude?, longitude? }` |
-| POST | `/api/locations/gps` | **Từng điểm một**: `{ clientGeneratedId, latitude, longitude, accuracyMeters?, altitude?, speedMps?, heading?, batteryLevel? (int), networkStatus, recordedAt, sessionId? }`. **Idempotent**: trùng `clientGeneratedId` → 200 "already recorded" (không trả 409). Response không có địa chỉ (GAP-5) |
-| POST | `/api/emergency-events` | `{ detectionMethod (chuỗi, parse không phân biệt hoa thường), latitude?, longitude?, accelerometerData? (string), notes?, snapshotBase64? }` → `EmergencyEventResponse` (có `id`). `AccelerometerCamera` → `Detected` + grace 15s; loại khác → `Sent` ngay. **Không nhận `detectedAt`** (server dùng NOW — GAP-9). Snapshot gửi **inline base64** (không có endpoint `/snapshot`) |
+| POST | `/api/locations/gps` | **Từng điểm một**: `{ clientGeneratedId, latitude, longitude, accuracyMeters?, altitude?, speedMps?, heading?, batteryLevel? (int), networkStatus, recordedAt, sessionId? }`. **Idempotent**: trùng `clientGeneratedId` → 200 "already recorded" (không trả 409). Response: `GpsRecordResponse { latitude, longitude, formattedAddress?, street?, district?, city?, recordedAt }` |
+| POST | `/api/locations/gps/batch` | Mảng điểm GPS như trên → `{ accepted, skipped }` (tự bỏ qua trùng `clientGeneratedId`). **Dùng khi flush queue** |
+| GET | `/api/locations/me` | Vị trí + địa chỉ đã cache gần nhất: `{ latitude, longitude, formattedAddress, street?, district?, city?, cachedAt, … }`; chưa có dữ liệu → 404 |
+| POST | `/api/emergency-events` | `{ detectionMethod (chuỗi, parse không phân biệt hoa thường), latitude?, longitude?, accelerometerData? (string), notes?, snapshotBase64?, snapshotContentType?, detectedAt? }` → `EmergencyEventResponse` (có `id`). `AccelerometerCamera` → `Detected` + grace = `detectedAt` + 15s; loại khác → `Sent` ngay. Snapshot gửi **inline base64** (không có endpoint `/snapshot` riêng — GAP-11) |
 | PUT | `/api/emergency-events/{id}/dismiss` | `{ notes? }`. Chỉ khi `Detected` và còn trong grace; quá grace → **422** |
+| ~~PUT~~ | `/api/emergency-events/{id}/called` | **Chỉ Caregiver/CenterAdmin** (người chăm sóc đánh dấu đã gọi). Mobile KHÔNG gọi |
 
-Không có: `/api/fcm-tokens`, `/api/system-configs/public` (chỉ Admin), `/api/locations/batch`, `/api/locations/reverse-geocode`, `/api/emergency-events/{id}/called`, `/api/emergency-events/{id}/snapshot`, `/api/face-registry/recognize` → xem mục 19.
+Không có: `/api/emergency-events/{id}/snapshot` (GAP-11), `/api/face-registry/recognize` và endpoint chạy OCR phía server (GAP-3, GAP-4) → xem mục 19.
 
 ### Enum serialization
 Backend dùng `JsonStringEnumConverter` mặc định → enum trong JSON là **tên C# PascalCase**: `"AccelerometerCamera"`, `"Near"`, `"Minimal"`, `"Android"`, `"VisuallyImpaired"`. DB lưu SCREAMING_SNAKE nhưng **API không dùng dạng đó**. Role trong JWT và trong response cũng là PascalCase.
@@ -379,17 +386,17 @@ Server revoke mọi token + terminate GPS sessions → client nhận 401 ở l�
 ### 9.1 Obstacle Detection (YOLOv8n — OFFLINE)
 ```
 Camera (vision-camera) → frame processor (frame skipping) → resize/normalize
-→ YOLOv8n INT8 inference (ONNX Runtime) → NMS → lọc confidence >= yolo_confidence_threshold
+→ YOLOv8n inference (TFLite qua react-native-fast-tflite, 320×320) → NMS → lọc confidence >= yolo_confidence_threshold
 → ước lượng distance range → chọn object ưu tiên → TtsService.enqueue(priority)
 ```
 - **Performance:** ≤ 500ms/cycle trên Android mid-range (Galaxy A-series, 4GB RAM); TTS từ lúc detect → phát âm ≤ 1s.
 - **Frame skipping:** không inference mọi frame (ví dụ 2–4 fps inference), tùy chỉnh để giữ pin ≤ 20%/giờ.
 - **Distance (BR-11, LI-01):** chỉ categorical `Near / Medium / Far`, ước lượng từ tỉ lệ bounding box so với frame (ngưỡng đặt trong `businessRules.ts`, tinh chỉnh khi benchmark). **KHÔNG BAO GIỜ đọc số mét/khoảng cách tuyệt đối.**
 - **Priority (BR-12):** mỗi cycle chỉ announce object **gần nhất + nguy hiểm nhất** (sort: danger flag → distance Near>Medium>Far → confidence).
-- **Cooldown (BR-13):** mỗi `object_class` tối thiểu **3s** (`BusinessRules.TTS_COOLDOWN_SECONDS`; VIU không đọc được system config — GAP-6) giữa 2 lần announce.
+- **Cooldown (BR-13):** mỗi `object_class` tối thiểu **3s** (`tts_cooldown_seconds` từ `/system-configs/public`, mặc định `BusinessRules.TTS_COOLDOWN_SECONDS`) giữa 2 lần announce.
 - **Minimal Mode:** chỉ announce class có cờ `dangerous` trong `obstacleClasses.ts` (xe máy, ô tô, xe buýt, xe tải, xe đạp, bậc thang/hố... — danh sách chốt theo class model hỗ trợ). **Full Mode:** announce tất cả.
 - **Câu TTS:** `"{Tên vật tiếng Việt} {ở gần | phía trước | ở xa}"` — ngắn gọn.
-- **Logging:** ghi event (`objectClass`, `confidenceScore`, `distanceRange`, `boundingBox` — chuỗi JSON toạ độ chuẩn hoá 0–1, `alertIssued`, `inferenceTimeMs`, `detectedAt`, `latitude`, `longitude`) vào SQLite → flush định kỳ / khi online. Backend **chỉ nhận từng event một** (`POST /navigation/sessions/{id}/events`) → flush tuần tự, giới hạn số request/lần flush; chỉ log event có `alertIssued = true` hoặc lấy mẫu để tránh spam (batch endpoint = GAP-10).
+- **Logging:** ghi event (`objectClass`, `confidenceScore`, `distanceRange`, `boundingBox` — chuỗi JSON toạ độ chuẩn hoá 0–1, `alertIssued`, `inferenceTimeMs`, `detectedAt`, `latitude`, `longitude`) vào SQLite → flush định kỳ / khi online. Flush qua **`POST /navigation/sessions/{id}/events/batch`** (mỗi batch tối đa ~100 event; backend chưa đặt giới hạn nên client tự chia). Chỉ log event có `alertIssued = true` hoặc lấy mẫu để tránh phình dữ liệu.
 - **Session:** Start → `POST /navigation/sessions { detectionMode, deviceModel, appVersion, startedAt }` (nếu offline: tạo session local, sync sau với `startedAt` gốc) + bắt đầu GPS sharing (UC-22 included) + bật FallDetector. End → `PATCH /navigation/sessions/{id}/end { endedAt }`, tắt FallDetector.
 
 ### 9.2 TTS Service — Priority Queue (FE-35)
@@ -413,10 +420,8 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 - Offline → TTS: "Tính năng đọc chữ cần kết nối mạng" (vẫn cho phép quét QR).
 
 ### 9.4 Face Recognition (ONLINE)
-- ⚠️ **GAP-4: backend KHÔNG có endpoint nhận diện.** Chỉ có `POST /api/face-registry/recognition-logs` (JSON: `matchedPersonId`, `similarityScore`, `recognitionResult`, `estimatedDistance`, `processingTimeMs`, `recognizedAt`, `errorMessage`) để **ghi log kết quả**. Face registry (có `embeddingVector`) chỉ Caregiver đọc được, VIU thì không. Hai hướng, **cần team chốt trước Sprint 5**:
-  - (a) Backend thêm `POST /api/face-registry/recognize` (ảnh → FaceNet + pgvector → kết quả), hoặc
-  - (b) Backend cho VIU tải embedding registry của chính mình, điện thoại chạy FaceNet on-device rồi so cosine; sau đó gửi log.
-- Luồng dự kiến (hướng a): chụp ảnh → recognize → nhận `{ result, displayName, relationship, similarityScore }` → TTS → gửi log.
+- ⚠️ **GAP-4: backend KHÔNG có endpoint nhận diện.** Chỉ có `POST /api/face-registry/recognition-logs` (JSON: `matchedPersonId`, `similarityScore`, `recognitionResult`, `estimatedDistance`, `processingTimeMs`, `recognizedAt`, `errorMessage`) để **ghi log kết quả**. Backend đã thêm **`GET /api/face-registry/persons/me`** trả registry của VIU kèm `embeddingVector` → hướng khả thi hiện tại là **nhận diện on-device**: tải embedding (cache trong bộ nhớ, xóa khi logout) → chụp ảnh → FaceNet on-device tạo embedding → so cosine với từng ảnh → gửi log. **Cần team xác nhận** hướng này (và model/kích thước embedding khớp với lúc Caregiver upload: xem `embeddingModel`), hay backend sẽ thêm `POST /face-registry/recognize`.
+- Luồng: tải registry → chụp ảnh → embedding → cosine similarity **>** ngưỡng → TTS → `POST /face-registry/recognition-logs`.
 - Chỉ announce khi `Matched` (similarity **>** threshold, mặc định 0.75 — BR-21): TTS "{display_name} ({relationship}) ở phía trước".
 - `NotMatched` → "Không nhận ra người này". `LowConfidence` → "Chưa rõ, vui lòng hướng camera thẳng vào khuôn mặt".
 - **Privacy (BR-22):** ảnh tạm dùng để nhận diện **xóa khỏi thiết bị ngay** sau khi request xong (kể cả lỗi) — dùng `finally`. KHÔNG lưu vào gallery, KHÔNG cache, KHÔNG log.
@@ -444,11 +449,10 @@ Kích hoạt (nút lớn / cử chỉ) → Voice Listening Bottom Sheet + haptic
   - Endpoint **idempotent** theo `clientGeneratedId` (trùng → 200 "already recorded"), nên retry an toàn.
 - **Phạm vi thời gian (cần chốt với team):** UC-22/23 gắn GPS sharing với navigation session (Start → bật, End → tắt). Nhưng geofence breach (FE-19, FE-29) cần GPS cả khi không navigate → đề xuất: ngoài session vẫn tracking **low-power** (tần suất thấp), trong session tracking tần suất cao.
 - Payload: `clientGeneratedId, latitude, longitude, accuracyMeters, altitude, speedMps, heading, batteryLevel (int %), networkStatus, recordedAt, sessionId?`.
-- **Offline:** lưu vào SQLite offline queue → khi online flush **tuần tự** qua `POST /api/locations/gps` (chưa có batch — GAP-10).
+- **Offline:** lưu vào SQLite offline queue → khi online flush qua **`POST /api/locations/gps/batch`** (chia batch ~100 điểm; backend tự bỏ qua trùng `clientGeneratedId`).
 - **Low-power:** giảm tần suất khi đứng yên; tăng tần suất khi đang di chuyển trong session.
 - **"Tôi đang ở đâu?" (BR-15):**
-  - ⚠️ **GAP-5:** backend tự reverse-geocode (Mapbox) mỗi lần nhận GPS và lưu vào `location_cache`, nhưng **không có endpoint nào cho VIU đọc địa chỉ** (`/locations/live` chỉ dành cho Caregiver/CenterAdmin; `/locations/gps` không trả địa chỉ). Cần backend thêm ví dụ `GET /api/locations/me/current-address`, hoặc trả `formattedAddress` trong response của `/locations/gps`.
-  - Online (khi có endpoint) → lấy địa chỉ → TTS → lưu cache SQLite (`formatted_address`, `cached_at`).
+  - Online → gửi điểm GPS hiện tại qua `POST /api/locations/gps` (response có `formattedAddress` mới nhất) — hoặc `GET /api/locations/me` nếu vừa gửi GPS gần đây → TTS địa chỉ → lưu cache SQLite (`formatted_address`, `cached_at`). `/locations/me` trả 404 khi chưa có dữ liệu → coi như chưa có vị trí.
   - Offline → đọc cache: "Vị trí gần nhất được ghi nhận lúc {HH:mm}, {ngày}: {địa chỉ}. Thông tin này có thể không còn chính xác."
   - Không có cache → "Chưa có thông tin vị trí đã lưu".
 - **Arrival notification (BR-32):** server (BoundaryMonitor) phát hiện → SignalR event `ArrivalNotification` gửi group `viu_{userId}` với payload `{ viuId, savedLocationId, savedLocationName, ttsAnnouncement?, latitude, longitude, occurredAt }` → app TTS `savedLocationName` + `ttsAnnouncement` (nếu có) + haptic. Server **cũng gửi FCM** cho VIU (khi rule FCM cho `ArrivalNotification` bật) để thiết bị offline/background vẫn TTS được. Nếu app nhận cả hai thì phải dedupe theo `savedLocationId` + `occurredAt`.
@@ -466,8 +470,8 @@ Một tín hiệu đơn lẻ **KHÔNG BAO GIỜ** trigger alert.
 **Luồng `AccelerometerCamera` (BR-27, BR-28):**
 ```
 Phát hiện té ngã
-→ POST /api/emergency-events { detectionMethod: "AccelerometerCamera", accelerometerData (string), latitude, longitude, snapshotBase64? }
-   (server set Detected + grace_period_ends_at = NOW + 15s; trả về event có id)
+→ POST /api/emergency-events { detectionMethod: "AccelerometerCamera", detectedAt (giờ thiết bị), accelerometerData (string), latitude, longitude, snapshotBase64?, snapshotContentType? }
+   (server set Detected + grace_period_ends_at = detectedAt + 15s; trả về event có id)
 → Snapshot đi INLINE trong cùng request (snapshotBase64, JPEG đã nén nhỏ). Backend không có endpoint /snapshot riêng;
   upload MinIO lỗi thì server vẫn tạo event. Ảnh phải nén mạnh để không làm chậm việc tạo event (GAP-11: tách snapshot ra endpoint riêng)
 → Emergency SOS UI: đếm ngược 15s bằng TTS ("Phát hiện té ngã. Nói 'Tôi ổn' hoặc chạm màn hình để hủy. 15... 14...")
@@ -478,17 +482,17 @@ Phát hiện té ngã
       → app TTS "Đã gửi cảnh báo đến người chăm sóc" (Alert confirmation)
 ```
 - Grace period được **server làm chuẩn** (source of truth); countdown trên app chỉ là UI. Việc dismiss phải gọi API trước khi server hết grace.
-- ⚠️ **GAP-9:** backend **không nhận `detectedAt`** (luôn dùng `NOW()`). Nếu event té ngã được sync muộn từ offline queue, server sẽ chờ thêm 15s thay vì dispatch ngay. Tạm thời: event offline đã quá grace thì gửi với `detectionMethod` như cũ, ghi thời điểm thật vào `notes`. Đề xuất backend nhận `detectedAt` từ thiết bị.
+- Luôn gửi `detectedAt` từ thiết bị: event sync muộn từ offline queue → server tính grace từ thời điểm té thật (đã quá 15s → dispatcher gửi ngay). Đồng hồ thiết bị có thể lệch; backend chưa giới hạn `detectedAt` so với giờ server.
 - ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
 - **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
 
 **Luồng `Manual` / `VoiceCommand` / `Gesture`:**
 ```
 Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation bắt buộc (10s timeout)
-→ POST /api/emergency-events { detectionMethod: "Manual" | "VoiceCommand" | "Gesture", latitude, longitude }
+→ POST /api/emergency-events { detectionMethod: "Manual" | "VoiceCommand" | "Gesture", detectedAt, latitude, longitude }
    (server set Sent ngay, grace = NULL, tạo notification cho Caregiver)
 → TTS "Đã gửi cảnh báo khẩn cấp" → gọi emergency contact theo priorityOrder (Phone/Both: ACTION_CALL qua phoneNumber, Zalo: zaloDeepLink)
-→ (GAP-12: chưa có endpoint đánh dấu "đã gọi" — bỏ bước POST /{id}/called cho đến khi backend bổ sung)
+→ (Trạng thái `Called` do Caregiver/CenterAdmin đánh dấu qua PUT /{id}/called — mobile KHÔNG gọi endpoint này)
 ```
 - Emergency contacts cache trong SQLite để dùng được khi offline.
 - KHÔNG bao giờ gọi acknowledge / escalate / resolve từ mobile — đó là hành động của Caregiver (backend cũng chặn theo role).
@@ -509,7 +513,7 @@ Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation b
 ```ts
 // src/constants/businessRules.ts
 // Giá trị mặc định, khớp VisionAid-BE/src/Shared/Common/BusinessRules.cs.
-// `/api/system-configs` chỉ Admin đọc được → VIU hiện KHÔNG ghi đè lúc runtime được (GAP-6).
+// Ghi đè lúc runtime bằng `GET /api/system-configs/public` (anonymous) theo `configKey` tương ứng.
 export const BusinessRules = {
   // AI thresholds
   YOLO_DEFAULT_CONFIDENCE: 0.5,            // yolo_confidence_threshold
@@ -600,7 +604,7 @@ export const BusinessRules = {
 | "Tôi đang ở đâu" | ⚠️ | Địa chỉ cache + timestamp (BR-15) |
 | GPS sharing | ⚠️ | Lưu SQLite, flush khi online |
 
-**Offline queue (SQLite):** bảng `pending_gps`, `pending_detection_events`, `pending_voice_logs`, `pending_qr_logs`, `pending_emergency_events`. Flush theo thứ tự ưu tiên: emergency → GPS → logs. Backend **không có endpoint batch** nên flush từng item một (tuần tự, có giới hạn mỗi lần). Retry với exponential backoff; xóa item khi server trả 2xx (GPS trùng `clientGeneratedId` cũng trả 200). Các lỗi 4xx vĩnh viễn (400/422, trừ 401/429) → bỏ item, log cảnh báo, để khỏi kẹt queue. Giới hạn dung lượng queue (drop log cũ nhất trước, KHÔNG BAO GIỜ drop emergency).
+**Offline queue (SQLite):** bảng `pending_gps`, `pending_detection_events`, `pending_voice_logs`, `pending_qr_logs`, `pending_emergency_events`. Flush theo thứ tự ưu tiên: emergency → GPS → logs. GPS và detection event flush bằng **endpoint batch** (chia lô ~100); voice log / QR log / emergency gửi từng item. Retry với exponential backoff; xóa item khi server trả 2xx (GPS trùng `clientGeneratedId` cũng trả 200). Các lỗi 4xx vĩnh viễn (400/422, trừ 401/429) → bỏ item, log cảnh báo, để khỏi kẹt queue. Giới hạn dung lượng queue (drop log cũ nhất trước, KHÔNG BAO GIỜ drop emergency).
 
 **Quy tắc:** mọi lời gọi network phải bọc try/catch + kiểm tra `NetworkMonitor` trước; lỗi mạng KHÔNG được làm crash hay treo UI.
 
@@ -646,7 +650,7 @@ EXPO_PUBLIC_PRIVACY_POLICY_VERSION=1.0
 1. TypeScript strict, không `any`, không `// @ts-ignore` khi chưa giải thích lý do.
 2. Function components + hooks. Không class components.
 3. Screen trong `app/` mỏng — logic trong `src/features/*` và `src/services/*`.
-4. Không hard-code config/ngưỡng — dùng `BusinessRules` (giữ khớp `BusinessRules.cs` của backend; ghi đè runtime khi có endpoint config cho VIU — GAP-6).
+4. Không hard-code config/ngưỡng — dùng `BusinessRules` (giữ khớp `BusinessRules.cs` của backend; ghi đè runtime bằng `/system-configs/public`).
 5. Không hard-code chuỗi tiếng Việt trong component — dùng `strings.vi.ts`.
 6. Async function đặt tên rõ động từ (`uploadOcrImage`, `fetchTtsPreferences`); luôn xử lý lỗi — không để unhandled promise rejection.
 7. Mọi listener/subscription (sensors, NetInfo, SignalR, location task, camera) phải cleanup trong `useEffect` return / service `stop()`.
@@ -738,40 +742,48 @@ Sprint 8 — Settings, Hardening & Release
 | `refresh_tokens`, `fcm_device_tokens` | Gián tiếp qua `/auth/login` (FCM trong `device`), `/auth/refresh`, `/auth/logout` | Khớp nhau bằng `client_device_id` |
 | `user_tts_preferences` | Đọc/ghi qua `/users/me/tts-preferences` | 1-1 với user |
 | `emergency_contacts` | Chỉ đọc | Caregiver quản lý; sort `priority_order ASC`, tối đa 5 |
-| `obstacle_detection_sessions` / `_events` | Ghi | Event gửi từng cái một (chưa có batch) |
+| `obstacle_detection_sessions` / `_events` | Ghi | Event flush theo batch (`/events/batch`) |
 | `ocr_requests`, `qr_scan_results` | Ghi log (qua API) | VIU không xem history |
-| `face_recognition_logs` | **Mobile ghi log** qua `/face-registry/recognition-logs` | Chưa có endpoint recognize (GAP-4) |
+| `face_registry_persons` / `_images` | Chỉ đọc registry của mình (`/face-registry/persons/me`, có embedding) | Caregiver quản lý |
+| `face_recognition_logs` | **Mobile ghi log** qua `/face-registry/recognition-logs` | Nhận diện on-device (GAP-4 chờ xác nhận) |
 | `location_history` | Ghi | `client_generated_id` UNIQUE, endpoint idempotent |
-| `location_cache` | Server cập nhật khi nhận GPS; mobile chưa đọc được (GAP-5) | Mobile có bản cache SQLite riêng |
+| `location_cache` | Server cập nhật khi nhận GPS; mobile đọc qua `/locations/me` hoặc response `/locations/gps` | Mobile có bản cache SQLite riêng |
 | `saved_locations`, `geofences` | Không trực tiếp | Server xử lý boundary, gửi ArrivalNotification (SignalR + FCM) |
-| `emergency_events` | Tạo + dismiss | State machine mục 9.7; chưa có "called" (GAP-12) |
+| `emergency_events` | Tạo + dismiss | State machine mục 9.7; `Called` do Caregiver đánh dấu |
 | `voice_command_logs` | Ghi | RTF = processing_time_ms / audio_duration_ms |
-| `system_configurations` | Không đọc được (endpoint chỉ Admin) | GAP-6 |
+| `system_configurations` | Đọc `/system-configs/public` (anonymous) | Ghi đè BusinessRules |
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source 2026-09-27)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-09-27 sau commit `41bed01`)
 
-> Những thứ mobile cần nhưng backend **chưa có**. Mỗi GAP → gửi team Backend; khi được bổ sung thì sửa mục liên quan và xóa dòng ở đây. Chi tiết auth: `docs/specs/auth.md`.
+> Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
+### Còn mở
 | # | Chặn | Thiếu gì | Đề xuất cho backend | Tạm thời phía mobile |
 |---|---|---|---|---|
-| GAP-1 | Sprint 2 (Privacy Consent) | Không endpoint nào trả `privacyConsentAcceptedAt` / `privacyPolicyVersion` | Thêm vào `UserResponse` (`/users/me`) | Lưu cờ local sau khi accept thành công; cài lại app sẽ phải accept lại |
-| GAP-2 | Sprint 2 | Login không chặn role cho app mobile | (tùy chọn) trả 403 nếu client là mobile và role ≠ VIU | Mobile tự chặn + logout |
-| GAP-3 | Sprint 5 (OCR) | Server không chạy OCR; `/ocr/requests` chỉ ghi log | Endpoint nhận ảnh → VietOCR → trả text, **hoặc** chốt OCR on-device | Chờ chốt |
-| GAP-4 | Sprint 5 (Face) | Không có endpoint recognize; VIU không đọc được registry/embedding | `POST /face-registry/recognize`, **hoặc** cho VIU tải embedding để nhận diện on-device | Chờ chốt |
-| GAP-5 | Sprint 6 ("Tôi đang ở đâu") | VIU không đọc được địa chỉ đã reverse-geocode | `GET /locations/me/current-address` hoặc trả `formattedAddress` trong `/locations/gps` | Chỉ đọc được cache local (nếu có) |
-| GAP-6 | Sprint 3+ | `/system-configs` chỉ Admin | Endpoint config public (`isPublic = true`) cho mọi role | Dùng `BusinessRules` mặc định |
-| GAP-7 | Sprint 6 (FCM) | FCM token chỉ cập nhật lúc login; không có endpoint refresh token FCM | Endpoint cập nhật FCM token (khi Firebase rotate) | Gửi lại khi login |
+| GAP-3 | Sprint 5 (OCR) | Server không chạy OCR; `/ocr/requests` chỉ ghi log (validator mới yêu cầu client gửi `RawText`/`ProcessedText` khi Success → ngầm hiểu **OCR on-device**) | Xác nhận chính thức OCR on-device, **hoặc** thêm endpoint VietOCR | Dự kiến OCR on-device (ví dụ ML Kit), chờ xác nhận |
+| GAP-4 | Sprint 5 (Face) | Không có endpoint recognize; đã có `/face-registry/persons/me` kèm embedding | Xác nhận nhận diện **on-device** + model embedding dùng khi upload (`embeddingModel`) | Dự kiến FaceNet on-device, chờ xác nhận |
 | GAP-8 | Release | Server chỉ HTTP | HTTPS + domain | Cleartext chỉ ở build development |
-| GAP-9 | Sprint 7 | Emergency không nhận `detectedAt` | Nhận `detectedAt` từ thiết bị | Ghi thời điểm thật vào `notes` |
-| GAP-10 | Sprint 3/6 | Không có batch cho GPS / detection event | `POST /locations/gps/batch`, `/navigation/sessions/{id}/events/batch` | Flush tuần tự, lấy mẫu event |
-| GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh trước khi gửi |
-| GAP-12 | Sprint 7 | Không có endpoint đánh dấu "đã gọi" (`Called`) | `PUT /emergency-events/{id}/called` | Bỏ bước này |
-| GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | Interceptor xử lý cả hai |
+| GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
+| GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
+| GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
+| SEC | Ngay | Mật khẩu SMTP vẫn nằm trong `appsettings.Development.json`; `DbSeeder` vẫn seed tài khoản mặc định ở mọi môi trường | Chuyển secret ra biến môi trường, chỉ seed ở Development | — |
+
+### Đã xử lý (commit `f4e2592`, `41bed01`)
+| # | Kết quả |
+|---|---|
+| GAP-1 | `privacyConsentAcceptedAt`, `privacyPolicyVersion` có trong `UserResponse` và `AuthTokenResponse` |
+| GAP-5 | `GET /locations/me` + `/locations/gps` trả `GpsRecordResponse` có địa chỉ |
+| GAP-6 | `GET /system-configs/public` (anonymous) |
+| GAP-7 | `PUT /auth/fcm-token` |
+| GAP-9 | Emergency nhận `detectedAt`; grace tính từ `detectedAt` |
+| GAP-10 | `POST /locations/gps/batch`, `POST /navigation/sessions/{id}/events/batch` |
+| GAP-12 | `PUT /emergency-events/{id}/called` — **dành cho Caregiver/CenterAdmin**, mobile không gọi |
+| GAP-2 | Không đổi (mobile tự chặn role) — chấp nhận |
 
 ---
 
 *Scope: Mobile App (React Native + Expo) cho Visually Impaired User — Android 10+*
 *Backend: ASP.NET Core 9 Modular Monolith (repo riêng) — DB v8.0 (27 bảng)*
-*Last updated: 2026-09-27 — Sprint 1 xong; contract API đã đối chiếu với source backend (mục 6, 7, 9, 11, 19)*
+*Last updated: 2026-09-27 — Sprint 2 đang làm; contract API khớp backend commit `41bed01` (mục 6, 9, 19)*
