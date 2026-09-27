@@ -17,6 +17,7 @@
 - Chờ user nói "commit đi" hoặc xác nhận rõ ràng trước khi chạy bất kỳ lệnh git nào
 - Tương tự, KHÔNG tự động push code hay tạo pull request
 - KHÔNG tự chạy `eas build`, `eas submit` hay lệnh publish/OTA update (`eas update`) khi chưa được user xác nhận
+- KHÔNG thêm dòng `Co-Authored-By: Claude ...` hay "Generated with Claude Code" vào commit message / PR description (GitHub sẽ liệt kê Claude vào Contributors)
 
 ---
 
