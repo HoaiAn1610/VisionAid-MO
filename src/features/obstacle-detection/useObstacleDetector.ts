@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useTensorflowModel,
   type ModelSource,
@@ -52,8 +52,28 @@ const WINDOW = 30;
  * Pipeline: frame → cắt vuông giữa + xoay dọc + resize 320×320 RGB float32 (native)
  * → YOLOv8n (TFLite, runSync trong worklet, ngoài JS thread) → decode + NMS → báo về JS.
  */
-export function useObstacleDetector(source: ModelSource, delegates: TensorflowModelDelegate[]) {
+interface DetectorOptions {
+  /** GPU delegate lỗi (máy không có OpenCL…) → tự nạp lại trên CPU (ADR 0001). Mặc định bật. */
+  fallbackToCpu?: boolean;
+  /** Gọi trên JS thread sau mỗi lần inference. */
+  onResult?: (result: FrameResult) => void;
+}
+
+const CPU: TensorflowModelDelegate[] = [];
+
+export function useObstacleDetector(
+  source: ModelSource,
+  preferredDelegates: TensorflowModelDelegate[],
+  { fallbackToCpu = true, onResult }: DetectorOptions = {},
+) {
+  const [gpuFailed, setGpuFailed] = useState(false);
+  const delegates = fallbackToCpu && gpuFailed ? CPU : preferredDelegates;
   const plugin = useTensorflowModel(source, delegates);
+
+  // Cập nhật ngay trong render (mẫu "adjusting state" của React) thay vì effect → không render thừa
+  if (plugin.state === 'error' && fallbackToCpu && delegates.length > 0 && !gpuFailed) {
+    setGpuFailed(true);
+  }
   const model = plugin.state === 'loaded' ? plugin.model : undefined;
   // VisionCamera v4 không đọc trực tiếp Nitro HybridObject → box trước khi đưa vào worklet
   const boxedModel = useMemo(() => (model ? NitroModules.box(model) : undefined), [model]);
@@ -62,7 +82,13 @@ export function useObstacleDetector(source: ModelSource, delegates: TensorflowMo
   const [stats, setStats] = useState<DetectorStats>(EMPTY_STATS);
   const samples = useRef<{ at: number; inference: number; total: number }[]>([]);
 
+  const onResultRef = useRef(onResult);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
+
   const reportToJs = useRunOnJS((r: FrameResult) => {
+    onResultRef.current?.(r);
     const now = Date.now();
     const total = r.preprocessMs + r.inferenceMs + r.postprocessMs;
     const buf = samples.current;
@@ -149,6 +175,7 @@ export function useObstacleDetector(source: ModelSource, delegates: TensorflowMo
     stats,
     resetStats,
     modelState: plugin.state,
+    usingCpuFallback: fallbackToCpu && gpuFailed,
     modelError: plugin.state === 'error' ? plugin.error.message : undefined,
     inputs: model?.inputs,
     outputs: model?.outputs,

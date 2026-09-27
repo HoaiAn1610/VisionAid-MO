@@ -4,6 +4,10 @@ export const BusinessRules = {
   YOLO_DEFAULT_CONFIDENCE: 0.5, // yolo_confidence_threshold
   FACENET_DEFAULT_SIMILARITY: 0.75, // facenet_similarity_threshold (so sánh STRICT >)
   YOLO_MAX_INFERENCE_MS: 500,
+  // Ước lượng khoảng cách từ box chuẩn hóa 0–1 (BR-11, LI-01) — hiệu chỉnh khi thử ngoài đường
+  DISTANCE_NEAR_AREA: 0.2, // box chiếm ≥ 20% khung hình
+  DISTANCE_MEDIUM_AREA: 0.06,
+  DISTANCE_NEAR_HEIGHT: 0.7, // vật cao (người, cột) chiếm ≥ 70% chiều cao khung → đang ở sát
 
   // TTS
   TTS_COOLDOWN_SECONDS: 3, // tts_cooldown_seconds — per object class

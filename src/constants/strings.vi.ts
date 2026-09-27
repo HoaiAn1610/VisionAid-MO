@@ -102,6 +102,21 @@ export const Strings = {
     startNavigationHint: 'Chạm hai lần để bắt đầu phát hiện vật cản',
     settingsHint: 'Chạm hai lần để mở cài đặt và đăng xuất',
   },
+  navigation: {
+    started: 'Bắt đầu dẫn đường. Hãy giữ điện thoại hướng về phía trước.',
+    stopped: 'Đã dừng dẫn đường',
+    stop: 'Dừng dẫn đường',
+    stopHint: 'Chạm hai lần để dừng phát hiện vật cản',
+    active: 'Đang dẫn đường',
+    clear: 'Chưa phát hiện vật cản',
+    cameraExplain:
+      'Để phát hiện vật cản, VisionAid cần dùng camera. Hình ảnh chỉ được xử lý trên điện thoại.',
+    cameraDenied:
+      'Chưa có quyền camera nên không thể dẫn đường. Đang mở cài đặt, hãy bật quyền Camera cho VisionAid.',
+    cameraUnavailable: 'Không mở được camera',
+    modelLoading: 'Đang chuẩn bị nhận diện vật cản',
+    modelFailed: 'Không khởi động được nhận diện vật cản',
+  },
   errors: {
     forbidden: 'Bạn không có quyền thực hiện thao tác này',
     unavailable: 'Tính năng tạm thời không khả dụng',

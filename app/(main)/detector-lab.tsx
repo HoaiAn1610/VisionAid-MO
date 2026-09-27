@@ -46,7 +46,7 @@ export default function DetectorLabScreen() {
   const [delegateIdx, setDelegateIdx] = useState(0);
   const model = MODELS[modelIdx] ?? MODELS[0]!;
   const delegate = DELEGATES[delegateIdx] ?? DELEGATES[0]!;
-  const detector = useObstacleDetector(model.source, delegate.value);
+  const detector = useObstacleDetector(model.source, delegate.value, { fallbackToCpu: false });
   const { stats } = detector;
 
   const cycle = (kind: 'model' | 'delegate') => {
