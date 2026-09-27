@@ -141,6 +141,32 @@ describe('apiClient', () => {
     expect(refreshCalls).toBe(1);
   });
 
+  it('refresh lỗi MẠNG → request báo lỗi mạng (status 0), giữ phiên, không báo hết phiên', async () => {
+    useApi(() => ({ status: 401 }));
+    refreshClient.defaults.adapter = async (config) => {
+      throw new AxiosError('Network Error', AxiosError.ERR_NETWORK, config);
+    };
+
+    await expect(apiClient.get('/a')).rejects.toMatchObject({ status: 0 });
+    expect(store.tokens).toEqual({ accessToken: 'old-access', refreshToken: 'old-refresh' });
+    expect(onExpired).not.toHaveBeenCalled();
+  });
+
+  it('401 của request dùng token CŨ khi token đã được làm mới → retry luôn, không refresh thêm', async () => {
+    store.tokens = { accessToken: 'new-access', refreshToken: 'new-refresh' };
+    useApi((c) =>
+      bearer(c) === 'Bearer new-access' ? { status: 200, data: { ok: true } } : { status: 401 },
+    );
+    const refresh = jest.fn(() => ({ status: 200 }));
+    useRefresh(refresh);
+
+    // Mô phỏng request đã gửi đi với token cũ trước khi refresh xong
+    const res = await apiClient.get('/a', { headers: { Authorization: 'Bearer old-access' } });
+
+    expect(res.data).toEqual({ ok: true });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it('chưa có phiên (vd. login sai mật khẩu) → không refresh, không báo hết phiên', async () => {
     store.tokens = null;
     useApi(() => ({

@@ -119,6 +119,56 @@ describe('signIn', () => {
   });
 });
 
+describe('signIn — lỗi sau khi đã lưu token', () => {
+  it('fetchMe lỗi → xóa token vừa lưu (không tự đăng nhập lần mở app sau)', async () => {
+    api.login.mockResolvedValue(token('VisuallyImpaired'));
+    api.fetchMe.mockRejectedValue(new ApiError(0, 'Network Error', 'offline'));
+
+    await expect(signIn('viu@visionaid.vn', 'pw')).rejects.toMatchObject({ status: 0 });
+    expect(secure.access).toBeNull();
+  });
+});
+
+describe('bootstrapAuth — offline-first, không chờ mạng', () => {
+  const accepted = user({
+    privacyConsentAcceptedAt: '2026-09-27T10:00:00+07:00',
+    privacyPolicyVersion: '1.0',
+  });
+
+  it('có profile cache → vào app NGAY trước khi server trả lời', async () => {
+    secure.access = 'at';
+    secure.refresh = 'rt';
+    secure.user = JSON.stringify(accepted);
+    let statusWhileFetching: string | undefined;
+    api.fetchMe.mockImplementation(async () => {
+      statusWhileFetching = useAuthStore.getState().status;
+      return accepted;
+    });
+
+    await bootstrapAuth();
+    expect(statusWhileFetching).toBe('signedIn');
+  });
+
+  it('server lỗi 5xx + có cache → giữ phiên', async () => {
+    secure.access = 'at';
+    secure.refresh = 'rt';
+    secure.user = JSON.stringify(accepted);
+    api.fetchMe.mockRejectedValue(new ApiError(500, 'Internal Server Error', ''));
+    await bootstrapAuth();
+    expect(useAuthStore.getState().status).toBe('signedIn');
+  });
+
+  it('401/403 (phiên không còn hợp lệ) + có cache → đăng xuất và xóa token', async () => {
+    secure.access = 'at';
+    secure.refresh = 'rt';
+    secure.user = JSON.stringify(accepted);
+    api.fetchMe.mockRejectedValue(new ApiError(403, 'Forbidden', 'deactivated'));
+    await bootstrapAuth();
+    expect(useAuthStore.getState().status).toBe('signedOut');
+    expect(secure.access).toBeNull();
+  });
+});
+
 describe('bootstrapAuth', () => {
   it('không có token → signedOut', async () => {
     await bootstrapAuth();
