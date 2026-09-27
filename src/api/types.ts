@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -37,3 +39,18 @@ export interface GeoPoint {
   latitude: number;
   longitude: number;
 }
+
+/** `AuthTokenResponse` của backend (login + refresh). `expiresAt` là hạn của REFRESH token. */
+export const authTokenSchema = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  expiresAt: z.string(),
+  userId: z.string(),
+  email: z.string(),
+  role: z.string(),
+  organizationId: z.string().nullable(),
+});
+export type AuthToken = z.infer<typeof authTokenSchema>;
+
+export const apiResponseSchema = <T extends z.ZodType>(data: T) =>
+  z.object({ success: z.boolean(), message: z.string(), data, errors: z.array(z.string()) });
