@@ -29,6 +29,16 @@ const MIGRATIONS: readonly string[] = [
     phone_number TEXT, zalo_deep_link TEXT, priority_order INTEGER NOT NULL
   );
   `,
+  // v2 — Sprint 3: phiên dẫn đường tạo ở máy trước (offline-first), event gắn với phiên local
+  `
+  CREATE TABLE IF NOT EXISTS nav_sessions (
+    local_id TEXT PRIMARY KEY NOT NULL, server_id TEXT, detection_mode TEXT NOT NULL,
+    started_at TEXT NOT NULL, ended_at TEXT
+  );
+  ALTER TABLE pending_detection_events ADD COLUMN local_session_id TEXT;
+  CREATE INDEX IF NOT EXISTS idx_pending_detection_session
+    ON pending_detection_events (local_session_id, created_at);
+  `,
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -64,5 +74,6 @@ export async function clearUserData(): Promise<void> {
   await db.execAsync(`
     DELETE FROM pending_gps; DELETE FROM pending_detection_events; DELETE FROM pending_voice_logs;
     DELETE FROM pending_qr_logs; DELETE FROM location_cache; DELETE FROM emergency_contacts;
+    DELETE FROM nav_sessions;
   `);
 }
