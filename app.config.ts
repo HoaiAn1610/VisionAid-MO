@@ -63,6 +63,18 @@ const config: ExpoConfig = {
         ],
       },
     ],
+    [
+      'react-native-vision-camera',
+      {
+        cameraPermissionText:
+          'VisionAid dùng camera để phát hiện vật cản trên đường đi. Hình ảnh được xử lý ngay trên điện thoại.',
+        enableMicrophonePermission: false,
+        enableFrameProcessors: true,
+        enableCodeScanner: true, // quét QR on-device (Sprint 5)
+      },
+    ],
+    // GPU delegate cho TFLite trên Android (libOpenCL.so, không bắt buộc có)
+    ['react-native-fast-tflite', { enableAndroidGpuLibraries: true }],
     'expo-secure-store',
     'expo-sqlite',
     [
