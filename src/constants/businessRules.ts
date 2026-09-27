@@ -1,4 +1,4 @@
-// Giá trị mặc định — nếu có key tương ứng trong /system-configs/public thì ghi đè lúc runtime.
+// Giá trị mặc định, khớp VisionAid-BE/src/Shared/Common/BusinessRules.cs. /system-configs chỉ Admin đọc được → chưa ghi đè runtime (GAP-6).
 export const BusinessRules = {
   // AI thresholds
   YOLO_DEFAULT_CONFIDENCE: 0.5, // yolo_confidence_threshold

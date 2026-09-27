@@ -5,18 +5,18 @@ import type { NetworkStatus } from '@/constants/enums';
 type Listener = (status: NetworkStatus) => void;
 
 export function toNetworkStatus(state: NetInfoState): NetworkStatus {
-  if (!state.isConnected || state.isInternetReachable === false) return 'OFFLINE';
+  if (!state.isConnected || state.isInternetReachable === false) return 'Offline';
   if (state.type === NetInfoStateType.wifi || state.type === NetInfoStateType.ethernet) {
-    return 'WIFI';
+    return 'Wifi';
   }
   if (state.type === NetInfoStateType.cellular) {
-    return state.details.cellularGeneration === '3g' ? 'MOBILE_3G' : 'MOBILE_4G';
+    return state.details.cellularGeneration === '3g' ? 'Mobile3G' : 'Mobile4G';
   }
-  return 'WIFI';
+  return 'Wifi';
 }
 
 class NetworkMonitorImpl {
-  private status: NetworkStatus = 'OFFLINE';
+  private status: NetworkStatus = 'Offline';
   private listeners = new Set<Listener>();
   private unsubscribe: (() => void) | null = null;
 
@@ -40,7 +40,7 @@ class NetworkMonitorImpl {
   }
 
   isOnline(): boolean {
-    return this.status !== 'OFFLINE';
+    return this.status !== 'Offline';
   }
 
   subscribe(listener: Listener): () => void {

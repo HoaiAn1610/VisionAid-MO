@@ -25,8 +25,8 @@ const MIGRATIONS: readonly string[] = [
     formatted_address TEXT NOT NULL, cached_at INTEGER NOT NULL
   );
   CREATE TABLE IF NOT EXISTS emergency_contacts (
-    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, phone TEXT, contact_type TEXT NOT NULL,
-    priority_order INTEGER NOT NULL
+    id TEXT PRIMARY KEY NOT NULL, contact_name TEXT NOT NULL, contact_type TEXT NOT NULL,
+    phone_number TEXT, zalo_deep_link TEXT, priority_order INTEGER NOT NULL
   );
   `,
 ];

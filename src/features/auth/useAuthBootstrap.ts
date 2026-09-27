@@ -1,35 +1,11 @@
 import { useEffect } from 'react';
 
-import { getTokens } from '@/services/storage/secureStorage';
-import { useAuthStore } from '@/stores/authStore';
-import { logger } from '@/utils/logger';
+import { bootstrapAuth, registerSessionExpiredHandler } from './authService';
 
-/** Kiểm tra token lúc khởi động và quyết định màn hình đầu tiên. */
+/** Gọi 1 lần ở root layout: đăng ký xử lý hết phiên + quyết định màn hình đầu tiên. */
 export function useAuthBootstrap(): void {
-  const signOut = useAuthStore((s) => s.signOut);
-
   useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrapAuth() {
-      try {
-        const tokens = await getTokens();
-        if (cancelled) return;
-        if (!tokens) {
-          signOut();
-          return;
-        }
-        // TODO(Sprint 2): GET /api/users/me → kiểm tra role VIU + privacy consent → setUser()
-        signOut();
-      } catch (error) {
-        logger.error('Auth bootstrap failed', error);
-        if (!cancelled) signOut();
-      }
-    }
-
+    registerSessionExpiredHandler();
     void bootstrapAuth();
-    return () => {
-      cancelled = true;
-    };
-  }, [signOut]);
+  }, []);
 }
