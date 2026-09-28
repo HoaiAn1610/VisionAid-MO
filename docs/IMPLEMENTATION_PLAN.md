@@ -189,6 +189,6 @@ Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở
 | Sprint 5 | **GAP-3** ai chạy OCR, **GAP-4** ai chạy nhận diện khuôn mặt (quyết định kiến trúc)                   |
 | Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý                                                                      |
 | Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection |
-| Release  | GAP-8 HTTPS                                                                                           |
+| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`) |
 
 Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.
