@@ -1,4 +1,12 @@
-import { decodeYoloOutput, nonMaxSuppression, type Detection } from './yoloDecoder';
+import {
+  decodeYoloOutput,
+  fitInside,
+  LETTERBOX_FILL,
+  letterbox,
+  nonMaxSuppression,
+  unletterbox,
+  type Detection,
+} from './yoloDecoder';
 
 const CLASSES = 3;
 
@@ -73,5 +81,31 @@ describe('nonMaxSuppression', () => {
   it('giới hạn số box trả về, sắp xếp theo điểm giảm dần', () => {
     const many = [0.6, 0.9, 0.7, 0.8].map((s, i) => det(0, s, i * 0.35));
     expect(nonMaxSuppression(many, 0.5, 2).map((d) => d.score)).toEqual([0.9, 0.8]);
+  });
+});
+
+describe('letterbox (model thấy cả khung, không cắt)', () => {
+  it('fitInside: khung 1280×720 → 320×180, giữ tỉ lệ', () => {
+    expect(fitInside(1280, 720, 320)).toEqual({ width: 320, height: 180 });
+    expect(fitInside(720, 1280, 320)).toEqual({ width: 180, height: 320 });
+  });
+
+  it('ảnh dọc 2×4 đặt giữa ô 4×4, hai bên tô màu viền', () => {
+    const src = new Float32Array(2 * 4 * 3).fill(1);
+    const { data, padX, padY } = letterbox(src, 2, 4, 4);
+    expect([padX, padY]).toEqual([1, 0]);
+    const pixel = (x: number, y: number) => data[(y * 4 + x) * 3];
+    const fill = Math.fround(LETTERBOX_FILL); // lưu trong Float32Array
+    expect([pixel(0, 0), pixel(1, 0), pixel(2, 3), pixel(3, 3)]).toEqual([fill, 1, 1, fill]);
+  });
+
+  it('unletterbox: box theo ô vuông → theo ảnh thật; phần lấn ra viền bị cắt', () => {
+    // ảnh 180×320 nằm giữa ô 320 (padX 70): box phủ đúng nửa dưới ảnh
+    const d: Detection = { classId: 0, score: 1, x: 70 / 320, y: 0.5, w: 180 / 320, h: 0.5 };
+    const r = unletterbox(d, 320, 70, 0, 180, 320);
+    expect([r.x, r.y, r.w, r.h].map((v) => Math.round(v * 1000) / 1000)).toEqual([0, 0.5, 1, 0.5]);
+
+    const onPad: Detection = { classId: 0, score: 1, x: 0, y: 0, w: 0.1, h: 0.1 };
+    expect(unletterbox(onPad, 320, 70, 0, 180, 320).w).toBe(0);
   });
 });

@@ -12,7 +12,14 @@ import { useResizePlugin } from 'vision-camera-resize-plugin';
 import { BusinessRules } from '@/constants/businessRules';
 import { COCO_LABELS } from '@/constants/cocoLabels';
 
-import { decodeYoloOutput, nonMaxSuppression, type Detection } from './yoloDecoder';
+import {
+  decodeYoloOutput,
+  fitInside,
+  letterbox,
+  nonMaxSuppression,
+  unletterbox,
+  type Detection,
+} from './yoloDecoder';
 
 const INPUT_SIZE = 320; // khớp lúc export model (imgsz=320)
 const NUM_CLASSES = COCO_LABELS.length;
@@ -36,7 +43,7 @@ interface DetectorOptions {
 const CPU: TensorflowModelDelegate[] = [];
 
 /**
- * Pipeline: frame → cắt vuông giữa + xoay dọc + resize 320×320 RGB float32 (native)
+ * Pipeline: cả frame → resize cạnh dài 320 + xoay dọc (native) → letterbox 320×320 RGB float32
  * → YOLOv8n (TFLite, runSync trong worklet, ngoài JS thread) → decode + NMS → báo về JS.
  */
 export function useObstacleDetector(
@@ -81,24 +88,21 @@ export function useObstacleDetector(
       lastRunAt.value = now;
       const tflite = boxedModel.unbox();
       const t0 = Date.now();
-      const side = Math.min(frame.width, frame.height);
+      // Cả khung (không cắt) → thu nhỏ cạnh dài = 320 → xoay dọc → letterbox vào ô 320×320
+      const landscape = frame.width > frame.height;
+      const scaled = fitInside(frame.width, frame.height, INPUT_SIZE);
       const input = resize(frame, {
-        crop: {
-          x: (frame.width - side) / 2,
-          y: (frame.height - side) / 2,
-          width: side,
-          height: side,
-        },
-        scale: { width: INPUT_SIZE, height: INPUT_SIZE },
-        rotation: frame.width > frame.height ? '90deg' : '0deg',
+        crop: { x: 0, y: 0, width: frame.width, height: frame.height },
+        scale: scaled,
+        rotation: landscape ? '90deg' : '0deg',
         pixelFormat: 'rgb',
         dataType: 'float32',
       });
+      const contentW = landscape ? scaled.height : scaled.width;
+      const contentH = landscape ? scaled.width : scaled.height;
+      const boxed = letterbox(input, contentW, contentH, INPUT_SIZE);
       const t1 = Date.now();
-      const outputs = tflite.runSync([
-        // resize plugin trả ArrayBuffer thường (không phải SharedArrayBuffer)
-        input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) as ArrayBuffer,
-      ]);
+      const outputs = tflite.runSync([boxed.data.buffer as ArrayBuffer]);
       const t2 = Date.now();
       const raw = outputs[0];
       if (raw == null) return;
@@ -112,7 +116,7 @@ export function useObstacleDetector(
         ),
         IOU_THRESHOLD,
         10,
-      );
+      ).map((d) => unletterbox(d, INPUT_SIZE, boxed.padX, boxed.padY, contentW, contentH));
       if (kept.length === 0) return; // không có gì để báo → khỏi nhảy sang JS thread
       const t3 = Date.now();
       void reportToJs({
