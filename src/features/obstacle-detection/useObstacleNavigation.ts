@@ -14,14 +14,21 @@ import {
   recordDetectionEvent,
   startNavigationSession,
 } from './navigationSession';
-import { selectPriorityObstacle, toTtsRequest, type PriorityObstacle } from './obstaclePolicy';
-import { useObstacleDetector, type FrameResult } from './useObstacleDetector';
+import {
+  confirmAcrossFrames,
+  selectPriorityObstacle,
+  toTtsRequest,
+  type PriorityObstacle,
+} from './obstaclePolicy';
+import { TARGET_INFERENCE_FPS, useObstacleDetector, type FrameResult } from './useObstacleDetector';
 
 const MODEL = require('../../../assets/models/yolov8n_float16.tflite'); // eslint-disable-line @typescript-eslint/no-require-imports -- asset .tflite phải require() để Metro bundle
 const PREFERRED_DELEGATES = ['android-gpu' as const];
 const KEEP_AWAKE_TAG = 'navigation-session';
 /** Không có cảnh báo mới trong khoảng này → dòng trạng thái về "chưa phát hiện" (tránh hiển thị tin cũ). */
 const STATUS_STALE_MS = 4000;
+/** Vật phải xuất hiện ở 2 frame liên tiếp mới báo (khoảng 2 chu kỳ inference, cho phép trễ nhịp). */
+const CONFIRM_WINDOW_MS = 2000 / TARGET_INFERENCE_FPS;
 
 const say = (text: string, priority = TtsPriority.SYSTEM) => ttsService.enqueue({ text, priority });
 
@@ -39,10 +46,17 @@ export function useObstacleNavigation() {
   const starting = useRef(false);
   const wantActive = useRef(false);
   const staleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSeen = useRef(new Map<string, number>());
 
   const onResult = useCallback(
     (r: FrameResult) => {
-      const pick = selectPriorityObstacle(r.detections, mode);
+      const confirmed = confirmAcrossFrames(
+        r.detections,
+        lastSeen.current,
+        Date.now(),
+        CONFIRM_WINDOW_MS,
+      );
+      const pick = selectPriorityObstacle(confirmed, mode);
       if (!pick) return;
       const request = toTtsRequest(pick);
       if (!ttsService.enqueue(request)) return; // cooldown / trùng → không phải một lần cảnh báo

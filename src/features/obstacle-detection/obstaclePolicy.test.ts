@@ -3,6 +3,7 @@ import { TtsPriority } from '@/services/tts/TtsService';
 
 import {
   buildAnnouncement,
+  confirmAcrossFrames,
   estimateDistance,
   selectPriorityObstacle,
   toTtsRequest,
@@ -74,6 +75,15 @@ describe('selectPriorityObstacle (BR-12)', () => {
 
   it('danh sách rỗng → null', () => {
     expect(selectPriorityObstacle([], 'Full')).toBeNull();
+  });
+});
+
+describe('confirmAcrossFrames (chống báo nhầm do 1 frame)', () => {
+  it('lần đầu thấy → chưa xác nhận; thấy lại trong cửa sổ → xác nhận; quá cửa sổ → chưa', () => {
+    const seen = new Map<string, number>();
+    expect(confirmAcrossFrames([det('car')], seen, 0, 700)).toEqual([]);
+    expect(confirmAcrossFrames([det('car'), det('dog')], seen, 333, 700)).toEqual([det('car')]);
+    expect(confirmAcrossFrames([det('dog')], seen, 2000, 700)).toEqual([]);
   });
 });
 

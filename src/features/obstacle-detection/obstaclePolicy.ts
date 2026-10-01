@@ -31,6 +31,24 @@ export function estimateDistance(d: Detection): DistanceRange {
 }
 
 /**
+ * Chống báo nhầm do một frame lẻ: chỉ giữ detection có class cũng được thấy trong `windowMs` vừa qua
+ * (frame trước). Cập nhật `lastSeen` (class → thời điểm thấy gần nhất) cho lần gọi sau.
+ */
+export function confirmAcrossFrames(
+  detections: LabeledDetection[],
+  lastSeen: Map<string, number>,
+  now: number,
+  windowMs: number,
+): LabeledDetection[] {
+  const confirmed = detections.filter((d) => {
+    const seenAt = lastSeen.get(d.label);
+    return seenAt !== undefined && now - seenAt <= windowMs;
+  });
+  for (const d of detections) lastSeen.set(d.label, now);
+  return confirmed;
+}
+
+/**
  * BR-12: mỗi chu kỳ chỉ announce MỘT vật — nguy hiểm trước, rồi gần hơn, rồi confidence cao hơn.
  * Minimal Mode chỉ xét vật có cờ `dangerous`. Class không có tên tiếng Việt thì bỏ qua.
  */

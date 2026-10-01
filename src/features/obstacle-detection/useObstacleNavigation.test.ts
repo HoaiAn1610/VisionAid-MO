@@ -21,6 +21,7 @@ const mockDetector: {
   onResult?: (r: FrameResult) => void;
 } = { modelState: 'loaded', usingCpuFallback: false };
 jest.mock('./useObstacleDetector', () => ({
+  TARGET_INFERENCE_FPS: 3,
   useObstacleDetector: (
     _s: unknown,
     _d: unknown,
@@ -61,6 +62,12 @@ const frame = (label: string, over = {}): FrameResult => ({
   postprocessMs: 12,
   detections: [{ label, classId: 0, score: 0.9, x: 0.2, y: 0.2, w: 0.6, h: 0.6, ...over }],
 });
+
+/** Vật phải xuất hiện ở 2 frame liên tiếp mới được báo. */
+const seenTwice = (f: FrameResult) => {
+  mockDetector.onResult?.(f);
+  mockDetector.onResult?.(f);
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -115,7 +122,7 @@ describe('useObstacleNavigation', () => {
   it('vật cản được đọc → ghi event alertIssued với box chuẩn hóa', async () => {
     const { result } = await renderHook(() => useObstacleNavigation());
     await act(() => result.current.start());
-    await act(async () => mockDetector.onResult?.(frame('motorcycle')));
+    await act(async () => seenTwice(frame('motorcycle')));
 
     expect(result.current.lastAnnouncement).toBe(`Xe máy ${Strings.distance.Near}`);
     expect(recordDetectionEvent).toHaveBeenCalledWith(
@@ -134,7 +141,7 @@ describe('useObstacleNavigation', () => {
     jest.useFakeTimers();
     const { result } = await renderHook(() => useObstacleNavigation());
     await act(() => result.current.start());
-    await act(async () => mockDetector.onResult?.(frame('car')));
+    await act(async () => seenTwice(frame('car')));
     expect(result.current.lastAnnouncement).not.toBeNull();
     await act(async () => {
       jest.advanceTimersByTime(4000);
@@ -143,11 +150,20 @@ describe('useObstacleNavigation', () => {
     jest.useRealTimers();
   });
 
+  it('vật chỉ xuất hiện ở MỘT frame (nhận nhầm) → không đọc, không ghi event', async () => {
+    const { result } = await renderHook(() => useObstacleNavigation());
+    await act(() => result.current.start());
+    enqueue.mockClear();
+    await act(async () => mockDetector.onResult?.(frame('car')));
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(recordDetectionEvent).not.toHaveBeenCalled();
+  });
+
   it('câu bị cooldown chặn → KHÔNG ghi event', async () => {
     const { result } = await renderHook(() => useObstacleNavigation());
     await act(() => result.current.start());
     enqueue.mockReturnValue(false);
-    await act(async () => mockDetector.onResult?.(frame('car')));
+    await act(async () => seenTwice(frame('car')));
     expect(recordDetectionEvent).not.toHaveBeenCalled();
   });
 

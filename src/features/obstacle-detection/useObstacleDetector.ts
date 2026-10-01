@@ -19,7 +19,7 @@ const NUM_CLASSES = COCO_LABELS.length;
 const NUM_ANCHORS = 2100; // (320/8)² + (320/16)² + (320/32)²
 const IOU_THRESHOLD = 0.45;
 /** Frame skipping (CLAUDE.md §9.1): 5 fps tốn khoảng 22%/giờ pin (> 20%) → 3 fps (docs/benchmarks.md). */
-const TARGET_INFERENCE_FPS = 3;
+export const TARGET_INFERENCE_FPS = 3;
 
 export interface FrameResult {
   preprocessMs: number;
