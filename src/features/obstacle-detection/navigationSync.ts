@@ -1,5 +1,6 @@
 import { ApiError } from '@/api/client';
 import type { DetectionMode, DistanceRange } from '@/constants/enums';
+import { classifySyncError as classify } from '@/utils/syncError';
 import { logger } from '@/utils/logger';
 
 /** Session luôn tạo ở máy trước (offline-first); `serverId` có sau khi đồng bộ được. */
@@ -47,14 +48,6 @@ export interface NavSyncDeps {
 }
 
 type Outcome = 'ok' | 'retry-later' | 'drop-session';
-
-/** Lỗi không bao giờ tự hết khi gửi lại (dữ liệu sai / session đã đóng) → bỏ để không kẹt. */
-function classify(error: unknown): 'retry' | 'drop' | 'gone' {
-  if (!(error instanceof ApiError)) return 'retry';
-  if (error.status === 404) return 'gone';
-  if (error.status === 400 || error.status === 422) return 'drop';
-  return 'retry'; // 0 (mạng), 401, 403, 429, 5xx
-}
 
 let running: Promise<void> | null = null;
 let rerunRequested = false;

@@ -173,6 +173,12 @@ export class TtsService {
         rate: this.settings.rate,
         volume: this.settings.volume,
         voice: this.settings.voice,
+        // Đo TTS latency (mục tiêu ≤ 1s, docs/benchmarks.md) — chỉ hiện ở build dev
+        onStart: () =>
+          logger.debug('TTS latency', {
+            priority: next.priority,
+            ms: this.now() - next.enqueuedAt,
+          }),
         onDone: finish,
         onStopped: finish,
         onError: (error) => {

@@ -66,26 +66,6 @@ export const Strings = {
   },
   settings: {
     account: 'Tài khoản',
-    detectorLab: 'Thử nghiệm phát hiện vật cản',
-    detectorLabHint: 'Chỉ có ở bản phát triển. Mở màn hình đo hiệu năng nhận diện vật cản',
-  },
-  lab: {
-    title: 'Thử nghiệm YOLO',
-    permissionExplain:
-      'VisionAid cần quyền camera để phát hiện vật cản. Hình ảnh được xử lý ngay trên điện thoại, không gửi đi đâu.',
-    grantCamera: 'Cho phép dùng camera',
-    grantCameraHint: 'Chạm hai lần để mở hộp thoại cấp quyền camera',
-    noCamera: 'Không tìm thấy camera sau',
-    modelError: 'Không tải được model',
-    switchModel: 'Model',
-    switchModelHint: 'Chạm hai lần để đổi biến thể model',
-    switchDelegate: 'Bộ tăng tốc',
-    switchDelegateHint: 'Chạm hai lần để đổi giữa CPU, GPU và NNAPI',
-    inference: (avg: string, p95: string) => `Inference TB ${avg} ms · p95 ${p95} ms`,
-    cycle: (avg: string, target: number) => `Toàn chu kỳ TB ${avg} ms (mục tiêu ≤ ${target} ms)`,
-    fps: (got: string, target: number, frames: number) =>
-      `FPS xử lý ${got} / ${target} · ${frames} frame`,
-    stages: (pre: number, post: number) => `tiền xử lý ${pre} ms · hậu xử lý ${post} ms`,
   },
   screens: {
     ocr: 'Đọc chữ và mã QR',

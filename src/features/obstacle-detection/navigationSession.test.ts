@@ -16,6 +16,9 @@ jest.mock('@/services/storage/navigationRepo', () => ({
   endOpenSessions: jest.fn(async () => {}),
 }));
 jest.mock('./navigationSync', () => ({ syncNavigationSessions: jest.fn(async () => {}) }));
+jest.mock('@/services/storage/offlineQueue', () => ({
+  flushOfflineQueues: jest.fn((d: { syncNavigation: () => Promise<void> }) => d.syncNavigation()),
+}));
 jest.mock('@/api/endpoints/navigation', () => ({}));
 jest.mock('@/services/network/NetworkMonitor', () => {
   let listener: ((s: string) => void) | null = null;

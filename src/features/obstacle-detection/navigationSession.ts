@@ -4,6 +4,7 @@ import { endSession, logDetectionEvents, startSession } from '@/api/endpoints/na
 import type { DetectionMode } from '@/constants/enums';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import * as repo from '@/services/storage/navigationRepo';
+import { flushOfflineQueues } from '@/services/storage/offlineQueue';
 import { logger } from '@/utils/logger';
 
 import {
@@ -19,10 +20,15 @@ const deps: NavSyncDeps = {
   repo,
 };
 
-/** Đồng bộ ngay nếu đang online; lỗi không bao giờ lan ra UI (§13). */
+/**
+ * Đồng bộ ngay nếu đang online, theo thứ tự ưu tiên của hàng đợi offline; lỗi không lan ra UI (§13).
+ * Sender của emergency/GPS/voice/QR được thêm khi các tính năng đó có (Sprint 4–7).
+ */
 export function syncNavigationNow(): void {
   if (!NetworkMonitor.isOnline()) return;
-  syncNavigationSessions(deps).catch((e: unknown) => logger.warn('Navigation sync failed', e));
+  flushOfflineQueues({ senders: {}, syncNavigation: () => syncNavigationSessions(deps) }).catch(
+    (e: unknown) => logger.warn('Offline sync failed', e),
+  );
 }
 
 /** Session tạo ở máy trước → dẫn đường vẫn chạy khi offline; đồng bộ lên server sau. */
