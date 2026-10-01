@@ -113,6 +113,7 @@ export function useObstacleDetector(
         IOU_THRESHOLD,
         10,
       );
+      if (kept.length === 0) return; // không có gì để báo → khỏi nhảy sang JS thread
       const t3 = Date.now();
       void reportToJs({
         preprocessMs: t1 - t0,

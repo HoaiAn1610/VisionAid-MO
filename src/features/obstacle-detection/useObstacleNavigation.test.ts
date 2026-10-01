@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { AppState, Linking } from 'react-native';
 
 import { Strings } from '@/constants/strings.vi';
 import { ttsService } from '@/services/tts/TtsService';
@@ -175,6 +175,21 @@ describe('useObstacleNavigation', () => {
     mockDetector.modelState = 'loaded';
     await rerender({});
     expect(spoken()).toContain(Strings.navigation.started);
+  });
+
+  it('app xuống nền khi đang dẫn đường → báo tạm dừng; mở lại → báo tiếp tục', async () => {
+    let onChange: (s: string) => void = () => {};
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_t, l) => {
+      onChange = l as (s: string) => void;
+      return { remove: jest.fn() };
+    });
+    const { result } = await renderHook(() => useObstacleNavigation());
+    await act(() => result.current.start());
+
+    await act(async () => onChange('background'));
+    expect(spoken()).toContain(Strings.navigation.paused);
+    await act(async () => onChange('active'));
+    expect(spoken()).toContain(Strings.navigation.resumed);
   });
 
   it('GPU lỗi (đang lùi về CPU) → chưa dừng; CPU cũng lỗi → dừng phiên + TTS', async () => {

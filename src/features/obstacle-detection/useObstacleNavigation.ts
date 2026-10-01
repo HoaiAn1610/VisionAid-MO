@@ -1,6 +1,6 @@
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
+import { AppState, Linking } from 'react-native';
 import { useCameraPermission } from 'react-native-vision-camera';
 
 import { Strings } from '@/constants/strings.vi';
@@ -74,6 +74,22 @@ export function useObstacleNavigation() {
     return () => {
       void deactivateKeepAwake(KEEP_AWAKE_TAG);
     };
+  }, [sessionActive]);
+
+  // Camera tắt khi app xuống nền (DetectionCamera) → phải báo, kẻo người dùng tưởng vẫn được cảnh báo
+  useEffect(() => {
+    if (!sessionActive) return;
+    let inBackground = false;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' && !inBackground) {
+        inBackground = true;
+        say(Strings.navigation.paused);
+      } else if (state === 'active' && inBackground) {
+        inBackground = false;
+        say(Strings.navigation.resumed);
+      }
+    });
+    return () => sub.remove();
   }, [sessionActive]);
 
   // Bấm bắt đầu lúc model còn đang nạp → báo "bắt đầu" ngay khi sẵn sàng

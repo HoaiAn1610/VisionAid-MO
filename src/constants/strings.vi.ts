@@ -96,6 +96,8 @@ export const Strings = {
     cameraUnavailable: 'Không mở được camera',
     modelLoading: 'Đang chuẩn bị nhận diện vật cản',
     modelFailed: 'Không khởi động được nhận diện vật cản',
+    paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
+    resumed: 'Tiếp tục dẫn đường',
   },
   errors: {
     forbidden: 'Bạn không có quyền thực hiện thao tác này',
