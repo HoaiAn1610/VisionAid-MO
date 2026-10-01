@@ -19,6 +19,11 @@ export interface TtsRequest {
   cooldownKey?: string;
   /** Item chờ quá lâu sẽ bị drop (ví dụ announce vật cản của cycle cũ). */
   maxAgeMs?: number;
+  /**
+   * Mức khẩn trong cùng `cooldownKey` (ví dụ vật cản: xa 0 → gần 2). Cao hơn lần đọc trước →
+   * đọc ngay dù còn cooldown (vật đang tiến lại gần không được phép bị im lặng). Mặc định 0.
+   */
+  urgency?: number;
 }
 
 export interface TtsSettings {
@@ -51,7 +56,7 @@ export class TtsService {
   private current: QueuedItem | null = null;
   private utteranceToken = 0;
   private seq = 0;
-  private lastSpokenByKey = new Map<string, number>();
+  private lastSpokenByKey = new Map<string, { at: number; urgency: number }>();
   private listeners = new Set<SpeakingListener>();
   private lastText: string | null = null;
   private cooldownMs: number = BusinessRules.TTS_COOLDOWN_SECONDS * 1000;
@@ -82,9 +87,11 @@ export class TtsService {
     const now = this.now();
     const isEmergency = request.priority === TtsPriority.EMERGENCY;
 
+    const urgency = request.urgency ?? 0;
     if (!isEmergency && request.cooldownKey !== undefined) {
       const last = this.lastSpokenByKey.get(request.cooldownKey);
-      if (last !== undefined && now - last < this.cooldownMs) return false;
+      const coolingDown = last !== undefined && now - last.at < this.cooldownMs;
+      if (coolingDown && urgency <= last.urgency) return false;
     }
 
     if (this.current?.text === request.text || this.queue.some((q) => q.text === request.text)) {
@@ -92,7 +99,9 @@ export class TtsService {
     }
 
     const item: QueuedItem = { ...request, enqueuedAt: now, seq: this.seq++ };
-    if (request.cooldownKey !== undefined) this.lastSpokenByKey.set(request.cooldownKey, now);
+    if (request.cooldownKey !== undefined) {
+      this.lastSpokenByKey.set(request.cooldownKey, { at: now, urgency });
+    }
 
     if (this.current && request.priority < this.current.priority) {
       // Ưu tiên cao hơn → ngắt câu đang đọc
@@ -173,6 +182,12 @@ export class TtsService {
         rate: this.settings.rate,
         volume: this.settings.volume,
         voice: this.settings.voice,
+        // Đo TTS latency (mục tiêu ≤ 1s, docs/benchmarks.md) — chỉ hiện ở build dev
+        onStart: () =>
+          logger.debug('TTS latency', {
+            priority: next.priority,
+            ms: this.now() - next.enqueuedAt,
+          }),
         onDone: finish,
         onStopped: finish,
         onError: (error) => {

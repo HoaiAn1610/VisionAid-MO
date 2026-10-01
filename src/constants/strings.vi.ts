@@ -66,26 +66,6 @@ export const Strings = {
   },
   settings: {
     account: 'Tài khoản',
-    detectorLab: 'Thử nghiệm phát hiện vật cản',
-    detectorLabHint: 'Chỉ có ở bản phát triển. Mở màn hình đo hiệu năng nhận diện vật cản',
-  },
-  lab: {
-    title: 'Thử nghiệm YOLO',
-    permissionExplain:
-      'VisionAid cần quyền camera để phát hiện vật cản. Hình ảnh được xử lý ngay trên điện thoại, không gửi đi đâu.',
-    grantCamera: 'Cho phép dùng camera',
-    grantCameraHint: 'Chạm hai lần để mở hộp thoại cấp quyền camera',
-    noCamera: 'Không tìm thấy camera sau',
-    modelError: 'Không tải được model',
-    switchModel: 'Model',
-    switchModelHint: 'Chạm hai lần để đổi biến thể model',
-    switchDelegate: 'Bộ tăng tốc',
-    switchDelegateHint: 'Chạm hai lần để đổi giữa CPU, GPU và NNAPI',
-    inference: (avg: string, p95: string) => `Inference TB ${avg} ms · p95 ${p95} ms`,
-    cycle: (avg: string, target: number) => `Toàn chu kỳ TB ${avg} ms (mục tiêu ≤ ${target} ms)`,
-    fps: (got: string, target: number, frames: number) =>
-      `FPS xử lý ${got} / ${target} · ${frames} frame`,
-    stages: (pre: number, post: number) => `tiền xử lý ${pre} ms · hậu xử lý ${post} ms`,
   },
   screens: {
     ocr: 'Đọc chữ và mã QR',
@@ -101,6 +81,23 @@ export const Strings = {
     startNavigation: 'Bắt đầu dẫn đường',
     startNavigationHint: 'Chạm hai lần để bắt đầu phát hiện vật cản',
     settingsHint: 'Chạm hai lần để mở cài đặt và đăng xuất',
+  },
+  navigation: {
+    started: 'Bắt đầu dẫn đường. Hãy giữ điện thoại hướng về phía trước.',
+    stopped: 'Đã dừng dẫn đường',
+    stop: 'Dừng dẫn đường',
+    stopHint: 'Chạm hai lần để dừng phát hiện vật cản',
+    active: 'Đang dẫn đường',
+    clear: 'Chưa phát hiện vật cản',
+    cameraExplain:
+      'Để phát hiện vật cản, VisionAid cần dùng camera. Hình ảnh chỉ được xử lý trên điện thoại.',
+    cameraDenied:
+      'Chưa có quyền camera nên không thể dẫn đường. Đang mở cài đặt, hãy bật quyền Camera cho VisionAid.',
+    cameraUnavailable: 'Không mở được camera',
+    modelLoading: 'Đang chuẩn bị nhận diện vật cản',
+    modelFailed: 'Không khởi động được nhận diện vật cản',
+    paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
+    resumed: 'Tiếp tục dẫn đường',
   },
   errors: {
     forbidden: 'Bạn không có quyền thực hiện thao tác này',

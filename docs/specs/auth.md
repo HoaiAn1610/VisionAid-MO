@@ -127,4 +127,4 @@ Interceptor: 401 ở request thường → refresh **một lần** (single-fligh
 | Q2             | `expiresAt` trong token response là hạn refresh token                                                    | Giữ nguyên thì mobile ghi chú; hoặc thêm `accessTokenExpiresAt`                    |
 | Q3 (GAP-2)     | Login không chặn role cho app mobile                                                                     | Chấp nhận (mobile tự chặn), hoặc thêm header `X-Client: mobile` để backend trả 403 |
 | Q4 (GAP-13)    | Lỗi đôi khi là ProblemDetails, đôi khi là `ApiResponse` với `success:false`                              | Thống nhất một dạng; tạm thời mobile xử lý cả hai                                  |
-| Q5 (GAP-8)     | Server chỉ có HTTP (`51.210.176.94:5002`)                                                                | Cần HTTPS + domain trước khi build staging/production                              |
+| Q5 (GAP-8)     | ✅ Đã có HTTPS: `https://api.visionaid.net` (2026-09-28) | — |

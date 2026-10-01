@@ -17,6 +17,7 @@
 - Chờ user nói "commit đi" hoặc xác nhận rõ ràng trước khi chạy bất kỳ lệnh git nào
 - Tương tự, KHÔNG tự động push code hay tạo pull request
 - KHÔNG tự chạy `eas build`, `eas submit` hay lệnh publish/OTA update (`eas update`) khi chưa được user xác nhận
+- KHÔNG thêm dòng `Co-Authored-By: Claude ...` hay "Generated with Claude Code" vào commit message / PR description (GitHub sẽ liệt kê Claude vào Contributors)
 
 ---
 
@@ -219,11 +220,11 @@ Launch
 
 ### Base
 ```
-Base URL:   EXPO_PUBLIC_API_BASE_URL   (server đã deploy: http://51.210.176.94:5002)
-SignalR:    EXPO_PUBLIC_SIGNALR_URL    (http://51.210.176.94:5002/hubs/location)
-Swagger:    http://51.210.176.94:5002/swagger/index.html — bản lưu: docs/api/openapi.json
+Base URL:   EXPO_PUBLIC_API_BASE_URL   (server đã deploy: https://api.visionaid.net)
+SignalR:    EXPO_PUBLIC_SIGNALR_URL    (https://api.visionaid.net/hubs/location)
+Swagger:    https://api.visionaid.net/swagger/index.html — bản lưu: docs/api/openapi.json
 Pattern:    /api/{resource} — không versioning
-Transport:  HTTPS bắt buộc ở staging/production — server hiện CHỈ có HTTP (GAP-8)
+Transport:  HTTPS (domain api.visionaid.net). HTTP chỉ dùng khi chạy backend local ở build development
 JSON:       camelCase; DateTimeOffset serialize theo giờ VN (+07:00)
 ```
 > Swagger **không khai báo schema response** (mọi response 2xx đều trống) → muốn biết shape response phải đọc DTO trong source backend.
@@ -393,7 +394,7 @@ Camera (vision-camera) → frame processor (frame skipping) → resize/normalize
 - **Frame skipping:** không inference mọi frame (ví dụ 2–4 fps inference), tùy chỉnh để giữ pin ≤ 20%/giờ.
 - **Distance (BR-11, LI-01):** chỉ categorical `Near / Medium / Far`, ước lượng từ tỉ lệ bounding box so với frame (ngưỡng đặt trong `businessRules.ts`, tinh chỉnh khi benchmark). **KHÔNG BAO GIỜ đọc số mét/khoảng cách tuyệt đối.**
 - **Priority (BR-12):** mỗi cycle chỉ announce object **gần nhất + nguy hiểm nhất** (sort: danger flag → distance Near>Medium>Far → confidence).
-- **Cooldown (BR-13):** mỗi `object_class` tối thiểu **3s** (`tts_cooldown_seconds` từ `/system-configs/public`, mặc định `BusinessRules.TTS_COOLDOWN_SECONDS`) giữa 2 lần announce.
+- **Cooldown (BR-13):** mỗi `object_class` tối thiểu **3s** (`tts_cooldown_seconds` từ `/system-configs/public`, mặc định `BusinessRules.TTS_COOLDOWN_SECONDS`) giữa 2 lần announce. **Ngoại lệ an toàn:** vật **gần hơn** lần đọc trước (Far → Medium → Near) được đọc ngay dù còn cooldown (`TtsRequest.urgency`).
 - **Minimal Mode:** chỉ announce class có cờ `dangerous` trong `obstacleClasses.ts` (xe máy, ô tô, xe buýt, xe tải, xe đạp, bậc thang/hố... — danh sách chốt theo class model hỗ trợ). **Full Mode:** announce tất cả.
 - **Câu TTS:** `"{Tên vật tiếng Việt} {ở gần | phía trước | ở xa}"` — ngắn gọn.
 - **Logging:** ghi event (`objectClass`, `confidenceScore`, `distanceRange`, `boundingBox` — chuỗi JSON toạ độ chuẩn hoá 0–1, `alertIssued`, `inferenceTimeMs`, `detectedAt`, `latitude`, `longitude`) vào SQLite → flush định kỳ / khi online. Flush qua **`POST /navigation/sessions/{id}/events/batch`** (mỗi batch tối đa ~100 event; backend chưa đặt giới hạn nên client tự chia). Chỉ log event có `alertIssued = true` hoặc lấy mẫu để tránh phình dữ liệu.
@@ -631,8 +632,8 @@ HIGH_SAMPLING_RATE_SENSORS (accelerometer tần số cao, Android 12+)
 
 ```bash
 # .env.example — chỉ biến PUBLIC (được bundle vào app, KHÔNG đặt secret ở đây)
-EXPO_PUBLIC_API_BASE_URL=http://51.210.176.94:5002          # server backend đã deploy (HTTP)
-EXPO_PUBLIC_SIGNALR_URL=http://51.210.176.94:5002/hubs/location
+EXPO_PUBLIC_API_BASE_URL=https://api.visionaid.net          # server backend đã deploy (HTTPS)
+EXPO_PUBLIC_SIGNALR_URL=https://api.visionaid.net/hubs/location
 EXPO_PUBLIC_APP_ENV=development
 EXPO_PUBLIC_PRIVACY_POLICY_VERSION=1.0
 ```
@@ -764,7 +765,6 @@ Sprint 8 — Settings, Hardening & Release
 |---|---|---|---|---|
 | GAP-3 | Sprint 5 (OCR) | Server không chạy OCR; `/ocr/requests` chỉ ghi log (validator mới yêu cầu client gửi `RawText`/`ProcessedText` khi Success → ngầm hiểu **OCR on-device**) | Xác nhận chính thức OCR on-device, **hoặc** thêm endpoint VietOCR | Dự kiến OCR on-device (ví dụ ML Kit), chờ xác nhận |
 | GAP-4 | Sprint 5 (Face) | Không có endpoint recognize; đã có `/face-registry/persons/me` kèm embedding | Xác nhận nhận diện **on-device** + model embedding dùng khi upload (`embeddingModel`) | Dự kiến FaceNet on-device, chờ xác nhận |
-| GAP-8 | Release | Server chỉ HTTP | HTTPS + domain | Cleartext chỉ ở build development |
 | GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
@@ -779,6 +779,7 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-7 | `PUT /auth/fcm-token` |
 | GAP-9 | Emergency nhận `detectedAt`; grace tính từ `detectedAt` |
 | GAP-10 | `POST /locations/gps/batch`, `POST /navigation/sessions/{id}/events/batch` |
+| GAP-8 | HTTPS + domain: `https://api.visionaid.net` (2026-09-28). Cleartext vẫn chỉ bật ở build development cho backend local |
 | GAP-12 | `PUT /emergency-events/{id}/called` — **dành cho Caregiver/CenterAdmin**, mobile không gọi |
 | GAP-2 | Không đổi (mobile tự chặn role) — chấp nhận |
 
