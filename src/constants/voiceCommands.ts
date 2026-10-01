@@ -41,3 +41,6 @@ export const VoiceCommands: readonly VoiceCommandDef[] = [
 
 /** Từ xác nhận cho lệnh nguy hiểm — chỉ chấp nhận danh sách cố định (BR-14). */
 export const CONFIRMATION_WORDS: readonly string[] = ['có', 'đồng ý', 'xác nhận'];
+
+/** Từ từ chối trong lúc chờ xác nhận → hủy ngay, không chờ hết thời gian. */
+export const REJECTION_WORDS: readonly string[] = ['không', 'hủy', 'thôi'];

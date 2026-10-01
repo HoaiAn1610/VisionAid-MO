@@ -99,6 +99,10 @@ export const Strings = {
     paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
     resumed: 'Tiếp tục dẫn đường',
   },
+  voice: {
+    confirmEmergency: 'Bạn có chắc muốn gọi khẩn cấp? Nói có để xác nhận.',
+    emergencyCancelled: 'Đã hủy gọi khẩn cấp',
+  },
   errors: {
     forbidden: 'Bạn không có quyền thực hiện thao tác này',
     unavailable: 'Tính năng tạm thời không khả dụng',
