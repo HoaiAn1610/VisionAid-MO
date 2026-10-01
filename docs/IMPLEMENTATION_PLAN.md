@@ -106,7 +106,9 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 3: Obstacle Detection
 
-**Trạng thái (2026-10-01): 🟡 Gần xong.** Xong: distance estimator, priority selector, pipeline (GPU → CPU), navigation session offline-first, `offlineQueue.ts` (sender của emergency/GPS/voice/QR gắn vào ở Sprint 4–7), review, benchmark trên S20 FE (`docs/benchmarks.md`: TTS khoảng 180 ms, pin khoảng 19–20%/giờ ở 3 fps), đã bỏ màn Detector Lab. Còn: hiệu chỉnh ngưỡng khoảng cách ngoài trời; đo lại pin trên máy tầm trung nếu có.
+**Trạng thái (2026-10-01): ✅ Xong (còn việc hoãn).** Xong: distance estimator, priority selector, pipeline (GPU → CPU, letterbox cả khung), xác nhận qua 2 frame, báo lại khi vật tiến gần trong cooldown, báo tạm dừng khi app chạy nền, navigation session offline-first, `offlineQueue.ts` (sender của emergency/GPS/voice/QR gắn vào ở Sprint 4–7), review, benchmark trên S20 FE (`docs/benchmarks.md`: TTS khoảng 180 ms, pin khoảng 19–20%/giờ ở 3 fps), đã bỏ màn Detector Lab.
+
+**Hoãn (làm trước UAT ở Sprint 8):** hiệu chỉnh ngưỡng `DISTANCE_*` ngoài trời (hiện là quy đổi tỉ lệ sau khi đổi sang letterbox, mới thử trong nhà); đo lại pin trên máy tầm trung nếu có.
 
 | Task                                                                                            | Skill                                | Done khi                                                                            |
 | ----------------------------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
@@ -167,16 +169,17 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 8: Settings, Hardening & Release
 
-| Task                                                           | Skill                                                 | Done khi                                 |
-| -------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------- |
-| Settings (TTS prefs, mode, profile, đổi mật khẩu)              | `/build`, `expo-data-fetching`                        | Lưu → TTS xác nhận                       |
-| TalkBack pass toàn app, xử lý mất quyền camera/GPS             | `frontend-ui-engineering`                             | Checklist §5 đạt 100%                    |
-| Benchmark cuối (TTS ≤ 1s, OCR ≤ 3s P95, pin ≤ 20%/h)           | `performance-optimization`, `eas-observe` (tùy chọn)  | So với CONSTRAINTS.md                    |
-| Dọn code                                                       | `/ponytail-audit`, `/ponytail-debt`, `/code-simplify` | Xử lý hoặc ghi nhận mọi `ponytail:` debt |
-| User Guide + Limitations (fall detection chỉ trong session...) | `documentation-and-adrs`                              |                                          |
-| Pre-launch go/no-go                                            | `/ship`                                               |                                          |
-| Build production AAB                                           | `eas-app-stores`                                      | **Chỉ chạy khi user xác nhận**           |
-| (Tùy chọn) OTA                                                 | `eas-update`                                          | Chỉ chạy khi user xác nhận               |
+| Task                                                           | Skill                                                 | Done khi                                                  |
+| -------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
+| Settings (TTS prefs, mode, profile, đổi mật khẩu)              | `/build`, `expo-data-fetching`                        | Lưu → TTS xác nhận                                        |
+| TalkBack pass toàn app, xử lý mất quyền camera/GPS             | `frontend-ui-engineering`                             | Checklist §5 đạt 100%                                     |
+| Benchmark cuối (TTS ≤ 1s, OCR ≤ 3s P95, pin ≤ 20%/h)           | `performance-optimization`, `eas-observe` (tùy chọn)  | So với CONSTRAINTS.md                                     |
+| Hiệu chỉnh ngưỡng khoảng cách ngoài trời (hoãn từ Sprint 3)    | `/test`                                               | Đứng 1–2 m / 3–5 m / > 8 m đọc đúng gần / phía trước / xa |
+| Dọn code                                                       | `/ponytail-audit`, `/ponytail-debt`, `/code-simplify` | Xử lý hoặc ghi nhận mọi `ponytail:` debt                  |
+| User Guide + Limitations (fall detection chỉ trong session...) | `documentation-and-adrs`                              |                                                           |
+| Pre-launch go/no-go                                            | `/ship`                                               |                                                           |
+| Build production AAB                                           | `eas-app-stores`                                      | **Chỉ chạy khi user xác nhận**                            |
+| (Tùy chọn) OTA                                                 | `eas-update`                                          | Chỉ chạy khi user xác nhận                                |
 
 ---
 
