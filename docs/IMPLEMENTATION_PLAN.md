@@ -122,6 +122,8 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 4: Voice Commands
 
+**Trạng thái (2026-10-01):** ✅ Task 1: ADR 0002 (Proposed — chấp nhận sau khi đo ở task SpeechService).
+
 | Task                                                                              | Skill                                                         | Done khi                                |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------- |
 | Chọn thư viện STT (expo-speech-recognition) + whisper.rn (tiny/base, tải runtime) | `source-driven-development`, `doubt-driven-development`       | ADR `0002-stt-engines.md`               |

@@ -68,8 +68,8 @@
 | On-device AI (YOLOv8n) | **`react-native-fast-tflite` 3.x** (TFLite, `runSync` trong frame processor; delegate CPU/GPU/NNAPI) | **ADR 0001** (`docs/adr/0001-on-device-inference.md`): không dùng `onnxruntime-react-native` vì không chạy được trong frame processor (chỉ có API bất đồng bộ trên JS thread). Model: input 320×320 RGB float32, output `[1, 84, 2100]` |
 | QR scan | `react-native-vision-camera` code scanner | On-device, không cần mạng để đọc nội dung QR |
 | TTS | `expo-speech` | Giọng tiếng Việt `vi-VN`; bọc trong `TtsService` có priority queue |
-| STT Online | `expo-speech-recognition` (hoặc `@react-native-voice/voice`) | Dùng Google Speech qua Android SpeechRecognizer (không nhúng API key trong app). `@react-native-voice/voice` ít được bảo trì — ưu tiên `expo-speech-recognition` nếu tương thích |
-| STT Offline | `whisper.rn` | Whisper on-device (ggml), fallback khi offline hoặc Google STT lỗi. Docx ghi "small model" (~470MB) — quá nặng cho máy 4GB RAM và vượt giới hạn kích thước AAB → benchmark `tiny`/`base` trước; model **tải về lần đầu chạy** (khi có Wi-Fi), KHÔNG bundle vào APK |
+| STT Online | **`expo-speech-recognition` 57.x** (ADR 0002) | Google Speech qua Android `SpeechRecognizer` (không nhúng API key), `lang: "vi-VN"`, `EXTRA_LANGUAGE_MODEL: "web_search"` cho câu lệnh ngắn |
+| STT Offline | **`whisper.rn` 0.7** + `@fugood/react-native-audio-pcm-stream` (thu PCM 16 kHz) (ADR 0002) | Fallback khi offline hoặc Google STT lỗi (BR-16). Model mặc định `ggml-tiny-q8_0.bin` (43.5 MB, lên `base-q5_1` nếu nhận sai nhiều) — **tải về lần đầu khi có Wi-Fi**, KHÔNG bundle vào APK. Model `small` quá nặng cho máy 4GB RAM → loại |
 | Accelerometer | `expo-sensors` | Fall detection |
 | GPS | `expo-location` + `expo-task-manager` | Background location, low-power mode |
 | Battery | `expo-battery` | Auto Minimal Mode < 10% |
