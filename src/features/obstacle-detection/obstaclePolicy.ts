@@ -69,12 +69,16 @@ export function buildAnnouncement(o: { label: string; distance: DistanceRange })
 /** Câu announce vật cản cũ hơn khoảng một chu kỳ thì bỏ, không đọc tin đã lỗi thời (§9.2). */
 const ANNOUNCEMENT_MAX_AGE_MS = 800;
 
-/** Vật nguy hiểm → DANGER (ngắt câu thấp hơn); còn lại INFO. Cooldown 3s theo class (BR-13). */
+/**
+ * Vật nguy hiểm → DANGER (ngắt câu thấp hơn); còn lại INFO. Cooldown 3s theo class (BR-13),
+ * NGOẠI LỆ an toàn: vật gần hơn lần đọc trước (xa → phía trước → gần) được đọc ngay.
+ */
 export function toTtsRequest(o: PriorityObstacle): TtsRequest {
   return {
     text: buildAnnouncement(o),
     priority: o.dangerous ? TtsPriority.DANGER : TtsPriority.INFO,
     cooldownKey: o.label,
     maxAgeMs: ANNOUNCEMENT_MAX_AGE_MS,
+    urgency: DISTANCE_RANK.Far - DISTANCE_RANK[o.distance],
   };
 }

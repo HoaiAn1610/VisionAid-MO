@@ -85,7 +85,14 @@ describe('toTtsRequest', () => {
       priority: TtsPriority.DANGER,
       cooldownKey: 'car',
       maxAgeMs: expect.any(Number),
+      urgency: 2,
     });
+  });
+
+  it('mức khẩn theo khoảng cách: xa 0 < phía trước 1 < gần 2', () => {
+    const urgencyOf = (w: number, h: number) =>
+      toTtsRequest(selectPriorityObstacle([det('car', { w, h })], 'Full')!).urgency;
+    expect([urgencyOf(0.1, 0.1), urgencyOf(0.3, 0.3), urgencyOf(0.6, 0.6)]).toEqual([0, 1, 2]);
   });
 
   it('vật thường → INFO', () => {
