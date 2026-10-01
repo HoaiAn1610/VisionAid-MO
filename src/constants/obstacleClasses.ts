@@ -20,4 +20,10 @@ export const ObstacleClasses: Record<string, ObstacleClassInfo> = {
   chair: { nameVi: 'Ghế', dangerous: false },
   'potted plant': { nameVi: 'Chậu cây', dangerous: false },
   'dining table': { nameVi: 'Bàn', dangerous: false },
+  couch: { nameVi: 'Ghế sofa', dangerous: false },
+  cat: { nameVi: 'Con mèo', dangerous: false },
+  // Đồ để dưới đất, dễ vấp
+  backpack: { nameVi: 'Ba lô', dangerous: false },
+  suitcase: { nameVi: 'Va li', dangerous: false },
+  handbag: { nameVi: 'Túi xách', dangerous: false },
 };

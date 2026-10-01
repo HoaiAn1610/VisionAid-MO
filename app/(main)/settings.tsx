@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -24,16 +23,6 @@ export default function SettingsScreen() {
         <ThemedText variant="headline">{user?.fullName}</ThemedText>
         <ThemedText variant="caption">{user?.email}</ThemedText>
       </View>
-
-      {__DEV__ && (
-        <Button
-          variant="secondary"
-          icon="flask-outline"
-          label={Strings.settings.detectorLab}
-          accessibilityHint={Strings.settings.detectorLabHint}
-          onPress={() => router.push('/detector-lab')}
-        />
-      )}
 
       <View style={styles.spacer} />
       <Button

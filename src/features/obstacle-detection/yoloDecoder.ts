@@ -80,3 +80,56 @@ export function nonMaxSuppression(
   }
   return kept;
 }
+
+/** Màu viền letterbox chuẩn của YOLO (114/255) — model được huấn luyện với viền màu này. */
+export const LETTERBOX_FILL = 114 / 255;
+
+/** Kích thước ảnh sau khi thu nhỏ để cạnh dài = `size` (giữ tỉ lệ, không cắt). */
+export function fitInside(
+  width: number,
+  height: number,
+  size: number,
+): { width: number; height: number } {
+  'worklet';
+  return width >= height
+    ? { width: size, height: Math.round((size * height) / width) }
+    : { width: Math.round((size * width) / height), height: size };
+}
+
+/**
+ * Letterbox: đặt ảnh RGB `srcW×srcH` (float, HWC) vào giữa ô vuông `size×size`, phần thừa tô xám
+ * → model thấy TOÀN BỘ khung hình (không mất đáy khung — nơi có bậc thang, hố, vật thấp).
+ */
+export function letterbox(
+  src: Float32Array,
+  srcW: number,
+  srcH: number,
+  size: number,
+): { data: Float32Array; padX: number; padY: number } {
+  'worklet';
+  const data = new Float32Array(size * size * 3).fill(LETTERBOX_FILL);
+  const padX = Math.floor((size - srcW) / 2);
+  const padY = Math.floor((size - srcH) / 2);
+  const rowLen = srcW * 3;
+  for (let r = 0; r < srcH; r++) {
+    data.set(src.subarray(r * rowLen, (r + 1) * rowLen), ((r + padY) * size + padX) * 3);
+  }
+  return { data, padX, padY };
+}
+
+/** Đổi box (0–1 theo ô vuông letterbox) về 0–1 theo ảnh thật, cắt phần lấn ra viền. */
+export function unletterbox(
+  d: Detection,
+  size: number,
+  padX: number,
+  padY: number,
+  contentW: number,
+  contentH: number,
+): Detection {
+  'worklet';
+  const x1 = Math.max(0, (d.x * size - padX) / contentW);
+  const y1 = Math.max(0, (d.y * size - padY) / contentH);
+  const x2 = Math.min(1, ((d.x + d.w) * size - padX) / contentW);
+  const y2 = Math.min(1, ((d.y + d.h) * size - padY) / contentH);
+  return { ...d, x: x1, y: y1, w: Math.max(0, x2 - x1), h: Math.max(0, y2 - y1) };
+}

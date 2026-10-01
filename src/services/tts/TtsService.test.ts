@@ -74,6 +74,19 @@ describe('TtsService', () => {
     ).toBe(true);
   });
 
+  it('trong cooldown: mức khẩn CAO hơn lần trước → vẫn đọc; bằng hoặc thấp hơn → chặn', () => {
+    const car = (text: string, urgency: number) =>
+      tts.enqueue({ text, priority: TtsPriority.DANGER, cooldownKey: 'car', urgency });
+    expect(car('Ô tô ở xa', 0)).toBe(true);
+    engine.finish();
+    now = 500;
+    expect(car('Ô tô ở gần', 2)).toBe(true); // tiến lại gần → không được im lặng
+    engine.finish();
+    now = 1000;
+    expect(car('Ô tô phía trước', 1)).toBe(false); // lùi ra xa trong cooldown → chặn
+    expect(car('Ô tô ở gần', 2)).toBe(false); // cùng mức, cooldown tính lại từ 500
+  });
+
   it('EMERGENCY bỏ qua cooldown', () => {
     tts.enqueue({ text: '15', priority: TtsPriority.EMERGENCY, cooldownKey: 'fall' });
     engine.finish();
