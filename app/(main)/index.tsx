@@ -9,16 +9,32 @@ import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
 import { DetectionCamera } from '@/features/obstacle-detection/DetectionCamera';
 import { useObstacleNavigation } from '@/features/obstacle-detection/useObstacleNavigation';
+import { useVoiceCommand } from '@/features/voice-commands/useVoiceCommand';
+import { VoiceSheet } from '@/features/voice-commands/VoiceSheet';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { useAuthStore } from '@/stores/authStore';
 import { colors, radius, spacing } from '@/theme';
 
-// TODO(Sprint 4): kích hoạt bằng giọng nói ("bắt đầu", "dừng lại").
 export default function HomeScreen() {
   const fullName = useAuthStore((s) => s.user?.fullName ?? '');
   const offline = useNetworkStatus() === 'Offline';
   const nav = useObstacleNavigation();
+  const voice = useVoiceCommand({
+    active: nav.active,
+    start: () => void nav.start(),
+    stop: nav.stop,
+  });
+  const voiceButton = (
+    <Button
+      variant="secondary"
+      icon="microphone"
+      label={Strings.voice.button}
+      accessibilityHint={Strings.voice.buttonHint}
+      onPress={() => void voice.start()}
+    />
+  );
+  const voiceSheet = <VoiceSheet phase={voice.phase} heard={voice.heard} onCancel={voice.cancel} />;
 
   useEffect(() => {
     ttsService.enqueue({ text: Strings.app.ready, priority: TtsPriority.SYSTEM });
@@ -34,6 +50,7 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
         <DetectionCamera frameProcessor={nav.frameProcessor} enabled={nav.active} />
+        {voiceButton}
         <Button
           variant="danger"
           icon="stop-circle"
@@ -42,6 +59,7 @@ export default function HomeScreen() {
           onPress={nav.stop}
           style={styles.stop}
         />
+        {voiceSheet}
       </Screen>
     );
   }
@@ -62,6 +80,7 @@ export default function HomeScreen() {
         accessibilityHint={Strings.home.startNavigationHint}
         onPress={() => void nav.start()}
       />
+      {voiceButton}
       <Button
         variant="secondary"
         icon="cog"
@@ -69,6 +88,7 @@ export default function HomeScreen() {
         accessibilityHint={Strings.home.settingsHint}
         onPress={() => router.push('/settings')}
       />
+      {voiceSheet}
     </Screen>
   );
 }

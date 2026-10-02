@@ -51,7 +51,9 @@ describe('startConfirmation (BR-14)', () => {
   it('nói "có" sau khi TTS đọc xong → Confirmed kèm confirmedAt', async () => {
     const flow = start();
     tts.finishSpeaking();
+    expect(flow.settled).toBe(false);
     flow.hear(say('có'));
+    expect(flow.settled).toBe(true); // đồng bộ, ngay sau khi nghe
     await expect(flow.result).resolves.toEqual({
       status: 'Confirmed',
       confirmedAt: expect.any(String),

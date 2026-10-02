@@ -13,6 +13,8 @@ export interface ConfirmationFlow {
   /** Hủy từ bên ngoài (chạm nút hủy, rời màn hình). */
   cancel(): void;
   readonly result: Promise<ConfirmationResult>;
+  /** Đã có kết quả (đồng bộ — để vòng nghe dừng ngay, không mở mic thừa). */
+  readonly settled: boolean;
 }
 
 interface Options {
@@ -73,5 +75,8 @@ export function startConfirmation({
     },
     cancel: () => finish({ status: 'Cancelled' }),
     result,
+    get settled() {
+      return settled;
+    },
   };
 }

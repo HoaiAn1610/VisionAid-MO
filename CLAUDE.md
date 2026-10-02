@@ -439,7 +439,7 @@ Kích hoạt (nút lớn / cử chỉ) → Voice Listening Bottom Sheet + haptic
 → thực thi → TTS xác nhận → log voice_command_logs (queue)
 ```
 - **Fallback (BR-16, đã điều chỉnh — ADR 0002):** Google STT lỗi/offline → tự động Google nhận dạng trên máy + TTS: "Đang dùng nhận dạng giọng nói ngoại tuyến". Máy không nhận dạng trên máy được → TTS hướng dẫn dùng nút chạm.
-- **Lệnh nguy hiểm (BR-14):** "Gọi khẩn cấp" → TTS "Bạn có chắc muốn gọi khẩn cấp? Nói 'có' để xác nhận" → chờ tối đa **10s** → không xác nhận → tự hủy (`Cancelled`) + TTS thông báo đã hủy.
+- **Lệnh nguy hiểm (BR-14):** "Gọi khẩn cấp" → TTS "Bạn có chắc muốn gọi khẩn cấp? Nói 'đồng ý' để xác nhận" (đo trên máy: Google hay trả rỗng với từ 1 âm tiết "có", "đồng ý" nhận ngay lần đầu; vẫn chấp nhận "có", "xác nhận") → chờ tối đa **10s** → không xác nhận → tự hủy (`Cancelled`) + TTS thông báo đã hủy.
 - Log (`POST /api/voice-commands`, **từng log một**): `rawTranscript`, `matchedCommand`, `recognitionEngine` (chuỗi tự do: `"GoogleSpeech"` / `"GoogleOnDevice"`), `confidenceScore`, `executionStatus`, `requiredConfirmation`, `confirmedAt`, `processingTimeMs`, `audioDurationMs` (để tính RTF), `isOffline`, `executedAt`, `latitude`, `longitude`.
 - Target ≤ 2s end-to-end (online).
 
@@ -484,7 +484,7 @@ Phát hiện té ngã
 ```
 - Grace period được **server làm chuẩn** (source of truth); countdown trên app chỉ là UI. Việc dismiss phải gọi API trước khi server hết grace.
 - Luôn gửi `detectedAt` từ thiết bị: event sync muộn từ offline queue → server tính grace từ thời điểm té thật (đã quá 15s → dispatcher gửi ngay). Đồng hồ thiết bị có thể lệch; backend chưa giới hạn `detectedAt` so với giờ server.
-- ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
+- ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có" / "đồng ý". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
 - **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
 
 **Luồng `Manual` / `VoiceCommand` / `Gesture`:**

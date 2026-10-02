@@ -66,8 +66,6 @@ export const Strings = {
   },
   settings: {
     account: 'Tài khoản',
-    voiceLab: 'Thử lệnh giọng nói',
-    voiceLabHint: 'Chỉ có ở bản phát triển. Mở màn hình đo nhận dạng giọng nói',
   },
   screens: {
     ocr: 'Đọc chữ và mã QR',
@@ -101,17 +99,33 @@ export const Strings = {
     paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
     resumed: 'Tiếp tục dẫn đường',
   },
-  voiceLab: {
-    google: 'Nói một lệnh (Google)',
-    onDevice: 'Nói một lệnh (Google trên máy, không mạng)',
-    hint: 'Chạm hai lần rồi nói một lệnh sau tiếng bíp',
-  },
   voice: {
+    button: 'Ra lệnh giọng nói',
+    buttonHint: 'Chạm hai lần rồi nói một lệnh sau tiếng bíp, ví dụ: bắt đầu, dừng lại, trợ giúp',
+    listening: 'Đang nghe…',
+    confirming: 'Đang chờ bạn xác nhận',
+    cancel: 'Hủy',
+    cancelHint: 'Chạm hai lần để ngừng nghe',
+    cancelled: 'Đã hủy lệnh giọng nói',
+    micExplain: 'Để nhận lệnh giọng nói, VisionAid cần dùng micro.',
+    micDenied:
+      'Chưa có quyền micro nên không nhận được lệnh giọng nói. Đang mở cài đặt, hãy bật quyền Micro cho VisionAid.',
+    notNavigating: 'Chưa bắt đầu dẫn đường',
+    modeMinimal: 'Đã chuyển sang chế độ tối giản, chỉ báo vật nguy hiểm',
+    modeFull: 'Đã chuyển sang chế độ đầy đủ',
+    faster: 'Đã đọc nhanh hơn',
+    slower: 'Đã đọc chậm hơn',
+    fastest: 'Đã ở tốc độ đọc nhanh nhất',
+    slowest: 'Đã ở tốc độ đọc chậm nhất',
+    nothingToRepeat: 'Chưa có thông báo nào để đọc lại',
+    help: (commands: string) => `Bạn có thể nói: ${commands}.`,
+    notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
     offlineEngine: 'Đang dùng nhận dạng giọng nói ngoại tuyến',
     offlineUnavailable:
       'Không có mạng nên chưa nhận được lệnh giọng nói trên máy này. Bạn hãy dùng các nút trên màn hình.',
-    confirmEmergency: 'Bạn có chắc muốn gọi khẩn cấp? Nói có để xác nhận.',
+    // "đồng ý" (2 âm tiết) thay vì "có": Google hay trả rỗng với từ 1 âm tiết. Vẫn nhận "có", "xác nhận".
+    confirmEmergency: 'Bạn có chắc muốn gọi khẩn cấp? Nói đồng ý để xác nhận.',
     emergencyCancelled: 'Đã hủy gọi khẩn cấp',
   },
   errors: {
