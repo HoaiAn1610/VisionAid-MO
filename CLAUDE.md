@@ -40,7 +40,7 @@
 
 ### Nguyên tắc sản phẩm cốt lõi
 1. **Audio-first:** Người dùng KHÔNG cần nhìn màn hình. Mọi thao tác đều có phản hồi TTS tiếng Việt + haptic.
-2. **Offline-first:** Obstacle Detection (YOLOv8n) và Voice Commands (Whisper fallback) chạy hoàn toàn offline.
+2. **Offline-first:** Obstacle Detection (YOLOv8n) chạy hoàn toàn offline; Voice Commands offline bằng nhận dạng trên máy của Google (Android 13+, ADR 0002), máy khác dùng nút chạm.
 3. **Graceful degradation:** Mất mạng → TTS báo tính năng server (OCR, Face) tạm không khả dụng; KHÔNG crash, KHÔNG treo.
 4. **An toàn trước hết:** Fall detection, SOS, xác nhận lệnh nguy hiểm phải luôn tin cậy.
 
@@ -68,8 +68,8 @@
 | On-device AI (YOLOv8n) | **`react-native-fast-tflite` 3.x** (TFLite, `runSync` trong frame processor; delegate CPU/GPU/NNAPI) | **ADR 0001** (`docs/adr/0001-on-device-inference.md`): không dùng `onnxruntime-react-native` vì không chạy được trong frame processor (chỉ có API bất đồng bộ trên JS thread). Model: input 320×320 RGB float32, output `[1, 84, 2100]` |
 | QR scan | `react-native-vision-camera` code scanner | On-device, không cần mạng để đọc nội dung QR |
 | TTS | `expo-speech` | Giọng tiếng Việt `vi-VN`; bọc trong `TtsService` có priority queue |
-| STT Online | `expo-speech-recognition` (hoặc `@react-native-voice/voice`) | Dùng Google Speech qua Android SpeechRecognizer (không nhúng API key trong app). `@react-native-voice/voice` ít được bảo trì — ưu tiên `expo-speech-recognition` nếu tương thích |
-| STT Offline | `whisper.rn` | Whisper on-device (ggml), fallback khi offline hoặc Google STT lỗi. Docx ghi "small model" (~470MB) — quá nặng cho máy 4GB RAM và vượt giới hạn kích thước AAB → benchmark `tiny`/`base` trước; model **tải về lần đầu chạy** (khi có Wi-Fi), KHÔNG bundle vào APK |
+| STT Online | **`expo-speech-recognition` 57.x** (ADR 0002) | Google Speech qua Android `SpeechRecognizer` (không nhúng API key), `lang: "vi-VN"`, `EXTRA_LANGUAGE_MODEL: "web_search"` cho câu lệnh ngắn |
+| STT Offline | **Cùng thư viện, `requiresOnDeviceRecognition: true`** — Google nhận dạng trên máy (ADR 0002) | Android 13+ có `com.google.android.as` + gói vi-VN (app tự tải ngầm trên Android 14+ khi Wi-Fi). Máy không có → nút chạm. **Lệch BR-16:** Whisper tiny đo 0/6, Vosk small khoảng 7/12 → đã loại (số đo trong ADR 0002) |
 | Accelerometer | `expo-sensors` | Fall detection |
 | GPS | `expo-location` + `expo-task-manager` | Background location, low-power mode |
 | Battery | `expo-battery` | Auto Minimal Mode < 10% |
@@ -124,7 +124,7 @@ visionaid-mobile/
 │   ├── services/                         # Singleton services, không phụ thuộc UI
 │   │   ├── tts/TtsService.ts             # Priority queue + per-class cooldown
 │   │   ├── ai/YoloDetector.ts            # Load model, preprocess, inference, NMS
-│   │   ├── speech/SpeechService.ts       # Google STT → Whisper fallback
+│   │   ├── speech/SpeechService.ts       # Google STT online → nhận dạng trên máy (ADR 0002)
 │   │   ├── signalr/LocationHubClient.ts
 │   │   ├── fcm/FcmService.ts
 │   │   ├── sensors/FallDetector.ts
@@ -149,7 +149,7 @@ visionaid-mobile/
 │
 ├── assets/
 │   └── models/
-│       └── yolov8n_float16.tflite        # 6.4MB, chạy GPU delegate (lùi về CPU) — cách export: ADR 0001 §6. Whisper model tải runtime, không để ở đây
+│       └── yolov8n_float16.tflite        # 6.4MB, chạy GPU delegate (lùi về CPU) — cách export: ADR 0001 §6.
 │
 ├── __tests__/ (hoặc *.test.ts cạnh file)
 ├── app.config.ts                         # Permissions, plugins, Android config
@@ -273,6 +273,9 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | 403 từ `/auth/refresh` | **Mọi lỗi refresh đều trả 403** (token sai / reuse / hết hạn / user bị khóa) → logout + TTS "Phiên đăng nhập đã hết hạn" |
 | 403 | TTS "Bạn không có quyền thực hiện thao tác này" |
 | 429 | TTS "Bạn thử quá nhiều lần, vui lòng đợi một phút" |
+| 402 | **License** (`LicenseValidationMiddleware`, backend `e226590`): chưa có / hết hạn quá 3 ngày. TTS một lần mỗi lần mở app: gói dịch vụ bị dừng, liên hệ người chăm sóc, **vẫn gọi khẩn cấp được** (SOS không bao giờ bị chặn). Đăng nhập vẫn vào app khi `/users/me` trả 402 (dùng thông tin trong response login). Hàng đợi offline giữ dữ liệu, gửi lại sau |
+| Header `X-License-Warning: expiring-in-Nd` | Còn trong 3 ngày ân hạn → TTS "Gói dịch vụ sẽ hết hạn sau N ngày" một lần mỗi lần mở app |
+| `licenseStatus` trong `/users/me` (backend `8f2641a`) | Báo trước ngay khi mở app / đăng nhập (`src/features/auth/licenseNotice.ts`): `None` hoặc hết hạn quá 3 ngày → như 402; còn ≤ 3 ngày → "sắp hết hạn". Dùng chung bộ chống lặp với 402 |
 | 409 / 422 | Đọc thông điệp nghiệp vụ đã map |
 | 5xx / timeout / offline | TTS "Tính năng tạm thời không khả dụng", đưa vào offline queue nếu là log |
 
@@ -334,7 +337,7 @@ export type DetectionMethod = 'AccelerometerCamera' | 'Manual' | 'VoiceCommand' 
 export type AlertStatus =
   | 'Detected' | 'Dismissed' | 'Sent' | 'Acknowledged' | 'Escalated' | 'Resolved' | 'Called';
 export type CommandStatus = 'Success' | 'Failed' | 'Unrecognized' | 'Confirmed' | 'Cancelled';
-export type RecognitionEngine = 'GoogleSpeech' | 'Whisper'; // backend nhận chuỗi tự do — thống nhất giá trị với team
+export type RecognitionEngine = 'GoogleSpeech' | 'GoogleOnDevice'; // backend nhận chuỗi tự do — thống nhất giá trị với team
 export type NetworkStatus = 'Wifi' | 'Mobile4G' | 'Mobile3G' | 'Offline';
 export type DeviceType = 'Android' | 'Ios' | 'Web';
 export type EmergencyContactType = 'Phone' | 'Zalo' | 'Both';
@@ -432,15 +435,15 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 ### 9.5 Voice Commands (FE-09)
 ```
 Kích hoạt (nút lớn / cử chỉ) → Voice Listening Bottom Sheet + haptic + tiếng "bíp"
-→ Online & Google STT OK ? Google Speech : Whisper (offline)
+→ Online & Google STT OK ? Google Speech : Google nhận dạng trên máy (offline, Android 13+) : TTS hướng dẫn dùng nút
 → transcript → intent matcher (từ khóa trong voiceCommands.ts, không phân biệt dấu/hoa thường)
 → confidence thấp / không khớp → TTS "Tôi chưa hiểu, vui lòng nói lại" (`Unrecognized`)
 → lệnh nguy hiểm → Confirmation flow
 → thực thi → TTS xác nhận → log voice_command_logs (queue)
 ```
-- **Fallback (BR-16):** Google STT lỗi/offline → tự động Whisper + TTS: "Đang dùng nhận dạng giọng nói ngoại tuyến".
-- **Lệnh nguy hiểm (BR-14):** "Gọi khẩn cấp" → TTS "Bạn có chắc muốn gọi khẩn cấp? Nói 'có' để xác nhận" → chờ tối đa **10s** → không xác nhận → tự hủy (`Cancelled`) + TTS thông báo đã hủy.
-- Log (`POST /api/voice-commands`, **từng log một**): `rawTranscript`, `matchedCommand`, `recognitionEngine` (chuỗi tự do: `"GoogleSpeech"` / `"Whisper"`), `confidenceScore`, `executionStatus`, `requiredConfirmation`, `confirmedAt`, `processingTimeMs`, `audioDurationMs` (để tính RTF), `isOffline`, `executedAt`, `latitude`, `longitude`.
+- **Fallback (BR-16, đã điều chỉnh — ADR 0002):** Google STT lỗi/offline → tự động Google nhận dạng trên máy + TTS: "Đang dùng nhận dạng giọng nói ngoại tuyến". Máy không nhận dạng trên máy được → TTS hướng dẫn dùng nút chạm.
+- **Lệnh nguy hiểm (BR-14):** "Gọi khẩn cấp" → TTS "Bạn có chắc muốn gọi khẩn cấp? Nói 'đồng ý' để xác nhận" (đo trên máy: Google hay trả rỗng với từ 1 âm tiết "có", "đồng ý" nhận ngay lần đầu; vẫn chấp nhận "có", "xác nhận") → chờ tối đa **10s** → không xác nhận → tự hủy (`Cancelled`) + TTS thông báo đã hủy.
+- Log (`POST /api/voice-commands`, **từng log một**): `rawTranscript`, `matchedCommand`, `recognitionEngine` (chuỗi tự do: `"GoogleSpeech"` / `"GoogleOnDevice"`), `confidenceScore`, `executionStatus`, `requiredConfirmation`, `confirmedAt`, `processingTimeMs`, `audioDurationMs` (để tính RTF), `isOffline`, `executedAt`, `latitude`, `longitude`.
 - Target ≤ 2s end-to-end (online).
 
 ### 9.6 Location & GPS (FE-12, FE-13, FE-29)
@@ -484,7 +487,7 @@ Phát hiện té ngã
 ```
 - Grace period được **server làm chuẩn** (source of truth); countdown trên app chỉ là UI. Việc dismiss phải gọi API trước khi server hết grace.
 - Luôn gửi `detectedAt` từ thiết bị: event sync muộn từ offline queue → server tính grace từ thời điểm té thật (đã quá 15s → dispatcher gửi ngay). Đồng hồ thiết bị có thể lệch; backend chưa giới hạn `detectedAt` so với giờ server.
-- ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
+- ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có" / "đồng ý". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
 - **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
 
 **Luồng `Manual` / `VoiceCommand` / `Gesture`:**
@@ -597,7 +600,7 @@ export const BusinessRules = {
 | Tính năng | Offline? | Hành vi khi mất mạng |
 |---|---|---|
 | Obstacle detection | ✅ | Chạy bình thường |
-| Voice commands | ✅ | Whisper fallback + TTS thông báo |
+| Voice commands | ⚠️ | Android 13+ có gói vi-VN: nhận dạng trên máy + TTS thông báo; máy khác: nút chạm (ADR 0002) |
 | QR decode | ✅ | Đọc nội dung, log vào queue |
 | TTS | ✅ | Bình thường (đảm bảo gói giọng `vi-VN` đã cài — kiểm tra khi khởi động, hướng dẫn cài nếu thiếu) |
 | Fall detection | ✅ phát hiện | Event vào queue; fallback gọi emergency contact (xem 9.7) |
@@ -704,7 +707,7 @@ Sprint 3 — Obstacle Detection (Home Screen)
   ✦ Benchmark latency (≤ 500ms) + pin
 
 Sprint 4 — Voice Commands
-  ✦ SpeechService: Google STT (online) → Whisper (offline) fallback
+  ✦ SpeechService: Google STT (online) → Google nhận dạng trên máy (offline) — ADR 0002
   ✦ Intent matcher + 10+ lệnh cốt lõi + confirmation flow (10s)
   ✦ Voice Listening Bottom Sheet, voice command logs
 
@@ -756,7 +759,7 @@ Sprint 8 — Settings, Hardening & Release
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-09-27 sau commit `41bed01`)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `8f2641a`)
 
 > Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
@@ -768,9 +771,10 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
-| SEC | Ngay | Mật khẩu SMTP vẫn nằm trong `appsettings.Development.json`; `DbSeeder` vẫn seed tài khoản mặc định ở mọi môi trường | Chuyển secret ra biến môi trường, chỉ seed ở Development | — |
+| SEC | Ngay | `appsettings.Development.json` (đang commit) chứa khóa thật Resend + **PayOS `ChecksumKey`** (giả mạo được webhook → kích hoạt license miễn phí); `DbSeeder` seed tài khoản mặc định ở mọi môi trường | Rotate khóa, chuyển secret ra biến môi trường, chỉ seed ở Development | — |
+| GAP-17 | Chưa xếp | Hybrid AI Navigation (YOLO scene → JEV/Groq/RuleBased → TTS): mới có entity `NavigationGuidanceLog`, chưa có endpoint. WebRTC: mới có ICE server (`GET /api/webrtc/ice-servers/public`), chưa có signaling | Contract request/response, độ trễ, fallback offline, sprint bàn giao | Giữ pipeline YOLO + luật cục bộ hiện tại |
 
-### Đã xử lý (commit `f4e2592`, `41bed01`)
+### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`)
 | # | Kết quả |
 |---|---|
 | GAP-1 | `privacyConsentAcceptedAt`, `privacyPolicyVersion` có trong `UserResponse` và `AuthTokenResponse` |
@@ -782,6 +786,8 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-8 | HTTPS + domain: `https://api.visionaid.net` (2026-09-28). Cleartext vẫn chỉ bật ở build development cho backend local |
 | GAP-12 | `PUT /emergency-events/{id}/called` — **dành cho Caregiver/CenterAdmin**, mobile không gọi |
 | GAP-2 | Không đổi (mobile tự chặn role) — chấp nhận |
+| GAP-15 | (`8f2641a`) License NULL = None; `/api/users/me*` luôn qua license check (kể cả emergency-contacts, tts-preferences); VIU B2C thừa hưởng license của Caregiver chính (`LicenseCacheSyncJob` mỗi giờ + ngay khi Caregiver tạo VIU). Lưu ý: Caregiver kích hoạt gói sau khi đã có VIU → VIU chờ tới lượt sync (≤ 1 giờ + cache Redis 5 phút) |
+| GAP-16 | (`8f2641a`) `UserResponse` và `AuthTokenResponse` có `licenseStatus` (`Trial`/`Active`/`Expired`/`None`, có thể null) và `licenseExpiresAt` |
 
 ---
 

@@ -1,4 +1,4 @@
-import { ApiError, setSessionExpiredHandler } from '@/api/client';
+import { ApiError, setLicenseHandler, setSessionExpiredHandler } from '@/api/client';
 import {
   acceptPrivacyPolicy,
   fetchMe,
@@ -7,6 +7,7 @@ import {
   userSchema,
   type User,
 } from '@/api/endpoints/auth';
+import type { AuthToken } from '@/api/types';
 import { Env } from '@/config/env';
 import { Strings } from '@/constants/strings.vi';
 import { clearUserData } from '@/services/storage/db';
@@ -23,6 +24,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { logger } from '@/utils/logger';
 import { isVisuallyImpaired } from '@/utils/role';
 
+import { announceLicense, licenseEventFor } from './licenseNotice';
+
 export class WrongRoleError extends Error {
   constructor() {
     super('Account role is not VisuallyImpaired');
@@ -33,6 +36,8 @@ export class WrongRoleError extends Error {
 async function applyUser(user: User): Promise<void> {
   await saveCachedUser(JSON.stringify(user));
   useAuthStore.getState().setUser(user);
+  const event = licenseEventFor(user.licenseStatus, user.licenseExpiresAt);
+  if (event) announceLicense(event);
 }
 
 /** Đăng nhập. Role khác VIU → revoke token vừa cấp rồi ném WrongRoleError (backend không chặn role). */
@@ -49,10 +54,27 @@ export async function signIn(email: string, password: string): Promise<void> {
   try {
     await applyUser(await fetchMe());
   } catch (error) {
+    // Chưa có / hết license (402): vẫn vào app để còn gọi khẩn cấp — backend không chặn SOS
+    if (error instanceof ApiError && error.status === 402)
+      return await applyUser(userFromToken(token));
     // Không để token "mồ côi": UI báo lỗi nhưng lần mở app sau lại tự đăng nhập.
     await clearTokens();
     throw error;
   }
+}
+
+/** Thông tin tối thiểu có sẵn trong response login khi /users/me bị chặn. */
+function userFromToken(token: AuthToken): User {
+  return {
+    id: token.userId,
+    email: token.email,
+    fullName: '',
+    role: token.role,
+    privacyConsentAcceptedAt: token.privacyConsentAcceptedAt ?? null,
+    privacyPolicyVersion: token.privacyPolicyVersion ?? null,
+    licenseStatus: token.licenseStatus ?? null,
+    licenseExpiresAt: token.licenseExpiresAt ?? null,
+  };
 }
 
 /**
@@ -114,12 +136,13 @@ export async function signOut(): Promise<void> {
   useAuthStore.getState().signOut();
 }
 
-/** Gọi 1 lần khi khởi động: refresh thất bại → về Login + TTS. */
+/** Gọi 1 lần khi khởi động: refresh thất bại → về Login + TTS; 402 / header cảnh báo license → TTS. */
 export function registerSessionExpiredHandler(): void {
   setSessionExpiredHandler(() => {
     useAuthStore.getState().signOut();
     ttsService.enqueue({ text: Strings.auth.sessionExpired, priority: TtsPriority.SYSTEM });
   });
+  setLicenseHandler(announceLicense);
 }
 
 /** Map lỗi đăng nhập → câu tiếng Việt cho TTS/UI (không đọc `detail` tiếng Anh). */

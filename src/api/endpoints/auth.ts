@@ -13,6 +13,9 @@ export const userSchema = z.object({
   role: z.string(),
   privacyConsentAcceptedAt: z.string().nullable(),
   privacyPolicyVersion: z.string().nullable(),
+  // Backend 8f2641a: 'Trial' | 'Active' | 'Expired' | 'None' (null = chưa đồng bộ)
+  licenseStatus: z.string().nullable().optional(),
+  licenseExpiresAt: z.string().nullable().optional(),
 });
 export type User = z.infer<typeof userSchema>;
 

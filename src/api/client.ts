@@ -36,6 +36,22 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler;
 }
 
+export type LicenseEvent = { kind: 'blocked' } | { kind: 'expiring'; daysLeft: number };
+let onLicenseEvent: (event: LicenseEvent) => void = () => {};
+/**
+ * App đăng ký: TTS báo license. Backend (LicenseValidationMiddleware) trả 402 khi chưa có / hết
+ * license quá 3 ngày; còn trong 3 ngày ân hạn thì gửi header `X-License-Warning: expiring-in-Nd`.
+ */
+export function setLicenseHandler(handler: (event: LicenseEvent) => void): void {
+  onLicenseEvent = handler;
+}
+
+function readLicenseWarning(headers: unknown): void {
+  const value = (headers as Record<string, unknown> | undefined)?.['x-license-warning'];
+  const match = typeof value === 'string' ? /^expiring-in-(\d+)d$/.exec(value) : null;
+  if (match) onLicenseEvent({ kind: 'expiring', daysLeft: Number(match[1]) });
+}
+
 type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
 apiClient.interceptors.request.use(async (config) => {
@@ -45,10 +61,15 @@ apiClient.interceptors.request.use(async (config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    readLicenseWarning(response.headers);
+    return response;
+  },
   async (error: unknown) => {
     if (!(error instanceof AxiosError) || !error.config) throw toApiError(error);
     const config = error.config as RetriableConfig;
+    readLicenseWarning(error.response?.headers);
+    if (error.response?.status === 402) onLicenseEvent({ kind: 'blocked' });
 
     if (error.response?.status !== 401 || config._retried) throw toApiError(error);
 
@@ -100,17 +121,18 @@ async function refreshTokens(): Promise<string | null> {
     await saveTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data.accessToken;
   } catch (error) {
-    // Backend trả 403 cho MỌI lỗi refresh; lỗi mạng cũng coi như không refresh được lần này.
+    // Backend trả 403 cho MỌI lỗi refresh thật sự (token sai / reuse / hết hạn / bị khóa).
     const status = error instanceof AxiosError ? error.response?.status : undefined;
-    if (status === undefined && error instanceof AxiosError) {
-      // Không tới được server: giữ phiên, báo lỗi mạng cho caller (không phải 401 "sai thông tin").
-      logger.warn('Refresh failed (network), session kept');
-      throw toApiError(error);
+    if (status === 401 || status === 403) {
+      logger.warn('Refresh rejected, session expired', status);
+      await clearTokens();
+      onSessionExpired();
+      return null;
     }
-    logger.warn('Refresh rejected, session expired', status);
-    await clearTokens();
-    onSessionExpired();
-    return null;
+    // Mất mạng / 5xx (đã gặp 504 từ gateway) / 429: lỗi tạm thời → GIỮ phiên, báo lỗi cho caller.
+    // Đăng xuất người khiếm thị chỉ vì server chập chờn là không chấp nhận được.
+    logger.warn('Refresh failed, session kept', status ?? 'network');
+    throw toApiError(error);
   }
 }
 
@@ -152,6 +174,7 @@ function isFieldErrors(value: unknown): value is Record<string, string[]> {
 
 function httpTitle(status: number): string {
   if (status === 401) return 'Unauthorized';
+  if (status === 402) return 'Payment Required';
   if (status === 403) return 'Forbidden';
   if (status === 429) return 'Too Many Requests';
   if (status >= 500) return 'Internal Server Error';
