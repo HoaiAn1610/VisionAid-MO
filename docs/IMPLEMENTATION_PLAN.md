@@ -122,7 +122,7 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 4: Voice Commands
 
-**Trạng thái (2026-10-01):** ✅ Task 1: ADR 0002 (Proposed — chấp nhận sau khi đo ở task SpeechService).
+**Trạng thái (2026-10-02):** ✅ Task 1–5: ADR 0002 **Accepted** (Google online + Google nhận dạng trên máy; Whisper và Vosk đã đo và loại — lệch BR-16, nhóm cần báo giảng viên), intent matcher, xác nhận 10 s, echo guard, SpeechService. Màn "Thử lệnh giọng nói" (dev) gỡ ở task 6.
 
 | Task                                                                              | Skill                                                         | Done khi                                |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------- |

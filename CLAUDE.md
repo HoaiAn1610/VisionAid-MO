@@ -40,7 +40,7 @@
 
 ### Nguyên tắc sản phẩm cốt lõi
 1. **Audio-first:** Người dùng KHÔNG cần nhìn màn hình. Mọi thao tác đều có phản hồi TTS tiếng Việt + haptic.
-2. **Offline-first:** Obstacle Detection (YOLOv8n) và Voice Commands (Whisper fallback) chạy hoàn toàn offline.
+2. **Offline-first:** Obstacle Detection (YOLOv8n) chạy hoàn toàn offline; Voice Commands offline bằng nhận dạng trên máy của Google (Android 13+, ADR 0002), máy khác dùng nút chạm.
 3. **Graceful degradation:** Mất mạng → TTS báo tính năng server (OCR, Face) tạm không khả dụng; KHÔNG crash, KHÔNG treo.
 4. **An toàn trước hết:** Fall detection, SOS, xác nhận lệnh nguy hiểm phải luôn tin cậy.
 
@@ -69,7 +69,7 @@
 | QR scan | `react-native-vision-camera` code scanner | On-device, không cần mạng để đọc nội dung QR |
 | TTS | `expo-speech` | Giọng tiếng Việt `vi-VN`; bọc trong `TtsService` có priority queue |
 | STT Online | **`expo-speech-recognition` 57.x** (ADR 0002) | Google Speech qua Android `SpeechRecognizer` (không nhúng API key), `lang: "vi-VN"`, `EXTRA_LANGUAGE_MODEL: "web_search"` cho câu lệnh ngắn |
-| STT Offline | **`whisper.rn` 0.7** + `@fugood/react-native-audio-pcm-stream` (thu PCM 16 kHz) (ADR 0002) | Fallback khi offline hoặc Google STT lỗi (BR-16). Model mặc định `ggml-tiny-q8_0.bin` (43.5 MB, lên `base-q5_1` nếu nhận sai nhiều) — **tải về lần đầu khi có Wi-Fi**, KHÔNG bundle vào APK. Model `small` quá nặng cho máy 4GB RAM → loại |
+| STT Offline | **Cùng thư viện, `requiresOnDeviceRecognition: true`** — Google nhận dạng trên máy (ADR 0002) | Android 13+ có `com.google.android.as` + gói vi-VN (app tự tải ngầm trên Android 14+ khi Wi-Fi). Máy không có → nút chạm. **Lệch BR-16:** Whisper tiny đo 0/6, Vosk small khoảng 7/12 → đã loại (số đo trong ADR 0002) |
 | Accelerometer | `expo-sensors` | Fall detection |
 | GPS | `expo-location` + `expo-task-manager` | Background location, low-power mode |
 | Battery | `expo-battery` | Auto Minimal Mode < 10% |
@@ -124,7 +124,7 @@ visionaid-mobile/
 │   ├── services/                         # Singleton services, không phụ thuộc UI
 │   │   ├── tts/TtsService.ts             # Priority queue + per-class cooldown
 │   │   ├── ai/YoloDetector.ts            # Load model, preprocess, inference, NMS
-│   │   ├── speech/SpeechService.ts       # Google STT → Whisper fallback
+│   │   ├── speech/SpeechService.ts       # Google STT online → nhận dạng trên máy (ADR 0002)
 │   │   ├── signalr/LocationHubClient.ts
 │   │   ├── fcm/FcmService.ts
 │   │   ├── sensors/FallDetector.ts
@@ -149,7 +149,7 @@ visionaid-mobile/
 │
 ├── assets/
 │   └── models/
-│       └── yolov8n_float16.tflite        # 6.4MB, chạy GPU delegate (lùi về CPU) — cách export: ADR 0001 §6. Whisper model tải runtime, không để ở đây
+│       └── yolov8n_float16.tflite        # 6.4MB, chạy GPU delegate (lùi về CPU) — cách export: ADR 0001 §6.
 │
 ├── __tests__/ (hoặc *.test.ts cạnh file)
 ├── app.config.ts                         # Permissions, plugins, Android config
@@ -334,7 +334,7 @@ export type DetectionMethod = 'AccelerometerCamera' | 'Manual' | 'VoiceCommand' 
 export type AlertStatus =
   | 'Detected' | 'Dismissed' | 'Sent' | 'Acknowledged' | 'Escalated' | 'Resolved' | 'Called';
 export type CommandStatus = 'Success' | 'Failed' | 'Unrecognized' | 'Confirmed' | 'Cancelled';
-export type RecognitionEngine = 'GoogleSpeech' | 'Whisper'; // backend nhận chuỗi tự do — thống nhất giá trị với team
+export type RecognitionEngine = 'GoogleSpeech' | 'GoogleOnDevice'; // backend nhận chuỗi tự do — thống nhất giá trị với team
 export type NetworkStatus = 'Wifi' | 'Mobile4G' | 'Mobile3G' | 'Offline';
 export type DeviceType = 'Android' | 'Ios' | 'Web';
 export type EmergencyContactType = 'Phone' | 'Zalo' | 'Both';
@@ -432,15 +432,15 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 ### 9.5 Voice Commands (FE-09)
 ```
 Kích hoạt (nút lớn / cử chỉ) → Voice Listening Bottom Sheet + haptic + tiếng "bíp"
-→ Online & Google STT OK ? Google Speech : Whisper (offline)
+→ Online & Google STT OK ? Google Speech : Google nhận dạng trên máy (offline, Android 13+) : TTS hướng dẫn dùng nút
 → transcript → intent matcher (từ khóa trong voiceCommands.ts, không phân biệt dấu/hoa thường)
 → confidence thấp / không khớp → TTS "Tôi chưa hiểu, vui lòng nói lại" (`Unrecognized`)
 → lệnh nguy hiểm → Confirmation flow
 → thực thi → TTS xác nhận → log voice_command_logs (queue)
 ```
-- **Fallback (BR-16):** Google STT lỗi/offline → tự động Whisper + TTS: "Đang dùng nhận dạng giọng nói ngoại tuyến".
+- **Fallback (BR-16, đã điều chỉnh — ADR 0002):** Google STT lỗi/offline → tự động Google nhận dạng trên máy + TTS: "Đang dùng nhận dạng giọng nói ngoại tuyến". Máy không nhận dạng trên máy được → TTS hướng dẫn dùng nút chạm.
 - **Lệnh nguy hiểm (BR-14):** "Gọi khẩn cấp" → TTS "Bạn có chắc muốn gọi khẩn cấp? Nói 'có' để xác nhận" → chờ tối đa **10s** → không xác nhận → tự hủy (`Cancelled`) + TTS thông báo đã hủy.
-- Log (`POST /api/voice-commands`, **từng log một**): `rawTranscript`, `matchedCommand`, `recognitionEngine` (chuỗi tự do: `"GoogleSpeech"` / `"Whisper"`), `confidenceScore`, `executionStatus`, `requiredConfirmation`, `confirmedAt`, `processingTimeMs`, `audioDurationMs` (để tính RTF), `isOffline`, `executedAt`, `latitude`, `longitude`.
+- Log (`POST /api/voice-commands`, **từng log một**): `rawTranscript`, `matchedCommand`, `recognitionEngine` (chuỗi tự do: `"GoogleSpeech"` / `"GoogleOnDevice"`), `confidenceScore`, `executionStatus`, `requiredConfirmation`, `confirmedAt`, `processingTimeMs`, `audioDurationMs` (để tính RTF), `isOffline`, `executedAt`, `latitude`, `longitude`.
 - Target ≤ 2s end-to-end (online).
 
 ### 9.6 Location & GPS (FE-12, FE-13, FE-29)
@@ -597,7 +597,7 @@ export const BusinessRules = {
 | Tính năng | Offline? | Hành vi khi mất mạng |
 |---|---|---|
 | Obstacle detection | ✅ | Chạy bình thường |
-| Voice commands | ✅ | Whisper fallback + TTS thông báo |
+| Voice commands | ⚠️ | Android 13+ có gói vi-VN: nhận dạng trên máy + TTS thông báo; máy khác: nút chạm (ADR 0002) |
 | QR decode | ✅ | Đọc nội dung, log vào queue |
 | TTS | ✅ | Bình thường (đảm bảo gói giọng `vi-VN` đã cài — kiểm tra khi khởi động, hướng dẫn cài nếu thiếu) |
 | Fall detection | ✅ phát hiện | Event vào queue; fallback gọi emergency contact (xem 9.7) |
@@ -704,7 +704,7 @@ Sprint 3 — Obstacle Detection (Home Screen)
   ✦ Benchmark latency (≤ 500ms) + pin
 
 Sprint 4 — Voice Commands
-  ✦ SpeechService: Google STT (online) → Whisper (offline) fallback
+  ✦ SpeechService: Google STT (online) → Google nhận dạng trên máy (offline) — ADR 0002
   ✦ Intent matcher + 10+ lệnh cốt lõi + confirmation flow (10s)
   ✦ Voice Listening Bottom Sheet, voice command logs
 
