@@ -1,6 +1,6 @@
 import { Strings } from '@/constants/strings.vi';
 
-import { runVoiceIntent, type VoiceContext } from './runVoiceIntent';
+import { MIN_MEDIA_VOLUME, runVoiceIntent, type VoiceContext } from './runVoiceIntent';
 
 const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[] } => {
   const spoken: string[] = [];
@@ -17,6 +17,8 @@ const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[
     speechRate: 1,
     setSpeechRate: jest.fn(),
     lastAnnouncement: null,
+    mediaVolume: 0.5,
+    setMediaVolume: jest.fn(),
     ...over,
   };
 };
@@ -78,6 +80,30 @@ describe('runVoiceIntent', () => {
     const c = ctx();
     expect(runVoiceIntent('SCAN_QR', c)).toBe(true);
     expect(c.openQrScanner).toHaveBeenCalled();
+  });
+
+  it('"to lên" / "nhỏ lại" đổi âm lượng media từng nấc, không xuống dưới mức tối thiểu', () => {
+    const up = ctx({ mediaVolume: 0.5 });
+    runVoiceIntent('VOLUME_UP', up);
+    expect(up.setMediaVolume).toHaveBeenCalledWith(0.65);
+    expect(up.spoken).toEqual([Strings.voice.louder]);
+
+    const down = ctx({ mediaVolume: 0.4 });
+    runVoiceIntent('VOLUME_DOWN', down);
+    expect(down.setMediaVolume).toHaveBeenCalledWith(MIN_MEDIA_VOLUME);
+
+    const floor = ctx({ mediaVolume: MIN_MEDIA_VOLUME });
+    runVoiceIntent('VOLUME_DOWN', floor);
+    expect(floor.setMediaVolume).not.toHaveBeenCalled();
+    expect(floor.spoken).toEqual([Strings.voice.quietest]);
+
+    const max = ctx({ mediaVolume: 1 });
+    runVoiceIntent('VOLUME_UP', max);
+    expect(max.spoken).toEqual([Strings.voice.loudest]);
+
+    const unsupported = ctx({ mediaVolume: null });
+    runVoiceIntent('VOLUME_UP', unsupported);
+    expect(unsupported.spoken).toEqual([Strings.errors.unavailable]);
   });
 
   it('"đọc chữ" / "đây là ai" → mở màn đọc chữ / nhận diện người quen', () => {

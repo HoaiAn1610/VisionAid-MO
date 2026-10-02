@@ -14,8 +14,9 @@ import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { isOnDeviceSpeechReady } from '@/services/speech/onDeviceSpeech';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 
-import { addVolumeLongPressListener } from '../../../modules/volume-key';
+import { addVolumeKeyListener, getMediaVolume, setMediaVolume } from '../../../modules/volume-key';
 
+import { MIN_MEDIA_VOLUME } from './runVoiceIntent';
 import { useVoiceCommand, type ListenMode, type VoicePhase } from './useVoiceCommand';
 import { VoiceSheet } from './VoiceSheet';
 
@@ -48,7 +49,8 @@ const canListenSilently = () => NetworkMonitor.isOnline() || isOnDeviceSpeechRea
 
 /**
  * Lệnh giọng nói dùng chung cho mọi màn hình (FE-09, §5.6): tự nghe khi mở app và sau mỗi kết
- * quả; nhấn giữ nút giảm âm lượng (hoặc nút trên Home) để ra lệnh bất cứ lúc nào.
+ * quả; nhấn nút tăng/giảm âm lượng (hoặc nút trên Home) để ra lệnh bất cứ lúc nào. Âm lượng
+ * đổi bằng lệnh "to lên" / "nhỏ lại".
  */
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -99,15 +101,18 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [start],
   );
 
-  // Mở app → chào + tự nghe lệnh (người dùng không cần tìm nút)
+  // Mở app → chào + tự nghe lệnh (người dùng không cần tìm nút). Phím âm lượng không còn chỉnh
+  // âm lượng → nâng lên mức nghe được trước khi nói.
   useEffect(() => {
+    const volume = getMediaVolume();
+    if (volume !== null && volume < MIN_MEDIA_VOLUME) setMediaVolume(MIN_MEDIA_VOLUME);
     ttsService.enqueue({ text: Strings.app.ready, priority: TtsPriority.SYSTEM });
     void start('launch');
   }, [start]);
 
-  // Nhấn giữ nút giảm âm lượng: đang nghe → hủy, không thì bắt đầu nghe
+  // Nút tăng/giảm âm lượng = nút ra lệnh: đang nghe → hủy, không thì bắt đầu nghe
   useEffect(() => {
-    const sub = addVolumeLongPressListener(() => {
+    const sub = addVolumeKeyListener(() => {
       if (phaseRef.current === 'idle') void start('manual');
       else cancel();
     });

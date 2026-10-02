@@ -156,7 +156,7 @@ export const Strings = {
   voice: {
     button: 'Ra lệnh giọng nói',
     buttonHint:
-      'Chạm hai lần rồi nói một lệnh sau tiếng bíp, ví dụ: bắt đầu, đọc chữ, trợ giúp. Ở bất kỳ màn hình nào cũng có thể nhấn giữ nút giảm âm lượng để ra lệnh.',
+      'Chạm hai lần rồi nói một lệnh sau tiếng bíp, ví dụ: bắt đầu, đọc chữ, trợ giúp. Ở bất kỳ màn hình nào cũng có thể nhấn nút âm lượng để ra lệnh.',
     listening: 'Đang nghe…',
     confirming: 'Đang chờ bạn xác nhận',
     cancel: 'Hủy',
@@ -172,11 +172,16 @@ export const Strings = {
     slower: 'Đã đọc chậm hơn',
     fastest: 'Đã ở tốc độ đọc nhanh nhất',
     slowest: 'Đã ở tốc độ đọc chậm nhất',
+    louder: 'Đã tăng âm lượng',
+    quieter: 'Đã giảm âm lượng',
+    loudest: 'Đã ở mức âm lượng lớn nhất',
+    quietest: 'Đã ở mức âm lượng nhỏ nhất',
     nothingToRepeat: 'Chưa có thông báo nào để đọc lại',
     help: (commands: string) => `Bạn có thể nói: ${commands}.`,
     notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
-    wakeHint: 'Khi cần ra lệnh, nhấn giữ nút giảm âm lượng hoặc chạm nút ra lệnh giọng nói.',
+    wakeHint:
+      'Khi cần ra lệnh, nhấn nút tăng hoặc giảm âm lượng. Muốn chỉnh âm lượng, hãy nói to lên hoặc nhỏ lại.',
     offlineEngine: 'Đang dùng nhận dạng giọng nói ngoại tuyến',
     retryOffline: 'Mạng không ổn định, đang dùng nhận dạng ngoại tuyến. Vui lòng nói lại.',
     offlineUnavailable:

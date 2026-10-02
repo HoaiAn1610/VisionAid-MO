@@ -13,6 +13,8 @@ export type VoiceIntent =
   | 'I_AM_OK'
   | 'SPEED_UP'
   | 'SLOW_DOWN'
+  | 'VOLUME_UP'
+  | 'VOLUME_DOWN'
   | 'HELP'
   | 'REPEAT';
 
@@ -35,6 +37,16 @@ export const VoiceCommands: readonly VoiceCommandDef[] = [
   { intent: 'I_AM_OK', keywords: ['tôi ổn'], requiresConfirmation: false },
   { intent: 'SPEED_UP', keywords: ['đọc nhanh hơn'], requiresConfirmation: false },
   { intent: 'SLOW_DOWN', keywords: ['đọc chậm hơn'], requiresConfirmation: false },
+  {
+    intent: 'VOLUME_UP',
+    keywords: ['to lên', 'tăng âm lượng', 'nói to'],
+    requiresConfirmation: false,
+  },
+  {
+    intent: 'VOLUME_DOWN',
+    keywords: ['nhỏ lại', 'giảm âm lượng', 'nói nhỏ'],
+    requiresConfirmation: false,
+  },
   { intent: 'HELP', keywords: ['trợ giúp'], requiresConfirmation: false },
   { intent: 'REPEAT', keywords: ['lặp lại'], requiresConfirmation: false },
 ];

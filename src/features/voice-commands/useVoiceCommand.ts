@@ -8,6 +8,8 @@ import { HapticService } from '@/services/haptics/HapticService';
 import { OfflineSpeechUnavailableError, speechService } from '@/services/speech/SpeechService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { useSettingsStore } from '@/stores/settingsStore';
+
+import { getMediaVolume, setMediaVolume } from '../../../modules/volume-key';
 import { logger } from '@/utils/logger';
 
 import { confirmByVoice, type VoiceConfirmation } from './confirmByVoice';
@@ -134,6 +136,8 @@ export function useVoiceCommand(navigation: NavigationControls) {
             speechRate: ttsService.getSettings().rate,
             setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
             lastAnnouncement,
+            mediaVolume: getMediaVolume(),
+            setMediaVolume: (volume) => void setMediaVolume(volume),
           });
         } finally {
           log(handled ? (confirmedAt ? 'Confirmed' : 'Success') : 'Failed', confirmedAt);

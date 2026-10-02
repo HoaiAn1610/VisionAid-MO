@@ -5,6 +5,13 @@ import { VoiceCommands, type VoiceIntent } from '@/constants/voiceCommands';
 
 /** "đọc nhanh hơn" / "đọc chậm hơn" đổi tốc độ từng nấc này (§12). */
 const SPEED_STEP = 0.25;
+/** "to lên" / "nhỏ lại" đổi âm lượng media từng nấc này (khoảng 2/15 nấc của Android). */
+const VOLUME_STEP = 0.15;
+/**
+ * Phím âm lượng đã thành nút ra lệnh → không cho âm lượng xuống mức không nghe thấy, nếu không
+ * người dùng sẽ không nghe được chính câu trả lời của lệnh "to lên".
+ */
+export const MIN_MEDIA_VOLUME = 0.3;
 
 export interface VoiceContext {
   say(text: string): void;
@@ -19,6 +26,9 @@ export interface VoiceContext {
   setSpeechRate(rate: number): void;
   /** Câu TTS gần nhất TRƯỚC lượt ra lệnh này (cho lệnh "lặp lại"). */
   lastAnnouncement: string | null;
+  /** Âm lượng media 0..1; `null` nếu máy không hỗ trợ đổi âm lượng. */
+  mediaVolume: number | null;
+  setMediaVolume(volume: number): void;
 }
 
 /**
@@ -67,6 +77,19 @@ function execute(intent: VoiceIntent, ctx: VoiceContext): void {
       }
       ctx.setSpeechRate(next);
       return ctx.say(faster ? Strings.voice.faster : Strings.voice.slower);
+    }
+    case 'VOLUME_UP':
+    case 'VOLUME_DOWN': {
+      const current = ctx.mediaVolume;
+      if (current === null) return ctx.say(Strings.errors.unavailable);
+      const louder = intent === 'VOLUME_UP';
+      if (louder ? current >= 0.99 : current <= MIN_MEDIA_VOLUME + 0.01) {
+        return ctx.say(louder ? Strings.voice.loudest : Strings.voice.quietest);
+      }
+      ctx.setMediaVolume(
+        Math.min(1, Math.max(MIN_MEDIA_VOLUME, current + (louder ? VOLUME_STEP : -VOLUME_STEP))),
+      );
+      return ctx.say(louder ? Strings.voice.louder : Strings.voice.quieter);
     }
     case 'HELP':
       return ctx.say(Strings.voice.help(VoiceCommands.map((c) => c.keywords[0]).join(', ')));
