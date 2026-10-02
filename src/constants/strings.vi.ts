@@ -130,6 +130,7 @@ export const Strings = {
     notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
     offlineEngine: 'Đang dùng nhận dạng giọng nói ngoại tuyến',
+    retryOffline: 'Mạng không ổn định, đang dùng nhận dạng ngoại tuyến. Vui lòng nói lại.',
     offlineUnavailable:
       'Không có mạng nên chưa nhận được lệnh giọng nói trên máy này. Bạn hãy dùng các nút trên màn hình.',
     // "đồng ý" (2 âm tiết) thay vì "có": Google hay trả rỗng với từ 1 âm tiết. Vẫn nhận "có", "xác nhận".

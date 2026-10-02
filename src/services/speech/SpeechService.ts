@@ -47,12 +47,14 @@ const defaultDeps: SpeechDeps = {
 /**
  * Nghe MỘT câu lệnh (ADR 0002): online → Google; Google online không dùng được hoặc offline →
  * Google nhận dạng ngay trên máy + TTS báo (BR-16, báo một lần cho tới khi online chạy lại).
- * Máy không nhận dạng trên máy được (Android ≤ 12, thiếu gói vi-VN) → TTS hướng dẫn dùng nút chạm. Mic chỉ mở khi TTS đã im, và kết quả
- * trùng lúc TTS phát bị bỏ (echo guard, §9.7).
+ * Máy không nhận dạng trên máy được (Android ≤ 12, thiếu gói vi-VN) → TTS hướng dẫn dùng nút chạm.
+ * Mic chỉ mở khi TTS đã im, và kết quả trùng lúc TTS phát bị bỏ (echo guard, §9.7).
  */
 export function createSpeechService(deps: SpeechDeps = defaultDeps) {
   let current: SttSession | null = null;
   let fallbackAnnounced = false;
+  /** Tăng mỗi lần abort / bắt đầu lượt mới → lượt đang chờ TTS im biết mình đã bị hủy. */
+  let generation = 0;
 
   const waitForSilence = () =>
     new Promise<void>((resolve) => {
@@ -69,7 +71,12 @@ export function createSpeechService(deps: SpeechDeps = defaultDeps) {
     start: () => SttSession,
     isOffline: boolean,
   ): Promise<ListenOutcome> {
+    const gen = generation;
     await waitForSilence();
+    // Bị hủy trong lúc chờ TTS đọc xong → KHÔNG mở mic (không bíp sau khi đã báo "đã hủy")
+    if (gen !== generation) {
+      return { engine, alternatives: [], discardedAsEcho: false, isOffline, processingTimeMs: 0 };
+    }
     const guard = deps.createGuard();
     guard.markListeningStart();
     current = start();
@@ -108,6 +115,7 @@ export function createSpeechService(deps: SpeechDeps = defaultDeps) {
 
   return {
     async listenOnce(): Promise<ListenOutcome> {
+      generation++;
       current?.abort();
       if (!deps.isOnline()) return listenOffline();
       try {
@@ -116,10 +124,16 @@ export function createSpeechService(deps: SpeechDeps = defaultDeps) {
         return outcome;
       } catch (e) {
         if (!(e instanceof SttUnavailableError)) throw e;
+        // Người dùng đã nói xong mà Google online lỗi → phải nhắc NÓI LẠI, nếu không mic mở lại âm thầm
+        if (deps.isOfflineReady()) {
+          fallbackAnnounced = true;
+          deps.tts.enqueue({ text: Strings.voice.retryOffline, priority: TtsPriority.SYSTEM });
+        }
         return listenOffline();
       }
     },
     abort(): void {
+      generation++;
       current?.abort();
     },
   };

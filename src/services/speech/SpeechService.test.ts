@@ -83,9 +83,11 @@ describe('SpeechService', () => {
           : session(Promise.reject(new SttUnavailableError('network'))),
       ),
     });
-    const out = await createSpeechService(d).listenOnce();
+    const svc = createSpeechService(d);
+    const out = await svc.listenOnce();
     expect(out.engine).toBe('GoogleOnDevice');
-    expect(spoken).toContain(Strings.voice.offlineEngine);
+    await svc.listenOnce(); // lỗi lần hai vẫn phải nhắc (trước đây mic mở lại âm thầm)
+    expect(spoken).toEqual([Strings.voice.retryOffline, Strings.voice.retryOffline]);
   });
 
   it('offline mà máy không nhận dạng trên máy được (Android ≤ 12, thiếu vi-VN) → TTS hướng dẫn dùng nút', async () => {
@@ -141,6 +143,24 @@ describe('SpeechService', () => {
     notify(false);
     await listening;
     expect(d.google).toHaveBeenCalled();
+  });
+
+  it('bấm Hủy trong lúc chờ TTS đọc xong → KHÔNG mở mic', async () => {
+    speaking = true;
+    let notify: (s: boolean) => void = () => {};
+    const d = deps();
+    d.tts.onSpeakingChange = (l) => {
+      notify = l;
+      return () => true;
+    };
+    const svc = createSpeechService(d);
+    const listening = svc.listenOnce();
+    await Promise.resolve();
+    svc.abort();
+    speaking = false;
+    notify(false);
+    await expect(listening).resolves.toMatchObject({ alternatives: [] });
+    expect(d.google).not.toHaveBeenCalled();
   });
 
   it('lỗi khác (không phải SttUnavailable) → ném ra, không chuyển sang trên máy', async () => {
