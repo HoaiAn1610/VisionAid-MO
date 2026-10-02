@@ -121,17 +121,18 @@ async function refreshTokens(): Promise<string | null> {
     await saveTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data.accessToken;
   } catch (error) {
-    // Backend trả 403 cho MỌI lỗi refresh; lỗi mạng cũng coi như không refresh được lần này.
+    // Backend trả 403 cho MỌI lỗi refresh thật sự (token sai / reuse / hết hạn / bị khóa).
     const status = error instanceof AxiosError ? error.response?.status : undefined;
-    if (status === undefined && error instanceof AxiosError) {
-      // Không tới được server: giữ phiên, báo lỗi mạng cho caller (không phải 401 "sai thông tin").
-      logger.warn('Refresh failed (network), session kept');
-      throw toApiError(error);
+    if (status === 401 || status === 403) {
+      logger.warn('Refresh rejected, session expired', status);
+      await clearTokens();
+      onSessionExpired();
+      return null;
     }
-    logger.warn('Refresh rejected, session expired', status);
-    await clearTokens();
-    onSessionExpired();
-    return null;
+    // Mất mạng / 5xx (đã gặp 504 từ gateway) / 429: lỗi tạm thời → GIỮ phiên, báo lỗi cho caller.
+    // Đăng xuất người khiếm thị chỉ vì server chập chờn là không chấp nhận được.
+    logger.warn('Refresh failed, session kept', status ?? 'network');
+    throw toApiError(error);
   }
 }
 

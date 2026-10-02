@@ -158,6 +158,18 @@ describe('apiClient', () => {
     expect(onExpired).not.toHaveBeenCalled();
   });
 
+  it.each([502, 503, 504, 429])(
+    'refresh lỗi tạm thời %i (gateway / server) → GIỮ phiên, không đăng xuất',
+    async (status) => {
+      useApi(() => ({ status: 401 }));
+      useRefresh(() => ({ status }));
+
+      await expect(apiClient.get('/a')).rejects.toMatchObject({ status });
+      expect(store.tokens).toEqual({ accessToken: 'old-access', refreshToken: 'old-refresh' });
+      expect(onExpired).not.toHaveBeenCalled();
+    },
+  );
+
   it('401 của request dùng token CŨ khi token đã được làm mới → retry luôn, không refresh thêm', async () => {
     store.tokens = { accessToken: 'new-access', refreshToken: 'new-refresh' };
     useApi((c) =>
