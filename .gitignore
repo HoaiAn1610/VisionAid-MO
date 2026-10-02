@@ -53,3 +53,6 @@ coverage/
 
 # Claude Code (cấu hình riêng từng máy)
 .claude/settings.local.json
+
+# Build output của native module local
+modules/*/android/build/

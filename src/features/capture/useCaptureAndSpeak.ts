@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Camera } from 'react-native-vision-camera';
 
 import type { UploadImage } from '@/api/endpoints/ocr';
+import { useVoice } from '@/features/voice-commands/VoiceProvider';
 import { useCameraAccess } from '@/hooks/useCameraAccess';
 import { captureJpeg, deletePhoto } from '@/services/camera/photoCapture';
 import { HapticService } from '@/services/haptics/HapticService';
@@ -11,6 +12,8 @@ import { logger } from '@/utils/logger';
 export type CapturePhase = 'aiming' | 'busy' | 'result';
 
 export interface CaptureOptions {
+  /** Route của màn hình (lệnh giọng nói mở lại chính màn này → chụp lại). */
+  route: '/read-text' | '/face';
   /** Hướng dẫn ngắm, đọc khi mở màn hình và khi chụp lại. */
   aim: string;
   /** Cạnh dài tối đa của ảnh gửi đi (§16.13). */
@@ -31,6 +34,7 @@ export const say = (text: string, priority = TtsPriority.FEEDBACK) =>
  */
 export function useCaptureAndSpeak(options: CaptureOptions) {
   const hasPermission = useCameraAccess(options.aim);
+  const { listen, registerCapture } = useVoice();
   const camera = useRef<Camera>(null);
   const busy = useRef(false);
   const mounted = useRef(true);
@@ -76,13 +80,20 @@ export function useCaptureAndSpeak(options: CaptureOptions) {
     setMessage(spoken);
     setPhase('result');
     say(spoken);
-  }, []);
+    listen('follow-up'); // nghe lệnh tiếp theo sau khi đọc xong kết quả (mic chờ TTS im)
+  }, [listen]);
 
   const again = useCallback(() => {
     setMessage(null);
     setPhase('aiming');
     say(opts.current.aim);
   }, []);
+
+  const { route } = options;
+  useEffect(() => {
+    registerCapture(route, again);
+    return () => registerCapture(route, null);
+  }, [registerCapture, route, again]);
 
   return { hasPermission, camera, phase, message, capture, again };
 }

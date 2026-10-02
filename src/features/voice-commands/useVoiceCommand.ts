@@ -17,6 +17,13 @@ import { recordVoiceCommand, toVoiceLog } from './voiceLog';
 
 export type VoicePhase = 'idle' | 'listening' | 'confirming';
 
+/**
+ * `manual`: người dùng chủ động (nút / phím âm lượng). `launch`: tự nghe khi mở app.
+ * `follow-up`: tự nghe sau một kết quả. Hai chế độ tự động không nghe thấy gì thì không báo
+ * "chưa hiểu" (người dùng có thể không định nói); `launch` nhắc cách gọi lại.
+ */
+export type ListenMode = 'manual' | 'launch' | 'follow-up';
+
 interface NavigationControls {
   active: boolean;
   start(): void;
@@ -67,76 +74,83 @@ export function useVoiceCommand(navigation: NavigationControls) {
     return confirmedAt;
   }, []);
 
-  const start = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    cancelled.current = false;
-    const lastAnnouncement = ttsService.getLastText();
-    setHeard(null);
-    setPhase('listening');
-    void HapticService.tap();
-    try {
-      if (!(await ensureMicPermission())) return;
-      if (await AccessibilityInfo.isScreenReaderEnabled()) await delay(SCREEN_READER_SETTLE_MS);
-      if (cancelled.current) return;
-
-      const outcome = await speechService.listenOnce();
-      if (cancelled.current) return;
-      const executedAt = new Date();
-      setHeard(outcome.alternatives[0]?.transcript ?? null);
-      const command = matchIntent(outcome.alternatives);
-      // Lượt im lặng / tiếng của chính TTS → không ghi log (tránh log rác)
-      const log = (status: CommandStatus, confirmedAt?: Date) => {
-        if (outcome.alternatives.length === 0) return;
-        recordVoiceCommand(toVoiceLog({ outcome, command, status, executedAt, confirmedAt }));
-      };
-      // debug bị tắt ở production — transcript là dữ liệu nhạy cảm (§16.8)
-      logger.debug('Voice command', {
-        engine: outcome.engine,
-        heard: outcome.alternatives[0]?.transcript,
-        intent: command?.intent ?? null,
-        ms: outcome.processingTimeMs,
-        echo: outcome.discardedAsEcho,
-      });
-      if (!command) {
-        say(Strings.voice.notUnderstood);
-        return log('Unrecognized');
-      }
-      let confirmedAt: Date | undefined;
-      if (command.requiresConfirmation) {
-        setPhase('confirming');
-        confirmedAt = (await confirm()) ?? undefined;
-        if (!confirmedAt) return log('Cancelled');
-      }
-      let handled = false;
+  const start = useCallback(
+    async (mode: ListenMode = 'manual') => {
+      if (busy.current) return;
+      busy.current = true;
+      cancelled.current = false;
+      const lastAnnouncement = ttsService.getLastText();
+      setHeard(null);
+      setPhase('listening');
+      void HapticService.tap();
       try {
-        handled = runVoiceIntent(command.intent, {
-          say,
-          navigationActive: navRef.current.active,
-          startNavigation: navRef.current.start,
-          stopNavigation: navRef.current.stop,
-          openQrScanner: navRef.current.openQrScanner,
-          openTextReader: navRef.current.openTextReader,
-          openFaceRecognizer: navRef.current.openFaceRecognizer,
-          setDetectionMode,
-          speechRate: ttsService.getSettings().rate,
-          setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
-          lastAnnouncement,
+        if (!(await ensureMicPermission())) return;
+        if (await AccessibilityInfo.isScreenReaderEnabled()) await delay(SCREEN_READER_SETTLE_MS);
+        if (cancelled.current) return;
+
+        const outcome = await speechService.listenOnce();
+        if (cancelled.current) return;
+        const executedAt = new Date();
+        setHeard(outcome.alternatives[0]?.transcript ?? null);
+        if (mode !== 'manual' && outcome.alternatives.length === 0) {
+          if (mode === 'launch') say(Strings.voice.wakeHint);
+          return;
+        }
+        const command = matchIntent(outcome.alternatives);
+        // Lượt im lặng / tiếng của chính TTS → không ghi log (tránh log rác)
+        const log = (status: CommandStatus, confirmedAt?: Date) => {
+          if (outcome.alternatives.length === 0) return;
+          recordVoiceCommand(toVoiceLog({ outcome, command, status, executedAt, confirmedAt }));
+        };
+        // debug bị tắt ở production — transcript là dữ liệu nhạy cảm (§16.8)
+        logger.debug('Voice command', {
+          engine: outcome.engine,
+          heard: outcome.alternatives[0]?.transcript,
+          intent: command?.intent ?? null,
+          ms: outcome.processingTimeMs,
+          echo: outcome.discardedAsEcho,
         });
+        if (!command) {
+          say(Strings.voice.notUnderstood);
+          return log('Unrecognized');
+        }
+        let confirmedAt: Date | undefined;
+        if (command.requiresConfirmation) {
+          setPhase('confirming');
+          confirmedAt = (await confirm()) ?? undefined;
+          if (!confirmedAt) return log('Cancelled');
+        }
+        let handled = false;
+        try {
+          handled = runVoiceIntent(command.intent, {
+            say,
+            navigationActive: navRef.current.active,
+            startNavigation: navRef.current.start,
+            stopNavigation: navRef.current.stop,
+            openQrScanner: navRef.current.openQrScanner,
+            openTextReader: navRef.current.openTextReader,
+            openFaceRecognizer: navRef.current.openFaceRecognizer,
+            setDetectionMode,
+            speechRate: ttsService.getSettings().rate,
+            setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
+            lastAnnouncement,
+          });
+        } finally {
+          log(handled ? (confirmedAt ? 'Confirmed' : 'Success') : 'Failed', confirmedAt);
+        }
+      } catch (e) {
+        // Offline không nhận dạng được: SpeechService đã hướng dẫn dùng nút
+        if (!(e instanceof OfflineSpeechUnavailableError)) {
+          logger.warn('Voice command failed', e);
+          say(Strings.errors.unavailable, TtsPriority.SYSTEM);
+        }
       } finally {
-        log(handled ? (confirmedAt ? 'Confirmed' : 'Success') : 'Failed', confirmedAt);
+        busy.current = false;
+        setPhase('idle');
       }
-    } catch (e) {
-      // Offline không nhận dạng được: SpeechService đã hướng dẫn dùng nút
-      if (!(e instanceof OfflineSpeechUnavailableError)) {
-        logger.warn('Voice command failed', e);
-        say(Strings.errors.unavailable, TtsPriority.SYSTEM);
-      }
-    } finally {
-      busy.current = false;
-      setPhase('idle');
-    }
-  }, [confirm, setDetectionMode]);
+    },
+    [confirm, setDetectionMode],
+  );
 
   const cancel = useCallback(() => {
     if (!busy.current) return;

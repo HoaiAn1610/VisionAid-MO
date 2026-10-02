@@ -9,10 +9,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
 import { DetectionCamera } from '@/features/obstacle-detection/DetectionCamera';
 import { useObstacleNavigation } from '@/features/obstacle-detection/useObstacleNavigation';
-import { useVoiceCommand } from '@/features/voice-commands/useVoiceCommand';
-import { VoiceSheet } from '@/features/voice-commands/VoiceSheet';
+import { useVoice } from '@/features/voice-commands/VoiceProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { useAuthStore } from '@/stores/authStore';
 import { colors, radius, spacing } from '@/theme';
 
@@ -20,28 +18,23 @@ export default function HomeScreen() {
   const fullName = useAuthStore((s) => s.user?.fullName ?? '');
   const offline = useNetworkStatus() === 'Offline';
   const nav = useObstacleNavigation();
-  const voice = useVoiceCommand({
-    active: nav.active,
-    start: () => void nav.start(),
-    stop: nav.stop,
-    openQrScanner: () => router.push({ pathname: '/ocr', params: { via: 'voice' } }),
-    openTextReader: () => router.push({ pathname: '/read-text', params: { via: 'voice' } }),
-    openFaceRecognizer: () => router.push('/face'),
-  });
+  const voice = useVoice();
+  const { registerNavigation } = voice;
+  const { active, start: startNavigation, stop: stopNavigation } = nav;
+  // Lệnh giọng nói (overlay toàn cục) điều khiển dẫn đường qua handle này
+  useEffect(() => {
+    registerNavigation({ active, start: () => void startNavigation(), stop: stopNavigation });
+    return () => registerNavigation(null);
+  }, [registerNavigation, active, startNavigation, stopNavigation]);
   const voiceButton = (
     <Button
       variant="secondary"
       icon="microphone"
       label={Strings.voice.button}
       accessibilityHint={Strings.voice.buttonHint}
-      onPress={() => void voice.start()}
+      onPress={() => voice.listen()}
     />
   );
-  const voiceSheet = <VoiceSheet phase={voice.phase} heard={voice.heard} onCancel={voice.cancel} />;
-
-  useEffect(() => {
-    ttsService.enqueue({ text: Strings.app.ready, priority: TtsPriority.SYSTEM });
-  }, []);
 
   if (nav.active) {
     return (
@@ -62,7 +55,6 @@ export default function HomeScreen() {
           onPress={nav.stop}
           style={styles.stop}
         />
-        {voiceSheet}
       </Screen>
     );
   }
@@ -112,7 +104,6 @@ export default function HomeScreen() {
         accessibilityHint={Strings.home.settingsHint}
         onPress={() => router.push('/settings')}
       />
-      {voiceSheet}
     </Screen>
   );
 }

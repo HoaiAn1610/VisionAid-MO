@@ -135,6 +135,24 @@ describe('useVoiceCommand', () => {
     expect(recordVoiceCommand).not.toHaveBeenCalled();
   });
 
+  it('tự nghe khi mở app mà im lặng → nhắc cách gọi lại; sau kết quả mà im lặng → không nói gì', async () => {
+    listen.mockResolvedValueOnce(heard('')).mockResolvedValueOnce(heard(''));
+    const { result } = await renderHook(() => useVoiceCommand(nav));
+    await act(() => result.current.start('launch'));
+    expect(spoken()).toEqual([Strings.voice.wakeHint]);
+    await act(() => result.current.start('follow-up'));
+    expect(spoken()).toEqual([Strings.voice.wakeHint]);
+    expect(recordVoiceCommand).not.toHaveBeenCalled();
+  });
+
+  it('tự nghe sau kết quả mà có lệnh → thực thi như bình thường', async () => {
+    listen.mockResolvedValueOnce(heard('đọc chữ'));
+    const { result } = await renderHook(() => useVoiceCommand(nav));
+    await act(() => result.current.start('follow-up'));
+    expect(nav.openTextReader).toHaveBeenCalled();
+    expect(loggedStatuses()).toEqual(['Success']);
+  });
+
   it('chưa có quyền micro: giải thích bằng TTS trước; bị từ chối → mở cài đặt, không nghe', async () => {
     mockPermission.granted = false;
     const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();

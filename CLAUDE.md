@@ -437,13 +437,14 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 
 ### 9.5 Voice Commands (FE-09)
 ```
-Kích hoạt (nút lớn / cử chỉ) → Voice Listening Bottom Sheet + haptic + tiếng "bíp"
+Kích hoạt (tự nghe khi mở app và sau mỗi kết quả đọc chữ/nhận diện; nhấn giữ nút giảm âm lượng; nút trên Home) → Voice Listening Bottom Sheet + haptic + tiếng "bíp"
 → Online & Google STT OK ? Google Speech : Google nhận dạng trên máy (offline, Android 13+) : TTS hướng dẫn dùng nút
 → transcript → intent matcher (từ khóa trong voiceCommands.ts, không phân biệt dấu/hoa thường)
 → confidence thấp / không khớp → TTS "Tôi chưa hiểu, vui lòng nói lại" (`Unrecognized`)
 → lệnh nguy hiểm → Confirmation flow
 → thực thi → TTS xác nhận → log voice_command_logs (queue)
 ```
+- **Kích hoạt không cần nhìn:** `VoiceProvider` (overlay toàn cục trong `app/(main)/_layout.tsx`) tự nghe khi mở app (im lặng → nhắc cách gọi) và sau mỗi kết quả (im lặng → không nói gì). Nhấn giữ nút giảm âm lượng (module local `modules/volume-key`, chỉ khi app đang mở; nhấn ngắn vẫn giảm âm lượng) bật/hủy nghe ở mọi màn hình. Người dùng mở app rảnh tay bằng "Ok Google, mở VisionAid". Từ khóa đánh thức riêng chưa làm (pin, mic luôn bật, không có model tiếng Việt).
 - **Fallback (BR-16, đã điều chỉnh — ADR 0002):** Google STT lỗi/offline → tự động Google nhận dạng trên máy + TTS: "Đang dùng nhận dạng giọng nói ngoại tuyến". Máy không nhận dạng trên máy được → TTS hướng dẫn dùng nút chạm.
 - **Lệnh nguy hiểm (BR-14):** "Gọi khẩn cấp" → TTS "Bạn có chắc muốn gọi khẩn cấp? Nói 'đồng ý' để xác nhận" (đo trên máy: Google hay trả rỗng với từ 1 âm tiết "có", "đồng ý" nhận ngay lần đầu; vẫn chấp nhận "có", "xác nhận") → chờ tối đa **10s** → không xác nhận → tự hủy (`Cancelled`) + TTS thông báo đã hủy.
 - Log (`POST /api/voice-commands`, **từng log một**): `rawTranscript`, `matchedCommand`, `recognitionEngine` (chuỗi tự do: `"GoogleSpeech"` / `"GoogleOnDevice"`), `confidenceScore`, `executionStatus`, `requiredConfirmation`, `confirmedAt`, `processingTimeMs`, `audioDurationMs` (để tính RTF), `isOffline`, `executedAt`, `latitude`, `longitude`.

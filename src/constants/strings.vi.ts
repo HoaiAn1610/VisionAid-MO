@@ -17,7 +17,7 @@ export const Strings = {
   app: {
     name: 'VisionAid',
     tagline: 'Trợ lý dẫn đường cho người khiếm thị',
-    ready: "VisionAid đã sẵn sàng. Chạm hai lần hoặc nói 'bắt đầu' để dẫn đường.",
+    ready: 'VisionAid đã sẵn sàng. Bạn muốn làm gì?',
     loading: 'Đang tải',
   },
   auth: {
@@ -155,7 +155,8 @@ export const Strings = {
   },
   voice: {
     button: 'Ra lệnh giọng nói',
-    buttonHint: 'Chạm hai lần rồi nói một lệnh sau tiếng bíp, ví dụ: bắt đầu, dừng lại, trợ giúp',
+    buttonHint:
+      'Chạm hai lần rồi nói một lệnh sau tiếng bíp, ví dụ: bắt đầu, đọc chữ, trợ giúp. Ở bất kỳ màn hình nào cũng có thể nhấn giữ nút giảm âm lượng để ra lệnh.',
     listening: 'Đang nghe…',
     confirming: 'Đang chờ bạn xác nhận',
     cancel: 'Hủy',
@@ -175,6 +176,7 @@ export const Strings = {
     help: (commands: string) => `Bạn có thể nói: ${commands}.`,
     notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
+    wakeHint: 'Khi cần ra lệnh, nhấn giữ nút giảm âm lượng hoặc chạm nút ra lệnh giọng nói.',
     offlineEngine: 'Đang dùng nhận dạng giọng nói ngoại tuyến',
     retryOffline: 'Mạng không ổn định, đang dùng nhận dạng ngoại tuyến. Vui lòng nói lại.',
     offlineUnavailable:

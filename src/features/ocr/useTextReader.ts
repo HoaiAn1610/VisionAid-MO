@@ -31,6 +31,7 @@ const deps: ReadTextDeps = {
 /** Đọc chữ (FE-06, §9.3): VietOCR trên server, offline / server lỗi → ML Kit trên máy. */
 export function useTextReader(trigger: TriggerMethod) {
   return useCaptureAndSpeak({
+    route: '/read-text',
     aim: Strings.ocr.aim,
     maxSide: OCR_MAX_SIDE,
     process: async (image) => {
