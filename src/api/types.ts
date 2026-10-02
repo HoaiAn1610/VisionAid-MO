@@ -49,6 +49,11 @@ export const authTokenSchema = z.object({
   email: z.string(),
   role: z.string(),
   organizationId: z.string().nullable(),
+  // Có trong AuthTokenResponse từ backend 41bed01 — dùng khi /users/me bị chặn vì license (402)
+  privacyConsentAcceptedAt: z.string().nullable().optional(),
+  privacyPolicyVersion: z.string().nullable().optional(),
+  licenseStatus: z.string().nullable().optional(),
+  licenseExpiresAt: z.string().nullable().optional(),
 });
 export type AuthToken = z.infer<typeof authTokenSchema>;
 

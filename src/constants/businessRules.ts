@@ -26,6 +26,12 @@ export const BusinessRules = {
   // Battery
   LOW_BATTERY_THRESHOLD_PERCENT: 10,
 
+  // License — khớp BusinessRules.LicenseGracePeriodDays (LicenseValidationMiddleware)
+  LICENSE_GRACE_PERIOD_DAYS: 3, // hết hạn ≤ 3 ngày vẫn dùng được, kèm header X-License-Warning
+
+  // Voice commands (chỉ phía mobile, không có trong BusinessRules.cs) — hiệu chỉnh khi đo STT thật
+  VOICE_MIN_CONFIDENCE: 0.5, // dưới ngưỡng → "Tôi chưa hiểu, vui lòng nói lại" (§5.8)
+
   // Performance targets
   VOICE_COMMAND_MAX_LATENCY_MS: 2000,
   OCR_TARGET_P95_MS: 3000,
