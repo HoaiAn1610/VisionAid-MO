@@ -273,6 +273,8 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | 403 từ `/auth/refresh` | **Mọi lỗi refresh đều trả 403** (token sai / reuse / hết hạn / user bị khóa) → logout + TTS "Phiên đăng nhập đã hết hạn" |
 | 403 | TTS "Bạn không có quyền thực hiện thao tác này" |
 | 429 | TTS "Bạn thử quá nhiều lần, vui lòng đợi một phút" |
+| 402 | **License** (`LicenseValidationMiddleware`, backend `e226590`): chưa có / hết hạn quá 3 ngày. TTS một lần mỗi lần mở app: gói dịch vụ bị dừng, liên hệ người chăm sóc, **vẫn gọi khẩn cấp được** (SOS không bao giờ bị chặn). Đăng nhập vẫn vào app khi `/users/me` trả 402 (dùng thông tin trong response login). Hàng đợi offline giữ dữ liệu, gửi lại sau |
+| Header `X-License-Warning: expiring-in-Nd` | Còn trong 3 ngày ân hạn → TTS "Gói dịch vụ sẽ hết hạn sau N ngày" một lần mỗi lần mở app |
 | 409 / 422 | Đọc thông điệp nghiệp vụ đã map |
 | 5xx / timeout / offline | TTS "Tính năng tạm thời không khả dụng", đưa vào offline queue nếu là log |
 
@@ -756,7 +758,7 @@ Sprint 8 — Settings, Hardening & Release
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-09-27 sau commit `41bed01`)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `e226590`)
 
 > Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
@@ -768,7 +770,10 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
-| SEC | Ngay | Mật khẩu SMTP vẫn nằm trong `appsettings.Development.json`; `DbSeeder` vẫn seed tài khoản mặc định ở mọi môi trường | Chuyển secret ra biến môi trường, chỉ seed ở Development | — |
+| SEC | Ngay | `appsettings.Development.json` (đang commit) chứa khóa thật Resend + **PayOS `ChecksumKey`** (giả mạo được webhook → kích hoạt license miễn phí); `DbSeeder` seed tài khoản mặc định ở mọi môi trường | Rotate khóa, chuyển secret ra biến môi trường, chỉ seed ở Development | — |
+| GAP-15 | Mọi sprint | License của VIU: gói B2C chỉ ghi license cho **Caregiver**; VIU của họ có `license_status = NULL` → middleware đang **fail-open** nhờ exception. Nếu đổi NULL = None → VIU B2C bị 402 mọi API trừ SOS | Chốt nguồn license của VIU (thừa hưởng Caregiver / pool), xử lý NULL tường minh, luôn cho VIU gọi `/users/me`, emergency-contacts, navigation | App chịu được 402 (đăng nhập vẫn vào, SOS còn, TTS báo) |
+| GAP-16 | Sprint 8 | Không DTO nào trả trạng thái license | Thêm `licenseStatus`, `licenseExpiresAt` vào `UserResponse` / `AuthTokenResponse` | Chỉ biết khi gặp 402 / header cảnh báo |
+| GAP-17 | Chưa xếp | Hybrid AI Navigation (YOLO scene → JEV/Groq/RuleBased → TTS): mới có entity `NavigationGuidanceLog`, chưa có endpoint; WebRTC chưa có controller | Contract request/response, độ trễ, fallback offline, sprint bàn giao | Giữ pipeline YOLO + luật cục bộ hiện tại |
 
 ### Đã xử lý (commit `f4e2592`, `41bed01`)
 | # | Kết quả |

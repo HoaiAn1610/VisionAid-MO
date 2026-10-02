@@ -19,4 +19,9 @@ export type NetworkStatus = 'Wifi' | 'Mobile4G' | 'Mobile3G' | 'Offline';
 export type DeviceType = 'Android' | 'Ios' | 'Web';
 export type EmergencyContactType = 'Phone' | 'Zalo' | 'Both';
 export type NotificationType =
-  'FallDetected' | 'EmergencyManual' | 'GeofenceBreach' | 'ArrivalNotification' | 'SystemAlert';
+  | 'FallDetected'
+  | 'EmergencyManual'
+  | 'GeofenceBreach'
+  | 'ArrivalNotification'
+  | 'SystemAlert'
+  | 'LicenseExpiryWarning';

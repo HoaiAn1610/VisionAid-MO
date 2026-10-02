@@ -99,6 +99,14 @@ export const Strings = {
     paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
     resumed: 'Tiếp tục dẫn đường',
   },
+  license: {
+    blocked:
+      'Gói dịch vụ của bạn chưa có hoặc đã hết hạn nên một số tính năng bị tạm dừng. Vui lòng liên hệ người chăm sóc để gia hạn. Bạn vẫn có thể gọi khẩn cấp.',
+    expiring: (days: number) =>
+      days <= 0
+        ? 'Gói dịch vụ đã hết hạn. Vui lòng liên hệ người chăm sóc để gia hạn.'
+        : `Gói dịch vụ sẽ hết hạn sau ${days} ngày. Vui lòng liên hệ người chăm sóc để gia hạn.`,
+  },
   voice: {
     button: 'Ra lệnh giọng nói',
     buttonHint: 'Chạm hai lần rồi nói một lệnh sau tiếng bíp, ví dụ: bắt đầu, dừng lại, trợ giúp',

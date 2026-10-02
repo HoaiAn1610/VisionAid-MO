@@ -5,7 +5,13 @@ import {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
-import { ApiError, apiClient, refreshClient, setSessionExpiredHandler } from './client';
+import {
+  ApiError,
+  apiClient,
+  refreshClient,
+  setLicenseHandler,
+  setSessionExpiredHandler,
+} from './client';
 
 // In-memory SecureStore thay cho native module
 const store: { tokens: { accessToken: string; refreshToken: string } | null } = { tokens: null };
@@ -237,5 +243,33 @@ describe('chuẩn hóa lỗi → ApiError', () => {
       throw new AxiosError('Network Error', AxiosError.ERR_NETWORK, config);
     };
     await expect(apiClient.get('/x')).rejects.toMatchObject({ status: 0 });
+  });
+});
+
+describe('license (LicenseValidationMiddleware)', () => {
+  const withHeaders = (status: number, headers: Record<string, string>) => {
+    apiClient.defaults.adapter = async (config) => {
+      const response: AxiosResponse = { data: {}, status, statusText: '', headers, config };
+      if (status >= 400) {
+        throw new AxiosError('x', AxiosError.ERR_BAD_RESPONSE, config, null, response);
+      }
+      return response;
+    };
+  };
+
+  it('402 → sự kiện "blocked" + ApiError 402', async () => {
+    const onLicense = jest.fn();
+    setLicenseHandler(onLicense);
+    withHeaders(402, {});
+    await expect(apiClient.get('/api/users/me')).rejects.toMatchObject({ status: 402 });
+    expect(onLicense).toHaveBeenCalledWith({ kind: 'blocked' });
+  });
+
+  it('header X-License-Warning (ân hạn 3 ngày) → sự kiện "expiring" kèm số ngày', async () => {
+    const onLicense = jest.fn();
+    setLicenseHandler(onLicense);
+    withHeaders(200, { 'x-license-warning': 'expiring-in-2d' });
+    await apiClient.get('/api/users/me');
+    expect(onLicense).toHaveBeenCalledWith({ kind: 'expiring', daysLeft: 2 });
   });
 });

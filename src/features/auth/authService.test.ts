@@ -1,17 +1,25 @@
-import { ApiError } from '@/api/client';
 import * as authApi from '@/api/endpoints/auth';
 import { Strings } from '@/constants/strings.vi';
 import { useAuthStore } from '@/stores/authStore';
 
+import { ApiError, setLicenseHandler, type LicenseEvent } from '@/api/client';
+import { ttsService } from '@/services/tts/TtsService';
+
 import {
   acceptPrivacy,
   bootstrapAuth,
+  registerSessionExpiredHandler,
   signIn,
   signInErrorMessage,
   signOut,
   WrongRoleError,
 } from './authService';
 
+jest.mock('@/api/client', () => ({
+  ...jest.requireActual('@/api/client'),
+  setSessionExpiredHandler: jest.fn(),
+  setLicenseHandler: jest.fn(),
+}));
 jest.mock('@/api/endpoints/auth', () => ({
   ...jest.requireActual('@/api/endpoints/auth'),
   login: jest.fn(),
@@ -116,6 +124,38 @@ describe('signIn', () => {
     expect(secure.access).toBeNull();
     expect(api.fetchMe).not.toHaveBeenCalled();
     expect(useAuthStore.getState().status).toBe('loading');
+  });
+});
+
+describe('license (402 từ LicenseValidationMiddleware)', () => {
+  it('/users/me bị 402 → vẫn đăng nhập bằng thông tin trong response login (còn dùng được SOS)', async () => {
+    api.login.mockResolvedValue({
+      ...token('VisuallyImpaired'),
+      privacyConsentAcceptedAt: '2026-09-27T10:00:00+07:00',
+      privacyPolicyVersion: '1.0',
+    });
+    api.fetchMe.mockRejectedValue(new ApiError(402, 'Payment Required', 'Chưa có license'));
+
+    await signIn('viu@visionaid.vn', 'pw');
+
+    expect(secure.access).toBe('at');
+    expect(useAuthStore.getState()).toMatchObject({
+      status: 'signedIn',
+      user: { id: 'u1', email: 'viu@visionaid.vn', role: 'VisuallyImpaired' },
+    });
+  });
+
+  it('TTS báo bị chặn / sắp hết hạn — mỗi loại chỉ MỘT lần mỗi lần mở app', () => {
+    registerSessionExpiredHandler();
+    const handler = (setLicenseHandler as jest.Mock).mock.calls[0][0] as (e: LicenseEvent) => void;
+    handler({ kind: 'blocked' });
+    handler({ kind: 'blocked' });
+    handler({ kind: 'expiring', daysLeft: 2 });
+    handler({ kind: 'expiring', daysLeft: 2 });
+    expect((ttsService.enqueue as jest.Mock).mock.calls.map((c) => c[0].text)).toEqual([
+      Strings.license.blocked,
+      Strings.license.expiring(2),
+    ]);
   });
 });
 
