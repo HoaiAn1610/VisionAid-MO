@@ -18,8 +18,30 @@ export interface VoiceContext {
   lastAnnouncement: string | null;
 }
 
-/** Thực thi một lệnh đã khớp (và đã xác nhận nếu là lệnh nguy hiểm). Luôn có phản hồi TTS (§5.4). */
-export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): void {
+/**
+ * Thực thi một lệnh đã khớp (và đã xác nhận nếu là lệnh nguy hiểm). Luôn có phản hồi TTS (§5.4).
+ * @returns false nếu tính năng của lệnh chưa có (voice log ghi `Failed`).
+ */
+export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean {
+  if (NOT_IMPLEMENTED.has(intent)) {
+    ctx.say(Strings.voice.notImplemented);
+    return false;
+  }
+  execute(intent, ctx);
+  return true;
+}
+
+// TODO(Sprint 5–7): đọc chữ, QR, nhận diện, vị trí, khẩn cấp, hủy cảnh báo té ngã
+const NOT_IMPLEMENTED = new Set<VoiceIntent>([
+  'READ_TEXT',
+  'SCAN_QR',
+  'RECOGNIZE_FACE',
+  'WHERE_AM_I',
+  'EMERGENCY',
+  'I_AM_OK',
+]);
+
+function execute(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
     case 'START_NAVIGATION':
       return ctx.startNavigation(); // tự báo "bắt đầu dẫn đường"
@@ -48,13 +70,5 @@ export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): void {
       return ctx.say(Strings.voice.help(VoiceCommands.map((c) => c.keywords[0]).join(', ')));
     case 'REPEAT':
       return ctx.say(ctx.lastAnnouncement ?? Strings.voice.nothingToRepeat);
-    // TODO(Sprint 5–7): đọc chữ, QR, nhận diện, vị trí, khẩn cấp, hủy cảnh báo té ngã
-    case 'READ_TEXT':
-    case 'SCAN_QR':
-    case 'RECOGNIZE_FACE':
-    case 'WHERE_AM_I':
-    case 'EMERGENCY':
-    case 'I_AM_OK':
-      return ctx.say(Strings.voice.notImplemented);
   }
 }

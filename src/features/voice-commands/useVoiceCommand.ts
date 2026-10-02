@@ -2,6 +2,7 @@ import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Linking } from 'react-native';
 
+import type { CommandStatus } from '@/constants/enums';
 import { Strings } from '@/constants/strings.vi';
 import { HapticService } from '@/services/haptics/HapticService';
 import { OfflineSpeechUnavailableError, speechService } from '@/services/speech/SpeechService';
@@ -12,6 +13,7 @@ import { logger } from '@/utils/logger';
 import { startConfirmation, type ConfirmationFlow } from './confirmationFlow';
 import { matchIntent } from './intentMatcher';
 import { runVoiceIntent } from './runVoiceIntent';
+import { recordVoiceCommand, toVoiceLog } from './voiceLog';
 
 export type VoicePhase = 'idle' | 'listening' | 'confirming';
 
@@ -54,7 +56,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
   }, [navigation]);
 
   /** Nghe lặp tới khi người dùng trả lời hoặc hết 10 s. */
-  const confirm = useCallback(async (): Promise<boolean> => {
+  const confirm = useCallback(async (): Promise<Date | null> => {
     const flow = startConfirmation({
       prompt: Strings.voice.confirmEmergency,
       cancelledMessage: Strings.voice.emergencyCancelled,
@@ -74,7 +76,8 @@ export function useVoiceCommand(navigation: NavigationControls) {
       else flow.hear(outcome.alternatives);
     }
     confirmation.current = null;
-    return (await flow.result).status === 'Confirmed';
+    const result = await flow.result;
+    return result.status === 'Confirmed' ? new Date(result.confirmedAt) : null;
   }, []);
 
   const start = useCallback(async () => {
@@ -92,8 +95,14 @@ export function useVoiceCommand(navigation: NavigationControls) {
 
       const outcome = await speechService.listenOnce();
       if (cancelled.current) return;
+      const executedAt = new Date();
       setHeard(outcome.alternatives[0]?.transcript ?? null);
       const command = matchIntent(outcome.alternatives);
+      // Lượt im lặng / tiếng của chính TTS → không ghi log (tránh log rác)
+      const log = (status: CommandStatus, confirmedAt?: Date) => {
+        if (outcome.alternatives.length === 0) return;
+        recordVoiceCommand(toVoiceLog({ outcome, command, status, executedAt, confirmedAt }));
+      };
       // debug bị tắt ở production — transcript là dữ liệu nhạy cảm (§16.8)
       logger.debug('Voice command', {
         engine: outcome.engine,
@@ -104,22 +113,29 @@ export function useVoiceCommand(navigation: NavigationControls) {
       });
       if (!command) {
         say(Strings.voice.notUnderstood);
-        return;
+        return log('Unrecognized');
       }
+      let confirmedAt: Date | undefined;
       if (command.requiresConfirmation) {
         setPhase('confirming');
-        if (!(await confirm())) return;
+        confirmedAt = (await confirm()) ?? undefined;
+        if (!confirmedAt) return log('Cancelled');
       }
-      runVoiceIntent(command.intent, {
-        say,
-        navigationActive: navRef.current.active,
-        startNavigation: navRef.current.start,
-        stopNavigation: navRef.current.stop,
-        setDetectionMode,
-        speechRate: ttsService.getSettings().rate,
-        setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
-        lastAnnouncement,
-      });
+      let handled = false;
+      try {
+        handled = runVoiceIntent(command.intent, {
+          say,
+          navigationActive: navRef.current.active,
+          startNavigation: navRef.current.start,
+          stopNavigation: navRef.current.stop,
+          setDetectionMode,
+          speechRate: ttsService.getSettings().rate,
+          setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
+          lastAnnouncement,
+        });
+      } finally {
+        log(handled ? (confirmedAt ? 'Confirmed' : 'Success') : 'Failed', confirmedAt);
+      }
     } catch (e) {
       // Offline không nhận dạng được: SpeechService đã hướng dẫn dùng nút
       if (!(e instanceof OfflineSpeechUnavailableError)) {

@@ -7,6 +7,7 @@ import { ttsService } from '@/services/tts/TtsService';
 
 import { startConfirmation } from './confirmationFlow';
 import { useVoiceCommand } from './useVoiceCommand';
+import { recordVoiceCommand } from './voiceLog';
 
 const mockPermission = { granted: true };
 jest.mock('expo-speech-recognition', () => ({
@@ -30,6 +31,10 @@ jest.mock('@/services/tts/TtsService', () => ({
 }));
 jest.mock('@/services/haptics/HapticService', () => ({ HapticService: { tap: jest.fn() } }));
 jest.mock('./confirmationFlow', () => ({ startConfirmation: jest.fn() }));
+jest.mock('./voiceLog', () => ({
+  toVoiceLog: jest.fn((turn: { status: string }) => ({ executionStatus: turn.status })),
+  recordVoiceCommand: jest.fn(),
+}));
 
 const listen = speechService.listenOnce as jest.Mock;
 const spoken = () => (ttsService.enqueue as jest.Mock).mock.calls.map((c) => c[0].text as string);
@@ -43,14 +48,19 @@ const heard = (transcript: string) => ({
 
 /** Luồng xác nhận giả: chốt kết quả theo câu nghe được. */
 function mockConfirmation(answerConfirms: boolean) {
-  let resolve: (r: { status: string }) => void = () => {};
-  const result = new Promise<{ status: string }>((r) => (resolve = r));
+  type Result = { status: string; confirmedAt?: string };
+  let resolve: (r: Result) => void = () => {};
+  const result = new Promise<Result>((r) => (resolve = r));
   const flow = {
     result,
     settled: false,
     hear: () => {
       flow.settled = true;
-      resolve({ status: answerConfirms ? 'Confirmed' : 'Cancelled' });
+      resolve(
+        answerConfirms
+          ? { status: 'Confirmed', confirmedAt: new Date().toISOString() }
+          : { status: 'Cancelled' },
+      );
     },
     cancel: () => {
       flow.settled = true;
@@ -61,6 +71,8 @@ function mockConfirmation(answerConfirms: boolean) {
 }
 
 const nav = { active: false, start: jest.fn(), stop: jest.fn() };
+const loggedStatuses = () =>
+  (recordVoiceCommand as jest.Mock).mock.calls.map((c) => c[0].executionStatus as string);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -76,6 +88,7 @@ describe('useVoiceCommand', () => {
     expect(nav.start).toHaveBeenCalled();
     expect(result.current.phase).toBe('idle');
     expect(result.current.heard).toBe('bắt đầu');
+    expect(loggedStatuses()).toEqual(['Success']);
   });
 
   it('không khớp lệnh nào → "Tôi chưa hiểu", không thực thi gì', async () => {
@@ -84,6 +97,7 @@ describe('useVoiceCommand', () => {
     await act(() => result.current.start());
     expect(spoken()).toEqual([Strings.voice.notUnderstood]);
     expect(nav.start).not.toHaveBeenCalled();
+    expect(loggedStatuses()).toEqual(['Unrecognized']);
   });
 
   it('"gọi khẩn cấp" → xác nhận; nói "có" → thực thi', async () => {
@@ -94,6 +108,7 @@ describe('useVoiceCommand', () => {
     expect(startConfirmation).toHaveBeenCalled();
     expect(listen).toHaveBeenCalledTimes(2); // không mở mic thừa sau khi đã xác nhận
     expect(spoken()).toContain(Strings.voice.notImplemented); // SOS làm ở Sprint 7
+    expect(loggedStatuses()).toEqual(['Failed']); // đã hiểu + xác nhận, nhưng chưa có tính năng
   });
 
   it('"gọi khẩn cấp" nhưng không xác nhận → không thực thi', async () => {
@@ -102,6 +117,15 @@ describe('useVoiceCommand', () => {
     const { result } = await renderHook(() => useVoiceCommand(nav));
     await act(() => result.current.start());
     expect(spoken()).not.toContain(Strings.voice.notImplemented);
+    expect(loggedStatuses()).toEqual(['Cancelled']);
+  });
+
+  it('không nghe thấy gì → "Tôi chưa hiểu", KHÔNG ghi log', async () => {
+    listen.mockResolvedValueOnce(heard(''));
+    const { result } = await renderHook(() => useVoiceCommand(nav));
+    await act(() => result.current.start());
+    expect(spoken()).toEqual([Strings.voice.notUnderstood]);
+    expect(recordVoiceCommand).not.toHaveBeenCalled();
   });
 
   it('chưa có quyền micro: giải thích bằng TTS trước; bị từ chối → mở cài đặt, không nghe', async () => {

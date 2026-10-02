@@ -122,7 +122,7 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 4: Voice Commands
 
-**Trạng thái (2026-10-02):** ✅ Task 1–5: ADR 0002 **Accepted** (Google online + Google nhận dạng trên máy; Whisper và Vosk đã đo và loại — lệch BR-16, nhóm cần báo giảng viên), intent matcher, xác nhận 10 s, echo guard, SpeechService. ✅ Task 6: Voice Listening Bottom Sheet trên Home (Modal, thực thi lệnh có sẵn, xác nhận "đồng ý"), đã gỡ màn thử. Còn: task 7 voice logs.
+**Trạng thái (2026-10-02):** ✅ Task 1–5: ADR 0002 **Accepted** (Google online + Google nhận dạng trên máy; Whisper và Vosk đã đo và loại — lệch BR-16, nhóm cần báo giảng viên), intent matcher, xác nhận 10 s, echo guard, SpeechService. ✅ Task 6: Voice Listening Bottom Sheet trên Home (Modal, thực thi lệnh có sẵn, xác nhận "đồng ý"), đã gỡ màn thử. ✅ Task 7: voice log qua hàng đợi offline (`POST /api/voice-commands`; tài khoản test đang bị 402 license nên log được giữ trong hàng đợi, chờ xác nhận server nhận payload khi có license). Còn: chạy `/graphify` cho repo mobile, review Sprint 4.
 
 | Task                                                                              | Skill                                                         | Done khi                                |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------- |

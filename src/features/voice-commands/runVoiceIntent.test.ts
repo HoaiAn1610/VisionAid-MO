@@ -65,9 +65,13 @@ describe('runVoiceIntent', () => {
     expect(c.spoken[1]).toBe('Xe máy ở gần');
   });
 
-  it('lệnh của sprint sau → báo đang phát triển', () => {
+  it('lệnh của sprint sau → báo đang phát triển, trả false (log Failed)', () => {
     const c = ctx();
-    runVoiceIntent('READ_TEXT', c);
+    expect(runVoiceIntent('READ_TEXT', c)).toBe(false);
     expect(c.spoken).toEqual([Strings.voice.notImplemented]);
+  });
+
+  it('lệnh đã có tính năng → trả true', () => {
+    expect(runVoiceIntent('HELP', ctx())).toBe(true);
   });
 });
