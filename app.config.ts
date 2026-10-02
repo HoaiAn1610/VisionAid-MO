@@ -78,6 +78,14 @@ const config: ExpoConfig = {
     'expo-secure-store',
     'expo-sqlite',
     [
+      'expo-speech-recognition',
+      {
+        microphonePermission: 'VisionAid cần micro để nhận lệnh giọng nói.',
+        speechRecognitionPermission: 'VisionAid cần nhận dạng giọng nói để hiểu lệnh của bạn.',
+        androidSpeechServicePackages: ['com.google.android.googlequicksearchbox', 'com.google.android.tts'],
+      },
+    ],
+    [
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:

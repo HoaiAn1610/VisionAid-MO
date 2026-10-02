@@ -1,10 +1,10 @@
 import { BusinessRules } from '@/constants/businessRules';
 import { CONFIRMATION_WORDS, VoiceCommands, type VoiceCommandDef } from '@/constants/voiceCommands';
 
-/** Một phương án nhận dạng từ STT (Google trả nhiều phương án; Whisper trả một). */
+/** Một phương án nhận dạng từ STT (Google trả nhiều phương án; Vosk trả một). */
 export interface SpeechAlternative {
   transcript: string;
-  /** 0–1. Không có hoặc ≤ 0 = engine không báo (Whisper, một số máy Android) → không dùng để loại. */
+  /** 0–1. Không có hoặc ≤ 0 = engine không báo (Vosk, Google trên máy) → không dùng để loại. */
   confidence?: number;
 }
 

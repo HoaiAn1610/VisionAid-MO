@@ -14,7 +14,7 @@ export type AlertStatus =
   'Detected' | 'Dismissed' | 'Sent' | 'Acknowledged' | 'Escalated' | 'Resolved' | 'Called';
 export type CommandStatus = 'Success' | 'Failed' | 'Unrecognized' | 'Confirmed' | 'Cancelled';
 // Backend nhận chuỗi tự do (không phải enum) — thống nhất giá trị với team
-export type RecognitionEngine = 'GoogleSpeech' | 'Whisper';
+export type RecognitionEngine = 'GoogleSpeech' | 'GoogleOnDevice';
 export type NetworkStatus = 'Wifi' | 'Mobile4G' | 'Mobile3G' | 'Offline';
 export type DeviceType = 'Android' | 'Ios' | 'Web';
 export type EmergencyContactType = 'Phone' | 'Zalo' | 'Both';

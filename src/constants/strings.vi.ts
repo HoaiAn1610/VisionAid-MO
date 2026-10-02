@@ -66,6 +66,8 @@ export const Strings = {
   },
   settings: {
     account: 'Tài khoản',
+    voiceLab: 'Thử lệnh giọng nói',
+    voiceLabHint: 'Chỉ có ở bản phát triển. Mở màn hình đo nhận dạng giọng nói',
   },
   screens: {
     ocr: 'Đọc chữ và mã QR',
@@ -99,7 +101,16 @@ export const Strings = {
     paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
     resumed: 'Tiếp tục dẫn đường',
   },
+  voiceLab: {
+    google: 'Nói một lệnh (Google)',
+    onDevice: 'Nói một lệnh (Google trên máy, không mạng)',
+    hint: 'Chạm hai lần rồi nói một lệnh sau tiếng bíp',
+  },
   voice: {
+    notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
+    offlineEngine: 'Đang dùng nhận dạng giọng nói ngoại tuyến',
+    offlineUnavailable:
+      'Không có mạng nên chưa nhận được lệnh giọng nói trên máy này. Bạn hãy dùng các nút trên màn hình.',
     confirmEmergency: 'Bạn có chắc muốn gọi khẩn cấp? Nói có để xác nhận.',
     emergencyCancelled: 'Đã hủy gọi khẩn cấp',
   },
