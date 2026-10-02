@@ -13,6 +13,7 @@ const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[
     openQrScanner: jest.fn(),
     openTextReader: jest.fn(),
     openFaceRecognizer: jest.fn(),
+    openLocation: jest.fn(),
     setDetectionMode: jest.fn(),
     speechRate: 1,
     setSpeechRate: jest.fn(),
@@ -72,7 +73,7 @@ describe('runVoiceIntent', () => {
 
   it('lệnh của sprint sau → báo đang phát triển, trả false (log Failed)', () => {
     const c = ctx();
-    expect(runVoiceIntent('WHERE_AM_I', c)).toBe(false);
+    expect(runVoiceIntent('I_AM_OK', c)).toBe(false);
     expect(c.spoken).toEqual([Strings.voice.notImplemented]);
   });
 
@@ -112,6 +113,8 @@ describe('runVoiceIntent', () => {
     expect(runVoiceIntent('RECOGNIZE_FACE', c)).toBe(true);
     expect(c.openTextReader).toHaveBeenCalled();
     expect(c.openFaceRecognizer).toHaveBeenCalled();
+    expect(runVoiceIntent('WHERE_AM_I', c)).toBe(true);
+    expect(c.openLocation).toHaveBeenCalled();
   });
 
   it('lệnh đã có tính năng → trả true', () => {

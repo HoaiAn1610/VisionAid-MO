@@ -92,6 +92,13 @@ export default function HomeScreen() {
       />
       <Button
         variant="secondary"
+        icon="map-marker-radius"
+        label={Strings.location.open}
+        accessibilityHint={Strings.location.openHint}
+        onPress={() => router.push('/location')}
+      />
+      <Button
+        variant="secondary"
         icon="qrcode-scan"
         label={Strings.qr.openScanner}
         accessibilityHint={Strings.qr.openScannerHint}

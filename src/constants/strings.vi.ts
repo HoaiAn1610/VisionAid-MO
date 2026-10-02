@@ -125,6 +125,22 @@ export const Strings = {
     scanAgain: 'Quét mã khác',
     scanAgainHint: 'Chạm hai lần để quét một mã QR khác',
   },
+  location: {
+    title: 'Tôi đang ở đâu',
+    open: 'Tôi đang ở đâu',
+    openHint: 'Chạm hai lần để nghe vị trí hiện tại của bạn',
+    locating: 'Đang xác định vị trí',
+    here: (address: string) => `Bạn đang ở ${address}`,
+    cached: (time: string, day: number, month: number, address: string) =>
+      `Vị trí gần nhất được ghi nhận lúc ${time}, ngày ${day} tháng ${month}: ${address}. Thông tin này có thể không còn chính xác.`,
+    none: 'Chưa có thông tin vị trí đã lưu',
+    again: 'Hỏi lại vị trí',
+    againHint: 'Chạm hai lần để xác định lại vị trí hiện tại',
+    permissionExplain:
+      'Để cho bạn biết mình đang ở đâu và chia sẻ vị trí với người chăm sóc, VisionAid cần quyền vị trí.',
+    permissionDenied:
+      'Chưa có quyền vị trí nên chỉ đọc được vị trí đã lưu. Đang mở cài đặt, hãy bật quyền Vị trí cho VisionAid.',
+  },
   ocr: {
     title: 'Đọc chữ',
     open: 'Đọc chữ',
