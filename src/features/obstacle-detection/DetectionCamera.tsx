@@ -5,6 +5,7 @@ import {
   Camera,
   useCameraDevice,
   useCameraFormat,
+  type CodeScanner,
   type ReadonlyFrameProcessor,
 } from 'react-native-vision-camera';
 
@@ -13,13 +14,16 @@ import { Strings } from '@/constants/strings.vi';
 import { colors, radius } from '@/theme';
 
 interface Props {
-  frameProcessor: ReadonlyFrameProcessor;
-  /** Chỉ chạy camera khi phiên dẫn đường đang bật. */
+  /** YOLO (dẫn đường). */
+  frameProcessor?: ReadonlyFrameProcessor;
+  /** Quét mã QR on-device (ML Kit). */
+  codeScanner?: CodeScanner;
+  /** Chỉ chạy camera khi đang cần (phiên dẫn đường / đang quét). */
   enabled: boolean;
 }
 
-/** Camera sau cho YOLO. Tự tắt khi rời màn hình / app xuống nền (pin + quyền riêng tư). */
-export function DetectionCamera({ frameProcessor, enabled }: Props) {
+/** Camera sau cho YOLO / quét QR. Tự tắt khi rời màn hình / app xuống nền (pin + quyền riêng tư). */
+export function DetectionCamera({ frameProcessor, codeScanner, enabled }: Props) {
   const device = useCameraDevice('back');
   // 720p đủ cho model 320×320, nhẹ hơn 1080p/4K
   const format = useCameraFormat(device, [{ videoResolution: { width: 1280, height: 720 } }]);
@@ -41,6 +45,7 @@ export function DetectionCamera({ frameProcessor, enabled }: Props) {
         format={format}
         isActive={enabled && focused && foreground}
         frameProcessor={frameProcessor}
+        codeScanner={codeScanner}
         pixelFormat="yuv"
       />
     </View>

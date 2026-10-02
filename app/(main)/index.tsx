@@ -24,6 +24,7 @@ export default function HomeScreen() {
     active: nav.active,
     start: () => void nav.start(),
     stop: nav.stop,
+    openQrScanner: () => router.push({ pathname: '/ocr', params: { via: 'voice' } }),
   });
   const voiceButton = (
     <Button
@@ -81,6 +82,13 @@ export default function HomeScreen() {
         onPress={() => void nav.start()}
       />
       {voiceButton}
+      <Button
+        variant="secondary"
+        icon="qrcode-scan"
+        label={Strings.qr.openScanner}
+        accessibilityHint={Strings.qr.openScannerHint}
+        onPress={() => router.push('/ocr')}
+      />
       <Button
         variant="secondary"
         icon="cog"

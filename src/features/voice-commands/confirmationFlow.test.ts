@@ -111,4 +111,12 @@ describe('startConfirmation (BR-14)', () => {
     await expect(flow.result).resolves.toEqual({ status: 'Cancelled' });
     expect(tts.spoken.filter((t) => t === 'Đã hủy')).toHaveLength(1);
   });
+
+  it('cancel(true) → Cancelled nhưng KHÔNG đọc câu "đã hủy" (vd. người dùng chạm nút làm luôn)', async () => {
+    const flow = start();
+    tts.finishSpeaking();
+    flow.cancel(true);
+    await expect(flow.result).resolves.toEqual({ status: 'Cancelled' });
+    expect(tts.spoken).not.toContain('Đã hủy');
+  });
 });

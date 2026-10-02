@@ -70,7 +70,7 @@ function mockConfirmation(answerConfirms: boolean) {
   (startConfirmation as jest.Mock).mockReturnValue(flow);
 }
 
-const nav = { active: false, start: jest.fn(), stop: jest.fn() };
+const nav = { active: false, start: jest.fn(), stop: jest.fn(), openQrScanner: jest.fn() };
 const loggedStatuses = () =>
   (recordVoiceCommand as jest.Mock).mock.calls.map((c) => c[0].executionStatus as string);
 

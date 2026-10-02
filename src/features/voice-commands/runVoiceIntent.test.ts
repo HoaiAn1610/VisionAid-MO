@@ -10,6 +10,7 @@ const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[
     navigationActive: false,
     startNavigation: jest.fn(),
     stopNavigation: jest.fn(),
+    openQrScanner: jest.fn(),
     setDetectionMode: jest.fn(),
     speechRate: 1,
     setSpeechRate: jest.fn(),
@@ -69,6 +70,12 @@ describe('runVoiceIntent', () => {
     const c = ctx();
     expect(runVoiceIntent('READ_TEXT', c)).toBe(false);
     expect(c.spoken).toEqual([Strings.voice.notImplemented]);
+  });
+
+  it('"quét mã" → mở màn quét QR', () => {
+    const c = ctx();
+    expect(runVoiceIntent('SCAN_QR', c)).toBe(true);
+    expect(c.openQrScanner).toHaveBeenCalled();
   });
 
   it('lệnh đã có tính năng → trả true', () => {

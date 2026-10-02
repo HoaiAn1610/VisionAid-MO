@@ -137,6 +137,8 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 5: Scene Understanding (online)
 
+**Trạng thái (2026-10-02):** ✅ QR on-device (ML Kit qua VisionCamera code scanner): đọc nội dung, URL chỉ đọc tên miền + hỏi "đồng ý" hoặc chạm "Mở trang" (không tự mở), log `POST /api/ocr/qr-scans` qua hàng đợi offline; chưa thử trên máy. ⏳ OCR, nhận diện khuôn mặt: chờ backend trả lời GAP-3/4.
+
 | Task                                                                                    | Skill                                                      | Done khi                            |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------- |
 | Chốt contract OCR/QR/Face                                                               | `/spec`                                                    |                                     |

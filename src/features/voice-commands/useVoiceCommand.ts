@@ -10,7 +10,7 @@ import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
 
-import { startConfirmation, type ConfirmationFlow } from './confirmationFlow';
+import { confirmByVoice, type VoiceConfirmation } from './confirmByVoice';
 import { matchIntent } from './intentMatcher';
 import { runVoiceIntent } from './runVoiceIntent';
 import { recordVoiceCommand, toVoiceLog } from './voiceLog';
@@ -21,6 +21,7 @@ interface NavigationControls {
   active: boolean;
   start(): void;
   stop(): void;
+  openQrScanner(): void;
 }
 
 /** TalkBack đọc nội dung sheet khi mở → chờ đọc xong mới mở mic (echo guard chỉ biết TTS của app). */
@@ -48,36 +49,20 @@ export function useVoiceCommand(navigation: NavigationControls) {
   const [heard, setHeard] = useState<string | null>(null);
   const busy = useRef(false);
   const cancelled = useRef(false);
-  const confirmation = useRef<ConfirmationFlow | null>(null);
+  const confirmation = useRef<VoiceConfirmation | null>(null);
   const setDetectionMode = useSettingsStore((s) => s.setDetectionMode);
   const navRef = useRef(navigation);
   useEffect(() => {
     navRef.current = navigation;
   }, [navigation]);
 
-  /** Nghe lặp tới khi người dùng trả lời hoặc hết 10 s. */
+  /** Hỏi xác nhận lệnh nguy hiểm, nghe tới khi có câu trả lời hoặc hết 10 s (BR-14). */
   const confirm = useCallback(async (): Promise<Date | null> => {
-    const flow = startConfirmation({
-      prompt: Strings.voice.confirmEmergency,
-      cancelledMessage: Strings.voice.emergencyCancelled,
-    });
-    confirmation.current = flow;
-    void flow.result.then(() => speechService.abort()); // hết giờ khi mic còn mở → đóng mic
-    while (!flow.settled && !cancelled.current) {
-      const outcome = await speechService.listenOnce().catch((e: unknown) => {
-        logger.warn('Confirmation listen failed', e);
-        return null;
-      });
-      logger.debug('Confirmation heard', {
-        alternatives: outcome?.alternatives,
-        echo: outcome?.discardedAsEcho,
-      });
-      if (!outcome) flow.cancel();
-      else flow.hear(outcome.alternatives);
-    }
+    const c = confirmByVoice(Strings.voice.confirmEmergency, Strings.voice.emergencyCancelled);
+    confirmation.current = c;
+    const confirmedAt = await c.result;
     confirmation.current = null;
-    const result = await flow.result;
-    return result.status === 'Confirmed' ? new Date(result.confirmedAt) : null;
+    return confirmedAt;
   }, []);
 
   const start = useCallback(async () => {
@@ -128,6 +113,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
           navigationActive: navRef.current.active,
           startNavigation: navRef.current.start,
           stopNavigation: navRef.current.stop,
+          openQrScanner: navRef.current.openQrScanner,
           setDetectionMode,
           speechRate: ttsService.getSettings().rate,
           setSpeechRate: (rate) => ttsService.updateSettings({ rate }),

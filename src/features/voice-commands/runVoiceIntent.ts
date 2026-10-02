@@ -11,6 +11,7 @@ export interface VoiceContext {
   navigationActive: boolean;
   startNavigation(): void;
   stopNavigation(): void;
+  openQrScanner(): void;
   setDetectionMode(mode: DetectionMode): void;
   speechRate: number;
   setSpeechRate(rate: number): void;
@@ -31,10 +32,9 @@ export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean 
   return true;
 }
 
-// TODO(Sprint 5–7): đọc chữ, QR, nhận diện, vị trí, khẩn cấp, hủy cảnh báo té ngã
+// TODO(Sprint 5–7): đọc chữ, nhận diện, vị trí, khẩn cấp, hủy cảnh báo té ngã
 const NOT_IMPLEMENTED = new Set<VoiceIntent>([
   'READ_TEXT',
-  'SCAN_QR',
   'RECOGNIZE_FACE',
   'WHERE_AM_I',
   'EMERGENCY',
@@ -43,6 +43,8 @@ const NOT_IMPLEMENTED = new Set<VoiceIntent>([
 
 function execute(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
+    case 'SCAN_QR':
+      return ctx.openQrScanner(); // màn quét tự đọc hướng dẫn
     case 'START_NAVIGATION':
       return ctx.startNavigation(); // tự báo "bắt đầu dẫn đường"
     case 'STOP_NAVIGATION':
