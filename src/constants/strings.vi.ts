@@ -181,7 +181,7 @@ export const Strings = {
     notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
     wakeHint:
-      'Khi cần ra lệnh, nhấn nút tăng hoặc giảm âm lượng. Muốn chỉnh âm lượng, hãy nói to lên hoặc nhỏ lại.',
+      'Khi cần ra lệnh, nhấn nút tăng hoặc giảm âm lượng. Muốn chỉnh âm lượng, hãy nói tăng âm lượng hoặc giảm âm lượng.',
     offlineEngine: 'Đang dùng nhận dạng giọng nói ngoại tuyến',
     retryOffline: 'Mạng không ổn định, đang dùng nhận dạng ngoại tuyến. Vui lòng nói lại.',
     offlineUnavailable:

@@ -5,11 +5,11 @@ import { VoiceCommands, type VoiceIntent } from '@/constants/voiceCommands';
 
 /** "đọc nhanh hơn" / "đọc chậm hơn" đổi tốc độ từng nấc này (§12). */
 const SPEED_STEP = 0.25;
-/** "to lên" / "nhỏ lại" đổi âm lượng media từng nấc này (khoảng 2/15 nấc của Android). */
+/** "tăng âm lượng" / "giảm âm lượng" đổi âm lượng media từng nấc này (khoảng 2/15 nấc của Android). */
 const VOLUME_STEP = 0.15;
 /**
  * Phím âm lượng đã thành nút ra lệnh → không cho âm lượng xuống mức không nghe thấy, nếu không
- * người dùng sẽ không nghe được chính câu trả lời của lệnh "to lên".
+ * người dùng sẽ không nghe được chính câu trả lời của lệnh "tăng âm lượng".
  */
 export const MIN_MEDIA_VOLUME = 0.3;
 

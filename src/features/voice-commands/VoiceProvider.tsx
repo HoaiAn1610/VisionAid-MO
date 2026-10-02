@@ -50,7 +50,7 @@ const canListenSilently = () => NetworkMonitor.isOnline() || isOnDeviceSpeechRea
 /**
  * Lệnh giọng nói dùng chung cho mọi màn hình (FE-09, §5.6): tự nghe khi mở app và sau mỗi kết
  * quả; nhấn nút tăng/giảm âm lượng (hoặc nút trên Home) để ra lệnh bất cứ lúc nào. Âm lượng
- * đổi bằng lệnh "to lên" / "nhỏ lại".
+ * đổi bằng lệnh "tăng âm lượng" / "giảm âm lượng".
  */
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();

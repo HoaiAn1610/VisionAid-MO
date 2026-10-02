@@ -82,7 +82,7 @@ describe('runVoiceIntent', () => {
     expect(c.openQrScanner).toHaveBeenCalled();
   });
 
-  it('"to lên" / "nhỏ lại" đổi âm lượng media từng nấc, không xuống dưới mức tối thiểu', () => {
+  it('"tăng âm lượng" / "giảm âm lượng" đổi âm lượng media từng nấc, không xuống dưới mức tối thiểu', () => {
     const up = ctx({ mediaVolume: 0.5 });
     runVoiceIntent('VOLUME_UP', up);
     expect(up.setMediaVolume).toHaveBeenCalledWith(0.65);

@@ -39,12 +39,12 @@ export const VoiceCommands: readonly VoiceCommandDef[] = [
   { intent: 'SLOW_DOWN', keywords: ['đọc chậm hơn'], requiresConfirmation: false },
   {
     intent: 'VOLUME_UP',
-    keywords: ['to lên', 'tăng âm lượng', 'nói to'],
+    keywords: ['tăng âm lượng', 'to lên', 'nói to'],
     requiresConfirmation: false,
   },
   {
     intent: 'VOLUME_DOWN',
-    keywords: ['nhỏ lại', 'giảm âm lượng', 'nói nhỏ'],
+    keywords: ['giảm âm lượng', 'nhỏ lại', 'nói nhỏ'],
     requiresConfirmation: false,
   },
   { intent: 'HELP', keywords: ['trợ giúp'], requiresConfirmation: false },
