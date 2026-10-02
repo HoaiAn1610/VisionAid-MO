@@ -1,4 +1,5 @@
 import { endSession, logDetectionEvents, startSession } from '@/api/endpoints/navigation';
+import { logOcrText, logQrScan, type OcrTextLog, type QrScanLog } from '@/api/endpoints/ocr';
 import { logVoiceCommand, type VoiceCommandLog } from '@/api/endpoints/voice';
 import {
   syncNavigationSessions,
@@ -16,10 +17,12 @@ const navigationDeps: NavSyncDeps = {
   repo: navigationRepo,
 };
 
-/** Sender của từng hàng đợi; GPS / QR / emergency thêm ở Sprint 5–7. */
+/** Sender của từng hàng đợi; GPS / emergency thêm ở Sprint 6–7. */
 const flushDeps: FlushDeps = {
   senders: {
     voice: { mode: 'single', send: (payload) => logVoiceCommand(payload as VoiceCommandLog) },
+    qr: { mode: 'single', send: (payload) => logQrScan(payload as QrScanLog) },
+    ocr: { mode: 'single', send: (payload) => logOcrText(payload as OcrTextLog) },
   },
   syncNavigation: () => syncNavigationSessions(navigationDeps),
 };

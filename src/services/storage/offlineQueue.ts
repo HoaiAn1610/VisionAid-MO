@@ -10,13 +10,14 @@ import { getDb } from './db';
  * Hàng đợi offline dùng chung (CLAUDE.md §13) cho các log gửi độc lập với phiên dẫn đường.
  * Detection event gắn với phiên nên đồng bộ riêng (navigationSync), chen vào đúng bậc "logs".
  */
-export type QueueName = 'emergency' | 'gps' | 'voice' | 'qr';
+export type QueueName = 'emergency' | 'gps' | 'voice' | 'qr' | 'ocr';
 
 const TABLES: Record<QueueName, string> = {
   emergency: 'pending_emergency_events',
   gps: 'pending_gps',
   voice: 'pending_voice_logs',
   qr: 'pending_qr_logs',
+  ocr: 'pending_ocr_logs',
 };
 
 /** Vượt giới hạn → bỏ item cũ nhất. Emergency KHÔNG BAO GIỜ bị bỏ (§16.19). */
@@ -24,7 +25,7 @@ export const MAX_QUEUE_ITEMS = 5000;
 /** Endpoint batch của backend chưa giới hạn số phần tử (GAP-14) → client tự chia lô. */
 const BATCH_SIZE = 100;
 
-/** `single`: gửi từng item (emergency, voice, QR). `batch`: gửi cả lô (GPS qua `/gps/batch`). */
+/** `single`: gửi từng item (emergency, voice, QR, OCR). `batch`: gửi cả lô (GPS qua `/gps/batch`). */
 export type QueueSender =
   | { mode: 'single'; send(payload: unknown): Promise<void> }
   | { mode: 'batch'; send(payloads: unknown[]): Promise<void> };
@@ -91,7 +92,7 @@ let running: Promise<void> | null = null;
 let rerunRequested = false;
 
 /**
- * Đồng bộ theo thứ tự ưu tiên: emergency → GPS → logs (detection, voice, QR).
+ * Đồng bộ theo thứ tự ưu tiên: emergency → GPS → logs (detection, voice, QR, OCR).
  * Bậc trên gặp lỗi tạm → dừng cả lượt (mạng có vấn đề thì bậc dưới cũng sẽ lỗi).
  * Single-flight; gọi thêm khi đang chạy → chạy bù một lần sau đó.
  */
@@ -117,7 +118,7 @@ async function flushInOrder({ senders, syncNavigation }: FlushDeps): Promise<voi
     if (sender && (await flushQueue(queue, sender)) === 'retry-later') return;
   }
   await syncNavigation?.();
-  for (const queue of ['voice', 'qr'] as const) {
+  for (const queue of ['voice', 'qr', 'ocr'] as const) {
     const sender = senders[queue];
     if (sender && (await flushQueue(queue, sender)) === 'retry-later') return;
   }

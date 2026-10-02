@@ -10,8 +10,8 @@ export type ConfirmationResult =
 export interface ConfirmationFlow {
   /** Đưa vào câu nghe được trong lúc chờ xác nhận. */
   hear(alternatives: readonly SpeechAlternative[]): void;
-  /** Hủy từ bên ngoài (chạm nút hủy, rời màn hình). */
-  cancel(): void;
+  /** Hủy từ bên ngoài (chạm nút hủy, rời màn hình). `silent`: không đọc câu "đã hủy". */
+  cancel(silent?: boolean): void;
   readonly result: Promise<ConfirmationResult>;
   /** Đã có kết quả (đồng bộ — để vòng nghe dừng ngay, không mở mic thừa). */
   readonly settled: boolean;
@@ -42,12 +42,12 @@ export function startConfirmation({
   let resolveResult: (r: ConfirmationResult) => void = () => {};
   const result = new Promise<ConfirmationResult>((resolve) => (resolveResult = resolve));
 
-  const finish = (r: ConfirmationResult) => {
+  const finish = (r: ConfirmationResult, silent = false) => {
     if (settled) return;
     settled = true;
     if (timer) clearTimeout(timer);
     unsubscribe();
-    if (r.status === 'Cancelled')
+    if (r.status === 'Cancelled' && !silent)
       tts.enqueue({ text: cancelledMessage, priority: TtsPriority.SYSTEM });
     resolveResult(r);
   };
@@ -73,7 +73,7 @@ export function startConfirmation({
       if (rejectionWords.some((w) => ` ${top} `.includes(` ${w} `)))
         finish({ status: 'Cancelled' });
     },
-    cancel: () => finish({ status: 'Cancelled' }),
+    cancel: (silent = false) => finish({ status: 'Cancelled' }, silent),
     result,
     get settled() {
       return settled;

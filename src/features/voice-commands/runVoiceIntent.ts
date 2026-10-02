@@ -5,17 +5,30 @@ import { VoiceCommands, type VoiceIntent } from '@/constants/voiceCommands';
 
 /** "đọc nhanh hơn" / "đọc chậm hơn" đổi tốc độ từng nấc này (§12). */
 const SPEED_STEP = 0.25;
+/** "tăng âm lượng" / "giảm âm lượng" đổi âm lượng media từng nấc này (khoảng 2/15 nấc của Android). */
+const VOLUME_STEP = 0.15;
+/**
+ * Phím âm lượng đã thành nút ra lệnh → không cho âm lượng xuống mức không nghe thấy, nếu không
+ * người dùng sẽ không nghe được chính câu trả lời của lệnh "tăng âm lượng".
+ */
+export const MIN_MEDIA_VOLUME = 0.3;
 
 export interface VoiceContext {
   say(text: string): void;
   navigationActive: boolean;
   startNavigation(): void;
   stopNavigation(): void;
+  openQrScanner(): void;
+  openTextReader(): void;
+  openFaceRecognizer(): void;
   setDetectionMode(mode: DetectionMode): void;
   speechRate: number;
   setSpeechRate(rate: number): void;
   /** Câu TTS gần nhất TRƯỚC lượt ra lệnh này (cho lệnh "lặp lại"). */
   lastAnnouncement: string | null;
+  /** Âm lượng media 0..1; `null` nếu máy không hỗ trợ đổi âm lượng. */
+  mediaVolume: number | null;
+  setMediaVolume(volume: number): void;
 }
 
 /**
@@ -31,18 +44,17 @@ export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean 
   return true;
 }
 
-// TODO(Sprint 5–7): đọc chữ, QR, nhận diện, vị trí, khẩn cấp, hủy cảnh báo té ngã
-const NOT_IMPLEMENTED = new Set<VoiceIntent>([
-  'READ_TEXT',
-  'SCAN_QR',
-  'RECOGNIZE_FACE',
-  'WHERE_AM_I',
-  'EMERGENCY',
-  'I_AM_OK',
-]);
+// TODO(Sprint 6–7): vị trí, khẩn cấp, hủy cảnh báo té ngã
+const NOT_IMPLEMENTED = new Set<VoiceIntent>(['WHERE_AM_I', 'EMERGENCY', 'I_AM_OK']);
 
 function execute(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
+    case 'SCAN_QR':
+      return ctx.openQrScanner(); // màn quét tự đọc hướng dẫn
+    case 'READ_TEXT':
+      return ctx.openTextReader();
+    case 'RECOGNIZE_FACE':
+      return ctx.openFaceRecognizer();
     case 'START_NAVIGATION':
       return ctx.startNavigation(); // tự báo "bắt đầu dẫn đường"
     case 'STOP_NAVIGATION':
@@ -65,6 +77,19 @@ function execute(intent: VoiceIntent, ctx: VoiceContext): void {
       }
       ctx.setSpeechRate(next);
       return ctx.say(faster ? Strings.voice.faster : Strings.voice.slower);
+    }
+    case 'VOLUME_UP':
+    case 'VOLUME_DOWN': {
+      const current = ctx.mediaVolume;
+      if (current === null) return ctx.say(Strings.errors.unavailable);
+      const louder = intent === 'VOLUME_UP';
+      if (louder ? current >= 0.99 : current <= MIN_MEDIA_VOLUME + 0.01) {
+        return ctx.say(louder ? Strings.voice.loudest : Strings.voice.quietest);
+      }
+      ctx.setMediaVolume(
+        Math.min(1, Math.max(MIN_MEDIA_VOLUME, current + (louder ? VOLUME_STEP : -VOLUME_STEP))),
+      );
+      return ctx.say(louder ? Strings.voice.louder : Strings.voice.quieter);
     }
     case 'HELP':
       return ctx.say(Strings.voice.help(VoiceCommands.map((c) => c.keywords[0]).join(', ')));

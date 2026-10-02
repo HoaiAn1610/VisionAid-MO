@@ -39,6 +39,12 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX IF NOT EXISTS idx_pending_detection_session
     ON pending_detection_events (local_session_id, created_at);
   `,
+  // v3 — Sprint 5: log OCR trên máy (ML Kit) khi offline / server OCR lỗi
+  `
+  CREATE TABLE IF NOT EXISTS pending_ocr_logs (
+    id TEXT PRIMARY KEY NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0
+  );
+  `,
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -73,7 +79,7 @@ export async function clearUserData(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`
     DELETE FROM pending_gps; DELETE FROM pending_detection_events; DELETE FROM pending_voice_logs;
-    DELETE FROM pending_qr_logs; DELETE FROM location_cache; DELETE FROM emergency_contacts;
+    DELETE FROM pending_qr_logs; DELETE FROM pending_ocr_logs; DELETE FROM location_cache; DELETE FROM emergency_contacts;
     DELETE FROM nav_sessions;
   `);
 }
