@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Modal, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { BackHandler, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ThemedText } from '@/components/ThemedText';
@@ -17,16 +18,25 @@ interface Props {
 /**
  * Voice Listening Bottom Sheet (FE-09). Trạng thái đã được TTS + tiếng bíp báo, nên phần chữ ẩn
  * với TalkBack — chỉ còn nút Hủy để TalkBack không đọc đè lên lúc mic đang nghe (§5.7).
+ * Lớp phủ trong cửa sổ chính, KHÔNG dùng `Modal`: Modal là Dialog riêng, phím âm lượng đi vào
+ * Dialog nên không bấm được để hủy (modules/volume-key chỉ nhận phím của Activity).
  */
 export function VoiceSheet({ phase, heard, onCancel }: Props) {
+  const visible = phase !== 'idle';
+
+  // Nút Back khi đang nghe = Hủy
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onCancel();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onCancel]);
+
+  if (!visible) return null;
   return (
-    <Modal
-      visible={phase !== 'idle'}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onCancel}
-    >
+    <View style={StyleSheet.absoluteFill}>
       <View style={styles.backdrop}>
         <View style={styles.sheet} accessibilityViewIsModal>
           <View style={styles.status} importantForAccessibility="no-hide-descendants">
@@ -45,7 +55,7 @@ export function VoiceSheet({ phase, heard, onCancel }: Props) {
           />
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 

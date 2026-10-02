@@ -70,7 +70,14 @@ function mockConfirmation(answerConfirms: boolean) {
   (startConfirmation as jest.Mock).mockReturnValue(flow);
 }
 
-const nav = { active: false, start: jest.fn(), stop: jest.fn() };
+const nav = {
+  active: false,
+  start: jest.fn(),
+  stop: jest.fn(),
+  openQrScanner: jest.fn(),
+  openTextReader: jest.fn(),
+  openFaceRecognizer: jest.fn(),
+};
 const loggedStatuses = () =>
   (recordVoiceCommand as jest.Mock).mock.calls.map((c) => c[0].executionStatus as string);
 
@@ -126,6 +133,24 @@ describe('useVoiceCommand', () => {
     await act(() => result.current.start());
     expect(spoken()).toEqual([Strings.voice.notUnderstood]);
     expect(recordVoiceCommand).not.toHaveBeenCalled();
+  });
+
+  it('tự nghe khi mở app mà im lặng → nhắc cách gọi lại; sau kết quả mà im lặng → không nói gì', async () => {
+    listen.mockResolvedValueOnce(heard('')).mockResolvedValueOnce(heard(''));
+    const { result } = await renderHook(() => useVoiceCommand(nav));
+    await act(() => result.current.start('launch'));
+    expect(spoken()).toEqual([Strings.voice.wakeHint]);
+    await act(() => result.current.start('follow-up'));
+    expect(spoken()).toEqual([Strings.voice.wakeHint]);
+    expect(recordVoiceCommand).not.toHaveBeenCalled();
+  });
+
+  it('tự nghe sau kết quả mà có lệnh → thực thi như bình thường', async () => {
+    listen.mockResolvedValueOnce(heard('đọc chữ'));
+    const { result } = await renderHook(() => useVoiceCommand(nav));
+    await act(() => result.current.start('follow-up'));
+    expect(nav.openTextReader).toHaveBeenCalled();
+    expect(loggedStatuses()).toEqual(['Success']);
   });
 
   it('chưa có quyền micro: giải thích bằng TTS trước; bị từ chối → mở cài đặt, không nghe', async () => {

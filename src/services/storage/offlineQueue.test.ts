@@ -45,8 +45,9 @@ const httpError = (status: number) => new ApiError(status, '', '');
 const single = (send: (p: unknown) => Promise<void>): QueueSender => ({ mode: 'single', send });
 
 describe('offlineQueue', () => {
-  it('flush theo thứ tự ưu tiên: emergency → GPS → detection → voice → QR', async () => {
+  it('flush theo thứ tự ưu tiên: emergency → GPS → detection → voice → QR → OCR', async () => {
     const order: string[] = [];
+    await enqueue('ocr', 'o');
     await enqueue('qr', 'q');
     await enqueue('voice', 'v');
     await enqueue('gps', 'g');
@@ -59,10 +60,11 @@ describe('offlineQueue', () => {
         gps: { mode: 'batch', send: async () => void order.push('gps') },
         voice: log('voice'),
         qr: log('qr'),
+        ocr: log('ocr'),
       },
       syncNavigation: async () => void order.push('detection'),
     });
-    expect(order).toEqual(['emergency', 'gps', 'detection', 'voice', 'qr']);
+    expect(order).toEqual(['emergency', 'gps', 'detection', 'voice', 'qr', 'ocr']);
   });
 
   it('2xx → xóa; GPS gửi theo lô tối đa 100 điểm', async () => {
