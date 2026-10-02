@@ -137,15 +137,21 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 5: Scene Understanding (online)
 
-**Trạng thái (2026-10-02):** ✅ QR on-device (ML Kit qua VisionCamera code scanner): đọc nội dung, URL chỉ đọc tên miền + hỏi "đồng ý" hoặc chạm "Mở trang" (không tự mở), log `POST /api/ocr/qr-scans` qua hàng đợi offline; chưa thử trên máy. ⏳ OCR, nhận diện khuôn mặt: chờ backend trả lời GAP-3/4.
+**Trạng thái (2026-10-02):** ✅ QR on-device (ML Kit qua VisionCamera code scanner): đọc nội dung, URL chỉ đọc tên miền + hỏi "đồng ý" hoặc chạm "Mở trang" (không tự mở), log `POST /api/ocr/qr-scans` qua hàng đợi offline; chưa thử trên máy.
 
-| Task                                                                                    | Skill                                                      | Done khi                            |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------- |
-| Chốt contract OCR/QR/Face                                                               | `/spec`                                                    |                                     |
-| OCR: chụp → nén (expo-image-manipulator) → upload multipart; LOW_CONFIDENCE → không đọc | `expo-data-fetching`, `/test` cho logic phân nhánh kết quả | "Đang đọc..." khi > 1.5s            |
-| QR on-device + xử lý URL (hỏi xác nhận bằng giọng)                                      | `source-driven-development` (vision-camera code scanner)   | Chạy offline                        |
-| Face recognition + **xóa ảnh trong `finally`** (BR-22)                                  | `/test`, agent `security-auditor`                          | Test: ảnh bị xóa cả khi request lỗi |
-| Offline → TTS "cần kết nối mạng"                                                        |                                                            |                                     |
+**Kiến trúc đã chốt (backend `a1e4df9`):** OCR **lai** (online: server chạy VietOCR; offline: ML Kit trên máy). Nhận diện khuôn mặt **chạy trên server** (`POST /api/face-registry/identify`, FaceNet vggface2 + pgvector), **không có bản offline**. Chi tiết contract và lỗ hổng: CLAUDE.md mục 9.3, 9.4, 19 (GAP-3, GAP-4, GAP-18..22).
+
+| Task                                                                                                                                                                                                                                              | Skill                                              | Done khi                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------- |
+| OCR online: chụp → nén JPEG (cạnh dài ~1600px, < 1MB) → `POST /api/ocr/requests` multipart `Image`, `TriggerMethod`, `ResultStatus=Failed`, `OcrEngine=pending` (bắt buộc gửi, server ghi đè khi VietOCR chạy, GAP-19) → đọc `data.processedText` | `expo-data-fetching`, `/test` cho logic phân nhánh | "Đang đọc..." khi > 1.5s; timeout client ~8s |
+| Phân nhánh kết quả OCR: `ocrEngine == "vietocr"` + có text → đọc; `vietocr` + rỗng → "Không đọc rõ, chụp lại" (BR-24); khác `vietocr` (server OCR lỗi) / timeout / 5xx → fallback ML Kit                                                          | `/test`                                            | Test đủ 4 nhánh                              |
+| OCR offline: ML Kit Text Recognition (Latin, on-device, cần prebuild) → đọc text → log `/api/ocr/requests` với `ProcessedText`, `OcrEngine=mlkit`, **không gửi ảnh**, qua hàng đợi offline                                                        | `source-driven-development`                        | Chạy khi tắt mạng                            |
+| Face: chụp → `POST /api/face-registry/identify` multipart field **`photo`** → TTS từ `recognized` + `matchedPersonName` + `relationship` (chuỗi trong `strings.vi.ts`, không đọc `ttsText` của server)                                            | `/test`                                            | TTS ≤ 3s P95                                 |
+| Face: **xóa ảnh trong `finally`** (BR-22); **không** gọi `/recognition-logs` (server đã tự log)                                                                                                                                                   | `/test`, agent `security-auditor`                  | Test: ảnh bị xóa cả khi request lỗi          |
+| Face offline / 422 (FaceNet lỗi) → TTS "cần kết nối mạng" / "tạm thời không khả dụng"                                                                                                                                                             |                                                    |                                              |
+| Thử trên máy với ảnh thật (biển hiệu nhiều dòng, khuôn mặt chụp xa) để đo GAP-18, GAP-20 trước khi báo backend                                                                                                                                    | `/run`                                             | Có số liệu gửi backend                       |
+
+Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên web; mục 2 trong ghi chú backend là cho web). Không cần tải `/face-registry/persons/me` nữa.
 
 ### Sprint 6: Location
 
@@ -191,13 +197,13 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở **CLAUDE.md mục 19**. Tóm tắt theo sprint:
 
-| Chặn     | GAP                                                                                                   |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                           |
-| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                  |
-| Sprint 5 | **GAP-3** ai chạy OCR, **GAP-4** ai chạy nhận diện khuôn mặt (quyết định kiến trúc)                   |
-| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý                                                                      |
-| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection |
-| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                   |
+| Chặn     | GAP                                                                                                                                                                                       |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                               |
+| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                                      |
+| Sprint 5 | ✅ GAP-3/4 đã chốt (OCR lai, Face trên server); còn GAP-18 OCR chỉ đọc 1 dòng, GAP-19 contract OCR online, GAP-20 không cắt khuôn mặt, GAP-21 ngưỡng face, GAP-22 không có confidence OCR |
+| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý                                                                                                                                                          |
+| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                                     |
+| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                                       |
 
 Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.

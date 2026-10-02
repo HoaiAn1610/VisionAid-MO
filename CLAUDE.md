@@ -33,7 +33,7 @@
 | **Mobile App cho VIU** | ✅ | React Native + Expo, **Android 10+** là nền tảng chính |
 | Caregiver / Center Admin / Super Admin Dashboard | ❌ | Web React — repo riêng |
 | Backend API, Background Jobs, SignalR Hub | ❌ | ASP.NET Core 9 — repo riêng. App mobile chỉ là **client** |
-| VietOCR, FaceNet inference | ❓ | Tài liệu dự án ghi là container phía server, nhưng **backend hiện tại không có endpoint chạy OCR/nhận diện**: `/api/ocr/requests` và `/api/face-registry/recognition-logs` chỉ **ghi log kết quả do client gửi lên**. Ai chạy model (điện thoại hay server) **chưa chốt**, xem mục 19 (GAP-3, GAP-4) |
+| VietOCR, FaceNet inference | ❌ | Container phía server (backend `a1e4df9`). OCR **lai**: online gọi server, offline ML Kit trên máy. Face: chỉ chạy trên server (`/face-registry/identify`), không có bản offline. Xem mục 9.3, 9.4 |
 
 > **Mobile App CHỈ dành cho role `VisuallyImpaired`.** Nếu user đăng nhập với role khác → từ chối, TTS: "Tài khoản này không dùng được trên ứng dụng di động. Vui lòng dùng trang web quản lý." (Screen Authorization trong SRS: mọi màn hình mobile chỉ VIU truy cập.)
 > iOS nằm ngoài phạm vi chính (EX-07) — code không được chủ động phá vỡ iOS, nhưng chỉ test/đảm bảo trên Android.
@@ -298,10 +298,11 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | PATCH | `/api/navigation/sessions/{id}/end` | `{ endedAt? }`. Session đã end → 422 |
 | POST | `/api/navigation/sessions/{id}/events` | **Từng event một** (không phải batch): `{ objectClass, confidenceScore, distanceRange, boundingBox (string), alertIssued, inferenceTimeMs?, detectedAt, latitude?, longitude? }` |
 | POST | `/api/navigation/sessions/{id}/events/batch` | Mảng các event như trên → `{ … số event, số alert }`. **Dùng cái này khi flush queue** |
-| POST | `/api/ocr/requests` | multipart: `Image?`, `TriggerMethod`, `RawText?`, `ProcessedText?`, `ConfidenceScore?`, `OcrEngine?`, `LanguageDetected?`, `ProcessingTimeMs?`, `ResultStatus`, `ErrorMessage?`, `TtsAnnounced`, `RequestedAt?`, `Latitude?`, `Longitude?` — **chỉ ghi log kết quả, server KHÔNG chạy OCR** (GAP-3) |
+| POST | `/api/ocr/requests` | multipart: `Image?`, `TriggerMethod`, `RawText?`, `ProcessedText?`, `ConfidenceScore?`, `OcrEngine`, `LanguageDetected?`, `ProcessingTimeMs?`, `ResultStatus`, `ErrorMessage?`, `TtsAnnounced`, `RequestedAt?`, `Latitude?`, `Longitude?`. **Có `Image` mà không có `ProcessedText` → server chạy VietOCR**, trả `OcrRequestResponse { processedText, rawText, confidenceScore (luôn null), ocrEngine ("vietocr" khi chạy được), resultStatus, … }`. Có `ProcessedText` → chỉ ghi log (offline). Xem 9.3 |
 | POST | `/api/ocr/qr-scans` | multipart: `QrContent`, `QrType?`, `IsUrl`, `UrlDomain?`, `TriggerMethod`, `ResultStatus`, `ScannedAt?`, `Latitude?`, `Longitude?`, `Image?` … |
-| POST | `/api/face-registry/recognition-logs` | JSON `{ matchedPersonId?, similarityScore?, recognitionResult, estimatedDistance, processingTimeMs?, recognizedAt?, errorMessage? }` — **chỉ ghi log**, không có endpoint nhận diện (GAP-4) |
-| GET | `/api/face-registry/persons/me?isActive=` | VIU đọc registry **của chính mình**: `FaceRegistryPersonResponse[] { id, displayName, relationship?, isActive, images: [{ embeddingVector?, embeddingModel?, isPrimaryImage, … }] }` → đủ dữ liệu để nhận diện on-device |
+| POST | `/api/face-registry/identify` | multipart: **`photo`** (file), `latitude?`, `longitude?` → `IdentifyFaceResponse { recognized, matchedPersonId?, matchedPersonName?, relationship?, similarityScore?, ttsText?, engine, processingTimeMs }`. **Server tự ghi log** nhận diện. FaceNet lỗi → 422 |
+| ~~POST~~ | `/api/face-registry/recognition-logs` | Không dùng nữa (identify đã tự ghi log) |
+| ~~GET~~ | `/api/face-registry/persons/me` | Không cần nữa (không nhận diện on-device) |
 | POST | `/api/voice-commands` | **Từng log một**: `{ rawTranscript?, matchedCommand?, recognitionEngine? (chuỗi tự do), confidenceScore?, executionStatus, requiredConfirmation, confirmedAt?, processingTimeMs?, audioDurationMs?, isOffline, executedAt?, latitude?, longitude? }` |
 | POST | `/api/locations/gps` | **Từng điểm một**: `{ clientGeneratedId, latitude, longitude, accuracyMeters?, altitude?, speedMps?, heading?, batteryLevel? (int), networkStatus, recordedAt, sessionId? }`. **Idempotent**: trùng `clientGeneratedId` → 200 "already recorded" (không trả 409). Response: `GpsRecordResponse { latitude, longitude, formattedAddress?, street?, district?, city?, recordedAt }` |
 | POST | `/api/locations/gps/batch` | Mảng điểm GPS như trên → `{ accepted, skipped }` (tự bỏ qua trùng `clientGeneratedId`). **Dùng khi flush queue** |
@@ -310,7 +311,7 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | PUT | `/api/emergency-events/{id}/dismiss` | `{ notes? }`. Chỉ khi `Detected` và còn trong grace; quá grace → **422** |
 | ~~PUT~~ | `/api/emergency-events/{id}/called` | **Chỉ Caregiver/CenterAdmin** (người chăm sóc đánh dấu đã gọi). Mobile KHÔNG gọi |
 
-Không có: `/api/emergency-events/{id}/snapshot` (GAP-11), `/api/face-registry/recognize` và endpoint chạy OCR phía server (GAP-3, GAP-4) → xem mục 19.
+Không có: `/api/emergency-events/{id}/snapshot` (GAP-11) → xem mục 19.
 
 ### Enum serialization
 Backend dùng `JsonStringEnumConverter` mặc định → enum trong JSON là **tên C# PascalCase**: `"AccelerometerCamera"`, `"Near"`, `"Minimal"`, `"Android"`, `"VisuallyImpaired"`. DB lưu SCREAMING_SNAKE nhưng **API không dùng dạng đó**. Role trong JWT và trong response cũng là PascalCase.
@@ -414,20 +415,21 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 - Không để queue phình: object announce cũ hơn 1 cycle bị drop.
 
 ### 9.3 OCR & QR (ONLINE cho OCR, QR decode offline)
-- **OCR:** ⚠️ **GAP-3: backend hiện KHÔNG chạy OCR.** `POST /api/ocr/requests` (multipart) chỉ **lưu kết quả do client gửi lên** (`RawText`, `ProcessedText`, `ConfidenceScore`, `OcrEngine`, `ResultStatus`… kèm ảnh tùy chọn vào MinIO). Hai hướng, **cần team chốt trước Sprint 5**:
-  - (a) Backend thêm endpoint nhận ảnh → tiền xử lý + VietOCR → trả text (đúng tài liệu gốc), hoặc
-  - (b) OCR chạy trên điện thoại (ví dụ ML Kit Text Recognition, hỗ trợ tiếng Việt kém hơn VietOCR), rồi gửi log lên `/api/ocr/requests`.
-  - Dù theo hướng nào: `confidence < threshold` hoặc `LowConfidence` → **KHÔNG đọc** kết quả, TTS: "Không đọc rõ, vui lòng chụp lại ở nơi đủ sáng" (BR-24).
+- **OCR lai** (backend `a1e4df9`):
+  - **Online:** chụp → nén JPEG (cạnh dài ~1600px, < 1MB; server giới hạn 10MB) → `POST /api/ocr/requests` multipart gồm `Image`, `TriggerMethod`, `ResultStatus=Failed`, `OcrEngine=pending`, `TtsAnnounced=false`; **không** gửi `ProcessedText`/`RawText`/`ConfidenceScore`. `ResultStatus` và `OcrEngine` buộc phải gửi (mặc định `Success` không kèm text bị validator trả 400); server ghi đè khi VietOCR chạy (GAP-19).
+  - Đọc response: `ocrEngine == "vietocr"` và `processedText` có chữ → TTS. `vietocr` nhưng rỗng (`Failed`) → "Không đọc rõ, vui lòng chụp lại ở nơi đủ sáng" (BR-24). `ocrEngine` khác `vietocr` (server không gọi được VietOCR), timeout (~8s) hoặc 5xx → **fallback ML Kit** trên máy.
+  - **Offline:** ML Kit Text Recognition (Latin, on-device) → TTS → log `/api/ocr/requests` với `ProcessedText`, `OcrEngine=mlkit`, không gửi ảnh, qua hàng đợi offline.
+  - ⚠️ VietOCR chỉ **nhận dạng một dòng chữ**, server chưa có bước phát hiện vùng chữ (GAP-18). Server không trả confidence (GAP-22) nên BR-24 chỉ dựa vào text rỗng.
   - Target ≤ 3s (P95). Hiện TTS "Đang đọc..." nếu > 1.5s.
 - **QR:** decode on-device bằng code scanner → đọc nội dung qua TTS; nếu là URL → đọc domain + hỏi có mở không (xác nhận bằng giọng nói); log qua `POST /api/ocr/qr-scans` (multipart: `QrContent`, `QrType`, `IsUrl`, `UrlDomain`, `TriggerMethod`, `ResultStatus`, `ScannedAt`, `Latitude`, `Longitude`; queue nếu offline).
 - VIU **không xem lại lịch sử OCR** trên app — lịch sử chỉ dành cho Caregiver trên web (BR-25).
-- Offline → TTS: "Tính năng đọc chữ cần kết nối mạng" (vẫn cho phép quét QR).
+- Offline → OCR bằng ML Kit (tiếng Việt kém hơn VietOCR); QR vẫn chạy bình thường.
 
 ### 9.4 Face Recognition (ONLINE)
-- ⚠️ **GAP-4: backend KHÔNG có endpoint nhận diện.** Chỉ có `POST /api/face-registry/recognition-logs` (JSON: `matchedPersonId`, `similarityScore`, `recognitionResult`, `estimatedDistance`, `processingTimeMs`, `recognizedAt`, `errorMessage`) để **ghi log kết quả**. Backend đã thêm **`GET /api/face-registry/persons/me`** trả registry của VIU kèm `embeddingVector` → hướng khả thi hiện tại là **nhận diện on-device**: tải embedding (cache trong bộ nhớ, xóa khi logout) → chụp ảnh → FaceNet on-device tạo embedding → so cosine với từng ảnh → gửi log. **Cần team xác nhận** hướng này (và model/kích thước embedding khớp với lúc Caregiver upload: xem `embeddingModel`), hay backend sẽ thêm `POST /face-registry/recognize`.
-- Luồng: tải registry → chụp ảnh → embedding → cosine similarity **>** ngưỡng → TTS → `POST /face-registry/recognition-logs`.
-- Chỉ announce khi `Matched` (similarity **>** threshold, mặc định 0.75 — BR-21): TTS "{display_name} ({relationship}) ở phía trước".
-- `NotMatched` → "Không nhận ra người này". `LowConfidence` → "Chưa rõ, vui lòng hướng camera thẳng vào khuôn mặt".
+- **Chạy trên server** (backend `a1e4df9`): chụp → nén JPEG → `POST /api/face-registry/identify` (multipart field **`photo`**, kèm `latitude`/`longitude`) → server tạo embedding FaceNet (vggface2, 512 chiều), tìm cosine bằng pgvector trong registry của VIU, **tự ghi log**. Mobile **không** gọi `/recognition-logs`, **không** tải `/persons/me`.
+- `recognized: true` → TTS "{matchedPersonName} ({relationship}) ở phía trước" (dựng câu từ `strings.vi.ts`, không đọc `ttsText` của server). `false` → "Không nhận ra người này". Server không trả `LowConfidence`.
+- 422 (FaceNet không chạy) / 5xx / timeout → "Tính năng nhận diện người quen tạm thời không khả dụng".
+- ⚠️ Server chưa cắt khuôn mặt trước khi tạo embedding (GAP-20) và dùng ngưỡng cứng 0.60 thay vì BR-21 0.75 (GAP-21).
 - **Privacy (BR-22):** ảnh tạm dùng để nhận diện **xóa khỏi thiết bị ngay** sau khi request xong (kể cả lỗi) — dùng `finally`. KHÔNG lưu vào gallery, KHÔNG cache, KHÔNG log.
 - VIU **không quản lý** face registry — việc đó do Caregiver làm trên web.
 - Offline → TTS: "Tính năng nhận diện người quen cần kết nối mạng".
@@ -604,7 +606,8 @@ export const BusinessRules = {
 | QR decode | ✅ | Đọc nội dung, log vào queue |
 | TTS | ✅ | Bình thường (đảm bảo gói giọng `vi-VN` đã cài — kiểm tra khi khởi động, hướng dẫn cài nếu thiếu) |
 | Fall detection | ✅ phát hiện | Event vào queue; fallback gọi emergency contact (xem 9.7) |
-| OCR / Face Recognition | ❌ | TTS "cần kết nối mạng" |
+| OCR | ⚠️ | ML Kit trên máy, log vào queue |
+| Face Recognition | ❌ | TTS "cần kết nối mạng" |
 | "Tôi đang ở đâu" | ⚠️ | Địa chỉ cache + timestamp (BR-15) |
 | GPS sharing | ⚠️ | Lưu SQLite, flush khi online |
 
@@ -748,8 +751,8 @@ Sprint 8 — Settings, Hardening & Release
 | `emergency_contacts` | Chỉ đọc | Caregiver quản lý; sort `priority_order ASC`, tối đa 5 |
 | `obstacle_detection_sessions` / `_events` | Ghi | Event flush theo batch (`/events/batch`) |
 | `ocr_requests`, `qr_scan_results` | Ghi log (qua API) | VIU không xem history |
-| `face_registry_persons` / `_images` | Chỉ đọc registry của mình (`/face-registry/persons/me`, có embedding) | Caregiver quản lý |
-| `face_recognition_logs` | **Mobile ghi log** qua `/face-registry/recognition-logs` | Nhận diện on-device (GAP-4 chờ xác nhận) |
+| `face_registry_persons` / `_images` | Không trực tiếp | Caregiver quản lý; server tự tạo embedding khi upload |
+| `face_recognition_logs` | Gián tiếp (server ghi khi gọi `/face-registry/identify`) | |
 | `location_history` | Ghi | `client_generated_id` UNIQUE, endpoint idempotent |
 | `location_cache` | Server cập nhật khi nhận GPS; mobile đọc qua `/locations/me` hoặc response `/locations/gps` | Mobile có bản cache SQLite riêng |
 | `saved_locations`, `geofences` | Không trực tiếp | Server xử lý boundary, gửi ArrivalNotification (SignalR + FCM) |
@@ -759,24 +762,29 @@ Sprint 8 — Settings, Hardening & Release
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `8f2641a`)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `a1e4df9`)
 
 > Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
 ### Còn mở
 | # | Chặn | Thiếu gì | Đề xuất cho backend | Tạm thời phía mobile |
 |---|---|---|---|---|
-| GAP-3 | Sprint 5 (OCR) | Server không chạy OCR; `/ocr/requests` chỉ ghi log (validator mới yêu cầu client gửi `RawText`/`ProcessedText` khi Success → ngầm hiểu **OCR on-device**) | Xác nhận chính thức OCR on-device, **hoặc** thêm endpoint VietOCR | Dự kiến OCR on-device (ví dụ ML Kit), chờ xác nhận |
-| GAP-4 | Sprint 5 (Face) | Không có endpoint recognize; đã có `/face-registry/persons/me` kèm embedding | Xác nhận nhận diện **on-device** + model embedding dùng khi upload (`embeddingModel`) | Dự kiến FaceNet on-device, chờ xác nhận |
+| GAP-18 | Sprint 5 (OCR) | `vietocr-service` gọi `Predictor.predict` trên **cả ảnh**. VietOCR là model nhận dạng **một dòng**, không có bước phát hiện vùng chữ → ảnh biển hiệu/tài liệu nhiều dòng cho kết quả sai hoặc chỉ một dòng | Thêm text detection (ví dụ PaddleOCR det / CRAFT), cắt từng dòng rồi mới đưa vào VietOCR | Fallback ML Kit khi kết quả rỗng; đo trên máy rồi gửi số liệu |
+| GAP-19 | Sprint 5 (OCR) | Chế độ online vẫn bắt client gửi `ResultStatus` (mặc định `Success` không kèm text → 400) và `OcrEngine`; client chỉ phân biệt "VietOCR lỗi" với "ảnh không có chữ" bằng cách so `ocrEngine` | Flag riêng cho online (ví dụ `mode=online`) và trả rõ server có chạy OCR không | Gửi `ResultStatus=Failed`, `OcrEngine=pending`; `ocrEngine != "vietocr"` → coi như server OCR lỗi |
+| GAP-20 | Sprint 5 (Face) | `facenet-service` resize **cả ảnh** về 160×160, không phát hiện/cắt khuôn mặt (MTCNN có sẵn trong `facenet_pytorch` nhưng không dùng) → embedding phụ thuộc bố cục ảnh, nhận diện kém khi chụp xa/lệch | Dùng MTCNN cắt và căn khuôn mặt cho cả upload lẫn identify; ảnh không có mặt → trả lỗi rõ | TTS hướng dẫn đưa camera gần mặt; đo trên máy |
+| GAP-21 | Sprint 5 (Face) | `IdentifyFaceHandler` dùng ngưỡng cứng `distance ≤ 0.40` (similarity ≥ 0.60), lệch BR-21 (> 0.75), không đọc `facenet_similarity_threshold` từ system config; không có kết quả `LowConfidence` | Đọc ngưỡng từ system config; trả `LowConfidence` khi gần ngưỡng | Theo `recognized` của server |
+| GAP-22 | Sprint 5 (OCR) | VietOCR trả `confidence: null` → không áp được BR-24 theo ngưỡng | Bật `return_prob=True` của Predictor để có xác suất | BR-24 chỉ dựa vào text rỗng |
 | GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
 | SEC | Ngay | `appsettings.Development.json` (đang commit) chứa khóa thật Resend + **PayOS `ChecksumKey`** (giả mạo được webhook → kích hoạt license miễn phí); `DbSeeder` seed tài khoản mặc định ở mọi môi trường | Rotate khóa, chuyển secret ra biến môi trường, chỉ seed ở Development | — |
 | GAP-17 | Chưa xếp | Hybrid AI Navigation (YOLO scene → JEV/Groq/RuleBased → TTS): mới có entity `NavigationGuidanceLog`, chưa có endpoint. WebRTC: mới có ICE server (`GET /api/webrtc/ice-servers/public`), chưa có signaling | Contract request/response, độ trễ, fallback offline, sprint bàn giao | Giữ pipeline YOLO + luật cục bộ hiện tại |
 
-### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`)
+### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`)
 | # | Kết quả |
 |---|---|
+| GAP-3 | (`a1e4df9`) OCR lai: `/ocr/requests` có ảnh, không có `ProcessedText` → server chạy VietOCR; offline client gửi text như cũ |
+| GAP-4 | (`a1e4df9`) `POST /face-registry/identify` nhận diện trên server, tự ghi log; upload ảnh tự tạo embedding |
 | GAP-1 | `privacyConsentAcceptedAt`, `privacyPolicyVersion` có trong `UserResponse` và `AuthTokenResponse` |
 | GAP-5 | `GET /locations/me` + `/locations/gps` trả `GpsRecordResponse` có địa chỉ |
 | GAP-6 | `GET /system-configs/public` (anonymous) |
