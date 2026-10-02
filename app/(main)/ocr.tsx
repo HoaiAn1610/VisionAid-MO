@@ -11,7 +11,6 @@ import { DetectionCamera } from '@/features/obstacle-detection/DetectionCamera';
 import { useQrScanner } from '@/features/qr/useQrScanner';
 import { colors, radius, spacing } from '@/theme';
 
-// TODO(Sprint 5, chờ GAP-3): đọc chữ (OCR) trên cùng màn hình
 export default function QrScannerScreen() {
   const { via } = useLocalSearchParams<{ via?: string }>();
   const qr = useQrScanner(via === 'voice' ? 'VoiceCommand' : 'Tap');

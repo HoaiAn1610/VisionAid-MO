@@ -137,7 +137,7 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 
 ### Sprint 5: Scene Understanding (online)
 
-**Trạng thái (2026-10-02):** ✅ QR on-device (ML Kit qua VisionCamera code scanner): đọc nội dung, URL chỉ đọc tên miền + hỏi "đồng ý" hoặc chạm "Mở trang" (không tự mở), log `POST /api/ocr/qr-scans` qua hàng đợi offline; chưa thử trên máy.
+**Trạng thái (2026-10-02):** ✅ QR on-device (ML Kit qua VisionCamera code scanner), log `POST /api/ocr/qr-scans` qua hàng đợi offline. ✅ Đọc chữ (`app/(main)/read-text.tsx`): VietOCR trên server, offline / server lỗi / không ra chữ → ML Kit Text Recognition trên máy, log qua hàng đợi `ocr`. ✅ Nhận diện người quen (`app/(main)/face.tsx`): `POST /face-registry/identify`, ảnh xóa trong `finally`. Lệnh giọng nói "đọc chữ", "đây là ai" đã nối. ⏳ Chưa thử trên máy; chờ backend sửa GAP-18, GAP-20.
 
 **Kiến trúc đã chốt (backend `a1e4df9`):** OCR **lai** (online: server chạy VietOCR; offline: ML Kit trên máy). Nhận diện khuôn mặt **chạy trên server** (`POST /api/face-registry/identify`, FaceNet vggface2 + pgvector), **không có bản offline**. Chi tiết contract và lỗ hổng: CLAUDE.md mục 9.3, 9.4, 19 (GAP-3, GAP-4, GAP-18..22).
 

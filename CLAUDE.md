@@ -97,7 +97,8 @@ visionaid-mobile/
 │   └── (main)/
 │       ├── _layout.tsx                   # Global overlays: Voice Bottom Sheet, SOS overlay, System Alerts
 │       ├── index.tsx                     # Home Screen — camera feed + radar + obstacle detection
-│       ├── ocr.tsx                       # OCR & QR Scanner UI
+│       ├── ocr.tsx                       # QR Scanner UI
+│       ├── read-text.tsx                 # OCR (đọc chữ) UI
 │       ├── face.tsx                      # Face Recognition UI
 │       ├── location.tsx                  # Location Query UI ("Tôi đang ở đâu?")
 │       ├── emergency.tsx                 # Emergency SOS UI (confirm, fall countdown, sent confirmation)

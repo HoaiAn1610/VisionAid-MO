@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
-import { useCameraPermission, useCodeScanner, type Code } from 'react-native-vision-camera';
+import { useCodeScanner, type Code } from 'react-native-vision-camera';
 
 import type { QrScanLog } from '@/api/endpoints/ocr';
 import type { TriggerMethod } from '@/constants/enums';
 import { Strings } from '@/constants/strings.vi';
 import { syncOfflineNow } from '@/features/sync/offlineSync';
 import { confirmByVoice, type VoiceConfirmation } from '@/features/voice-commands/confirmByVoice';
+import { useCameraAccess } from '@/hooks/useCameraAccess';
 import { HapticService } from '@/services/haptics/HapticService';
 import { speechService } from '@/services/speech/SpeechService';
 import { enqueue } from '@/services/storage/offlineQueue';
@@ -32,35 +33,11 @@ function recordQrScan(log: QrScanLog): void {
  * có mở không (nói "đồng ý" hoặc chạm nút) — KHÔNG bao giờ tự mở.
  */
 export function useQrScanner(trigger: TriggerMethod) {
-  const { hasPermission, requestPermission } = useCameraPermission();
+  const hasPermission = useCameraAccess(Strings.qr.aim);
   const [phase, setPhase] = useState<QrPhase>('scanning');
   const [info, setInfo] = useState<QrInfo | null>(null);
   const handled = useRef(false);
   const confirmation = useRef<VoiceConfirmation | null>(null);
-
-  // Xin quyền camera: giải thích bằng TTS trước hộp thoại hệ thống (§14)
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!hasPermission) {
-        say(Strings.navigation.cameraExplain);
-        if (!(await requestPermission())) {
-          if (cancelled) return;
-          say(Strings.navigation.cameraDenied, TtsPriority.SYSTEM);
-          await Linking.openSettings().catch((e: unknown) =>
-            logger.warn('Open settings failed', e),
-          );
-          return;
-        }
-      }
-      if (!cancelled) say(Strings.qr.aim);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // Chỉ chạy khi mở màn hình — hasPermission đổi sau khi cấp quyền không cần đọc lại hướng dẫn
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const openUrl = useCallback((url: string) => {
     Linking.openURL(url).catch((e: unknown) => {

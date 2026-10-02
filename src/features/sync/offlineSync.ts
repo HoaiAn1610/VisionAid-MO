@@ -1,5 +1,5 @@
 import { endSession, logDetectionEvents, startSession } from '@/api/endpoints/navigation';
-import { logQrScan, type QrScanLog } from '@/api/endpoints/ocr';
+import { logOcrText, logQrScan, type OcrTextLog, type QrScanLog } from '@/api/endpoints/ocr';
 import { logVoiceCommand, type VoiceCommandLog } from '@/api/endpoints/voice';
 import {
   syncNavigationSessions,
@@ -22,6 +22,7 @@ const flushDeps: FlushDeps = {
   senders: {
     voice: { mode: 'single', send: (payload) => logVoiceCommand(payload as VoiceCommandLog) },
     qr: { mode: 'single', send: (payload) => logQrScan(payload as QrScanLog) },
+    ocr: { mode: 'single', send: (payload) => logOcrText(payload as OcrTextLog) },
   },
   syncNavigation: () => syncNavigationSessions(navigationDeps),
 };

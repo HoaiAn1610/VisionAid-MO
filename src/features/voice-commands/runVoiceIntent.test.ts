@@ -11,6 +11,8 @@ const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[
     startNavigation: jest.fn(),
     stopNavigation: jest.fn(),
     openQrScanner: jest.fn(),
+    openTextReader: jest.fn(),
+    openFaceRecognizer: jest.fn(),
     setDetectionMode: jest.fn(),
     speechRate: 1,
     setSpeechRate: jest.fn(),
@@ -68,7 +70,7 @@ describe('runVoiceIntent', () => {
 
   it('lệnh của sprint sau → báo đang phát triển, trả false (log Failed)', () => {
     const c = ctx();
-    expect(runVoiceIntent('READ_TEXT', c)).toBe(false);
+    expect(runVoiceIntent('WHERE_AM_I', c)).toBe(false);
     expect(c.spoken).toEqual([Strings.voice.notImplemented]);
   });
 
@@ -76,6 +78,14 @@ describe('runVoiceIntent', () => {
     const c = ctx();
     expect(runVoiceIntent('SCAN_QR', c)).toBe(true);
     expect(c.openQrScanner).toHaveBeenCalled();
+  });
+
+  it('"đọc chữ" / "đây là ai" → mở màn đọc chữ / nhận diện người quen', () => {
+    const c = ctx();
+    expect(runVoiceIntent('READ_TEXT', c)).toBe(true);
+    expect(runVoiceIntent('RECOGNIZE_FACE', c)).toBe(true);
+    expect(c.openTextReader).toHaveBeenCalled();
+    expect(c.openFaceRecognizer).toHaveBeenCalled();
   });
 
   it('lệnh đã có tính năng → trả true', () => {

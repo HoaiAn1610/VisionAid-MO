@@ -22,6 +22,8 @@ interface NavigationControls {
   start(): void;
   stop(): void;
   openQrScanner(): void;
+  openTextReader(): void;
+  openFaceRecognizer(): void;
 }
 
 /** TalkBack đọc nội dung sheet khi mở → chờ đọc xong mới mở mic (echo guard chỉ biết TTS của app). */
@@ -114,6 +116,8 @@ export function useVoiceCommand(navigation: NavigationControls) {
           startNavigation: navRef.current.start,
           stopNavigation: navRef.current.stop,
           openQrScanner: navRef.current.openQrScanner,
+          openTextReader: navRef.current.openTextReader,
+          openFaceRecognizer: navRef.current.openFaceRecognizer,
           setDetectionMode,
           speechRate: ttsService.getSettings().rate,
           setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
