@@ -758,7 +758,7 @@ Sprint 8 — Settings, Hardening & Release
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `e226590`)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `8f2641a`)
 
 > Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
@@ -771,11 +771,9 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
 | SEC | Ngay | `appsettings.Development.json` (đang commit) chứa khóa thật Resend + **PayOS `ChecksumKey`** (giả mạo được webhook → kích hoạt license miễn phí); `DbSeeder` seed tài khoản mặc định ở mọi môi trường | Rotate khóa, chuyển secret ra biến môi trường, chỉ seed ở Development | — |
-| GAP-15 | Mọi sprint | License của VIU: gói B2C chỉ ghi license cho **Caregiver**; VIU của họ có `license_status = NULL` → middleware đang **fail-open** nhờ exception. Nếu đổi NULL = None → VIU B2C bị 402 mọi API trừ SOS | Chốt nguồn license của VIU (thừa hưởng Caregiver / pool), xử lý NULL tường minh, luôn cho VIU gọi `/users/me`, emergency-contacts, navigation | App chịu được 402 (đăng nhập vẫn vào, SOS còn, TTS báo) |
-| GAP-16 | Sprint 8 | Không DTO nào trả trạng thái license | Thêm `licenseStatus`, `licenseExpiresAt` vào `UserResponse` / `AuthTokenResponse` | Chỉ biết khi gặp 402 / header cảnh báo |
-| GAP-17 | Chưa xếp | Hybrid AI Navigation (YOLO scene → JEV/Groq/RuleBased → TTS): mới có entity `NavigationGuidanceLog`, chưa có endpoint; WebRTC chưa có controller | Contract request/response, độ trễ, fallback offline, sprint bàn giao | Giữ pipeline YOLO + luật cục bộ hiện tại |
+| GAP-17 | Chưa xếp | Hybrid AI Navigation (YOLO scene → JEV/Groq/RuleBased → TTS): mới có entity `NavigationGuidanceLog`, chưa có endpoint. WebRTC: mới có ICE server (`GET /api/webrtc/ice-servers/public`), chưa có signaling | Contract request/response, độ trễ, fallback offline, sprint bàn giao | Giữ pipeline YOLO + luật cục bộ hiện tại |
 
-### Đã xử lý (commit `f4e2592`, `41bed01`)
+### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`)
 | # | Kết quả |
 |---|---|
 | GAP-1 | `privacyConsentAcceptedAt`, `privacyPolicyVersion` có trong `UserResponse` và `AuthTokenResponse` |
@@ -787,6 +785,8 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-8 | HTTPS + domain: `https://api.visionaid.net` (2026-09-28). Cleartext vẫn chỉ bật ở build development cho backend local |
 | GAP-12 | `PUT /emergency-events/{id}/called` — **dành cho Caregiver/CenterAdmin**, mobile không gọi |
 | GAP-2 | Không đổi (mobile tự chặn role) — chấp nhận |
+| GAP-15 | (`8f2641a`) License NULL = None; `/api/users/me*` luôn qua license check (kể cả emergency-contacts, tts-preferences); VIU B2C thừa hưởng license của Caregiver chính (`LicenseCacheSyncJob` mỗi giờ + ngay khi Caregiver tạo VIU). Lưu ý: Caregiver kích hoạt gói sau khi đã có VIU → VIU chờ tới lượt sync (≤ 1 giờ + cache Redis 5 phút) |
+| GAP-16 | (`8f2641a`) `UserResponse` và `AuthTokenResponse` có `licenseStatus` (`Trial`/`Active`/`Expired`/`None`, có thể null) và `licenseExpiresAt` |
 
 ---
 
