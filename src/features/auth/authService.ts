@@ -10,6 +10,7 @@ import {
 import type { AuthToken } from '@/api/types';
 import { Env } from '@/config/env';
 import { Strings } from '@/constants/strings.vi';
+import { stopGpsTracking } from '@/services/location/gpsTracking';
 import { clearUserData } from '@/services/storage/db';
 import {
   clearTokens,
@@ -132,13 +133,15 @@ export async function signOut(): Promise<void> {
   await logout(clientDeviceId).catch((e: unknown) => logger.warn('Logout API failed', e));
   await clearTokens();
   await clearUserData().catch((e: unknown) => logger.warn('Clear SQLite failed', e));
-  // TODO(Sprint 6): dừng GPS task, ngắt SignalR, kết thúc navigation session
+  await stopGpsTracking();
+  // TODO(Sprint 6): ngắt SignalR
   useAuthStore.getState().signOut();
 }
 
 /** Gọi 1 lần khi khởi động: refresh thất bại → về Login + TTS; 402 / header cảnh báo license → TTS. */
 export function registerSessionExpiredHandler(): void {
   setSessionExpiredHandler(() => {
+    void stopGpsTracking();
     useAuthStore.getState().signOut();
     ttsService.enqueue({ text: Strings.auth.sessionExpired, priority: TtsPriority.SYSTEM });
   });

@@ -39,6 +39,8 @@ const config: ExpoConfig = {
       'android.permission.INTERNET',
       'android.permission.ACCESS_NETWORK_STATE',
       'android.permission.HIGH_SAMPLING_RATE_SENSORS',
+      // expo-task-manager lưu lịch task GPS nền qua JobScheduler (persisted job)
+      'android.permission.RECEIVE_BOOT_COMPLETED',
     ],
   },
   plugins: [

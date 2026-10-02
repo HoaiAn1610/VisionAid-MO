@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAuthBootstrap } from '@/features/auth/useAuthBootstrap';
+// Đăng ký task GPS nền ngay khi nạp app (Android có thể gọi task khi app đã tắt)
+import '@/services/location/gpsTracking';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { useAuthStore } from '@/stores/authStore';
 

@@ -11,6 +11,8 @@ import { DetectionCamera } from '@/features/obstacle-detection/DetectionCamera';
 import { useObstacleNavigation } from '@/features/obstacle-detection/useObstacleNavigation';
 import { useVoice } from '@/features/voice-commands/VoiceProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { ensureLocationPermission } from '@/services/location/gps';
+import { setGpsMode } from '@/services/location/gpsTracking';
 import { useAuthStore } from '@/stores/authStore';
 import { colors, radius, spacing } from '@/theme';
 
@@ -21,6 +23,13 @@ export default function HomeScreen() {
   const voice = useVoice();
   const { registerNavigation } = voice;
   const { active, start: startNavigation, stop: stopNavigation } = nav;
+  // Chia sẻ vị trí: dày khi dẫn đường (xin quyền theo ngữ cảnh lúc bắt đầu), thưa ngoài phiên
+  useEffect(() => {
+    void (async () => {
+      if (active && !(await ensureLocationPermission())) return;
+      await setGpsMode(active ? 'session' : 'low-power');
+    })();
+  }, [active]);
   // Lệnh giọng nói (overlay toàn cục) điều khiển dẫn đường qua handle này
   useEffect(() => {
     registerNavigation({ active, start: () => void startNavigation(), stop: stopNavigation });
