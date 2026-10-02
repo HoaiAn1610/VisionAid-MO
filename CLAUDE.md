@@ -275,6 +275,7 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | 429 | TTS "Bạn thử quá nhiều lần, vui lòng đợi một phút" |
 | 402 | **License** (`LicenseValidationMiddleware`, backend `e226590`): chưa có / hết hạn quá 3 ngày. TTS một lần mỗi lần mở app: gói dịch vụ bị dừng, liên hệ người chăm sóc, **vẫn gọi khẩn cấp được** (SOS không bao giờ bị chặn). Đăng nhập vẫn vào app khi `/users/me` trả 402 (dùng thông tin trong response login). Hàng đợi offline giữ dữ liệu, gửi lại sau |
 | Header `X-License-Warning: expiring-in-Nd` | Còn trong 3 ngày ân hạn → TTS "Gói dịch vụ sẽ hết hạn sau N ngày" một lần mỗi lần mở app |
+| `licenseStatus` trong `/users/me` (backend `8f2641a`) | Báo trước ngay khi mở app / đăng nhập (`src/features/auth/licenseNotice.ts`): `None` hoặc hết hạn quá 3 ngày → như 402; còn ≤ 3 ngày → "sắp hết hạn". Dùng chung bộ chống lặp với 402 |
 | 409 / 422 | Đọc thông điệp nghiệp vụ đã map |
 | 5xx / timeout / offline | TTS "Tính năng tạm thời không khả dụng", đưa vào offline queue nếu là log |
 

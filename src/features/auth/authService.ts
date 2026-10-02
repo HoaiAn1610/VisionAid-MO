@@ -24,6 +24,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { logger } from '@/utils/logger';
 import { isVisuallyImpaired } from '@/utils/role';
 
+import { announceLicense, licenseEventFor } from './licenseNotice';
+
 export class WrongRoleError extends Error {
   constructor() {
     super('Account role is not VisuallyImpaired');
@@ -34,6 +36,8 @@ export class WrongRoleError extends Error {
 async function applyUser(user: User): Promise<void> {
   await saveCachedUser(JSON.stringify(user));
   useAuthStore.getState().setUser(user);
+  const event = licenseEventFor(user.licenseStatus, user.licenseExpiresAt);
+  if (event) announceLicense(event);
 }
 
 /** Đăng nhập. Role khác VIU → revoke token vừa cấp rồi ném WrongRoleError (backend không chặn role). */
@@ -68,6 +72,8 @@ function userFromToken(token: AuthToken): User {
     role: token.role,
     privacyConsentAcceptedAt: token.privacyConsentAcceptedAt ?? null,
     privacyPolicyVersion: token.privacyPolicyVersion ?? null,
+    licenseStatus: token.licenseStatus ?? null,
+    licenseExpiresAt: token.licenseExpiresAt ?? null,
   };
 }
 
@@ -130,28 +136,13 @@ export async function signOut(): Promise<void> {
   useAuthStore.getState().signOut();
 }
 
-/** Gọi 1 lần khi khởi động: refresh thất bại → về Login + TTS; license bị chặn / sắp hết → TTS. */
+/** Gọi 1 lần khi khởi động: refresh thất bại → về Login + TTS; 402 / header cảnh báo license → TTS. */
 export function registerSessionExpiredHandler(): void {
   setSessionExpiredHandler(() => {
     useAuthStore.getState().signOut();
     ttsService.enqueue({ text: Strings.auth.sessionExpired, priority: TtsPriority.SYSTEM });
   });
-  // ponytail: chỉ báo một lần mỗi lần mở app (lưu trong bộ nhớ) — đủ để không lặp sau mỗi request;
-  // lưu ngày vào SecureStore nếu người dùng thấy bị nhắc quá nhiều mỗi ngày.
-  let blockedAnnounced = false;
-  let warningAnnounced = false;
-  setLicenseHandler((event) => {
-    if (event.kind === 'blocked' ? blockedAnnounced : warningAnnounced) return;
-    if (event.kind === 'blocked') blockedAnnounced = true;
-    else warningAnnounced = true;
-    ttsService.enqueue({
-      text:
-        event.kind === 'blocked'
-          ? Strings.license.blocked
-          : Strings.license.expiring(event.daysLeft),
-      priority: TtsPriority.SYSTEM,
-    });
-  });
+  setLicenseHandler(announceLicense);
 }
 
 /** Map lỗi đăng nhập → câu tiếng Việt cho TTS/UI (không đọc `detail` tiếng Anh). */

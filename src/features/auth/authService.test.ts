@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { ApiError, setLicenseHandler, type LicenseEvent } from '@/api/client';
 import { ttsService } from '@/services/tts/TtsService';
 
+import { resetLicenseNotice } from './licenseNotice';
+
 import {
   acceptPrivacy,
   bootstrapAuth,
@@ -80,6 +82,7 @@ const user = (over: Partial<authApi.User> = {}): authApi.User => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetLicenseNotice();
   for (const k of Object.keys(secure)) delete secure[k];
   useAuthStore.setState({ status: 'loading', user: null });
 });
@@ -143,6 +146,15 @@ describe('license (402 từ LicenseValidationMiddleware)', () => {
       status: 'signedIn',
       user: { id: 'u1', email: 'viu@visionaid.vn', role: 'VisuallyImpaired' },
     });
+  });
+
+  it('/users/me báo licenseStatus None → TTS báo trước ngay khi đăng nhập (không đợi gặp 402)', async () => {
+    api.login.mockResolvedValue(token('VisuallyImpaired'));
+    api.fetchMe.mockResolvedValue(user({ licenseStatus: 'None', licenseExpiresAt: null }));
+    await signIn('viu@visionaid.vn', 'pw');
+    expect((ttsService.enqueue as jest.Mock).mock.calls.map((c) => c[0].text)).toContain(
+      Strings.license.blocked,
+    );
   });
 
   it('TTS báo bị chặn / sắp hết hạn — mỗi loại chỉ MỘT lần mỗi lần mở app', () => {
