@@ -16,7 +16,7 @@ export default function QrScannerScreen() {
   const qr = useQrScanner(via === 'voice' ? 'VoiceCommand' : 'Tap');
 
   return (
-    <Screen>
+    <Screen scroll>
       <Header title={Strings.qr.title} back />
       {qr.phase === 'scanning' ? (
         <>

@@ -60,7 +60,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <Screen>
+    <Screen scroll>
       <View style={styles.header}>
         <ThemedText variant="caption">{Strings.app.name}</ThemedText>
         <ThemedText variant="title">{Strings.home.greeting(fullName)}</ThemedText>

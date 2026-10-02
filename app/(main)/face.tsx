@@ -8,7 +8,7 @@ export default function FaceScreen() {
   const identifier = useFaceIdentifier();
 
   return (
-    <Screen>
+    <Screen scroll>
       <Header title={Strings.face.title} back />
       <CaptureView
         capture={identifier}

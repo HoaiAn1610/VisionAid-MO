@@ -11,7 +11,7 @@ export default function ReadTextScreen() {
   const reader = useTextReader(via === 'voice' ? 'VoiceCommand' : 'Tap');
 
   return (
-    <Screen>
+    <Screen scroll>
       <Header title={Strings.ocr.title} back />
       <CaptureView
         capture={reader}
