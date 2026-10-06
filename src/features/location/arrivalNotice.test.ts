@@ -1,6 +1,10 @@
 import { Strings } from '@/constants/strings.vi';
 
-import { createArrivalAnnouncer, type ArrivalNotification } from './arrivalNotice';
+import {
+  arrivalFromFcmData,
+  createArrivalAnnouncer,
+  type ArrivalNotification,
+} from './arrivalNotice';
 
 const event = (over: Partial<ArrivalNotification> = {}): ArrivalNotification => ({
   viuId: 'viu',
@@ -35,5 +39,32 @@ describe('createArrivalAnnouncer', () => {
     announce(event({ occurredAt: '2026-10-06T18:00:00+07:00' }));
     announce(event({ savedLocationId: 'school', savedLocationName: 'Trường' }));
     expect(say).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('arrivalFromFcmData', () => {
+  const data = {
+    notificationType: 'ArrivalNotification',
+    savedLocationId: 'home',
+    savedLocationName: 'Nhà',
+    ttsAnnouncement: '',
+    occurredAt: '2026-10-06T08:00:00+07:00',
+  };
+
+  it('đủ field → sự kiện, chuỗi rỗng thành null', () => {
+    expect(arrivalFromFcmData(data)).toMatchObject({
+      savedLocationId: 'home',
+      savedLocationName: 'Nhà',
+      ttsAnnouncement: null,
+    });
+  });
+
+  it('loại thông báo khác / payload cũ thiếu tên nơi / giờ sai → null', () => {
+    expect(arrivalFromFcmData({ ...data, notificationType: 'FallDetected' })).toBeNull();
+    expect(
+      arrivalFromFcmData({ notificationType: 'ArrivalNotification', notificationId: 'x' }),
+    ).toBeNull();
+    expect(arrivalFromFcmData({ ...data, occurredAt: 'abc' })).toBeNull();
+    expect(arrivalFromFcmData(undefined)).toBeNull();
   });
 });

@@ -11,6 +11,30 @@ export interface ArrivalNotification {
   occurredAt: string;
 }
 
+/**
+ * FCM `data` (chỉ có chuỗi) → sự kiện đến nơi. Thiếu field cần thiết (backend chưa gửi đủ) → null,
+ * không đọc gì: bỏ qua còn hơn đọc sai tên nơi.
+ */
+export function arrivalFromFcmData(
+  data: Record<string, unknown> | undefined,
+): ArrivalNotification | null {
+  const text = (key: string) => (typeof data?.[key] === 'string' ? (data[key] as string) : '');
+  if (text('notificationType') !== 'ArrivalNotification') return null;
+  const savedLocationId = text('savedLocationId');
+  const savedLocationName = text('savedLocationName').trim();
+  const occurredAt = text('occurredAt');
+  if (!savedLocationId || !savedLocationName || Number.isNaN(Date.parse(occurredAt))) return null;
+  return {
+    viuId: text('viuId'),
+    savedLocationId,
+    savedLocationName,
+    ttsAnnouncement: text('ttsAnnouncement') || null,
+    latitude: Number(text('latitude')) || 0,
+    longitude: Number(text('longitude')) || 0,
+    occurredAt,
+  };
+}
+
 /** Nhớ đủ nhiều sự kiện gần đây để chống đọc lặp khi SignalR và FCM cùng gửi (§9.6). */
 const MAX_REMEMBERED = 50;
 

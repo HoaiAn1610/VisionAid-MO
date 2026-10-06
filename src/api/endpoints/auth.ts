@@ -39,6 +39,17 @@ export async function login(
   return apiResponseSchema(authTokenSchema).parse(res.data).data;
 }
 
+/** Firebase đổi token sau khi đăng nhập → cập nhật cho server (không cần đăng nhập lại). */
+export async function updateFcmToken(fcmToken: string, clientDeviceId: string): Promise<void> {
+  await apiClient.put('/api/auth/fcm-token', {
+    fcmToken,
+    clientDeviceId,
+    deviceType: 'Android',
+    deviceModel: (Platform.constants as { Model?: string }).Model,
+    appVersion: Constants.expoConfig?.version,
+  });
+}
+
 export async function logout(clientDeviceId: string): Promise<void> {
   await apiClient.post('/api/auth/logout', { clientDeviceId });
 }

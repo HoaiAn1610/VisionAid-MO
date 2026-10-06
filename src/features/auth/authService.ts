@@ -10,6 +10,7 @@ import {
 import type { AuthToken } from '@/api/types';
 import { Env } from '@/config/env';
 import { Strings } from '@/constants/strings.vi';
+import { getFcmToken } from '@/services/fcm/FcmService';
 import { stopGpsTracking } from '@/services/location/gpsTracking';
 import { clearUserData } from '@/services/storage/db';
 import {
@@ -44,7 +45,8 @@ async function applyUser(user: User): Promise<void> {
 /** Đăng nhập. Role khác VIU → revoke token vừa cấp rồi ném WrongRoleError (backend không chặn role). */
 export async function signIn(email: string, password: string): Promise<void> {
   const clientDeviceId = await getOrCreateClientDeviceId();
-  const token = await login(email.trim(), password, clientDeviceId);
+  const fcmToken = await getFcmToken();
+  const token = await login(email.trim(), password, clientDeviceId, fcmToken ?? undefined);
   await saveTokens({ accessToken: token.accessToken, refreshToken: token.refreshToken });
 
   if (!isVisuallyImpaired(token.role)) {
