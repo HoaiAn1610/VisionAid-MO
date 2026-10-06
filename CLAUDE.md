@@ -498,7 +498,7 @@ Phát hiện té ngã
    (server set Detected + grace_period_ends_at = detectedAt + 15s; trả về event có id)
 → Snapshot đi INLINE trong cùng request (snapshotBase64, JPEG đã nén nhỏ). Backend không có endpoint /snapshot riêng;
   upload MinIO lỗi thì server vẫn tạo event. Ảnh phải nén mạnh để không làm chậm việc tạo event (GAP-11: tách snapshot ra endpoint riêng)
-→ Emergency SOS UI: đếm ngược 15s — TTS "Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo." rồi chỉ đọc số ở 10/5/4/3/2/1
+→ Emergency SOS UI: đếm ngược 15s — TTS "Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo." rồi chỉ đọc số ở 10 và 5
    (chừa khoảng lặng cho mic nghe "tôi ổn") + haptic mỗi giây; lắng nghe "tôi ổn" (xem quy tắc chống tự nghe bên dưới); chạm bất kỳ đâu trên màn hình = hủy
 ├── User hủy trong 15s → PUT /api/emergency-events/{id}/dismiss { notes? } → TTS "Đã hủy cảnh báo"
 │     (quá grace → 422 "Grace period has expired" → TTS "Cảnh báo đã được gửi")
@@ -506,6 +506,7 @@ Phát hiện té ngã
       → app TTS "Đã gửi cảnh báo đến người chăm sóc" (Alert confirmation)
 ```
 - Grace period được **server làm chuẩn** (source of truth); countdown trên app chỉ là UI. Việc dismiss phải gọi API trước khi server hết grace.
+- `detectedAt` = **lúc đủ hai tín hiệu** (bắt đầu đếm ngược), không phải lúc va chạm — va chạm sớm hơn ≥ 5 s (chờ camera đứng yên) nên nếu gửi lúc va chạm, server hết grace trước khi đồng hồ trên máy về 0. Thời điểm va chạm nằm trong `accelerometerData`.
 - Luôn gửi `detectedAt` từ thiết bị: event sync muộn từ offline queue → server tính grace từ thời điểm té thật (đã quá 15s → dispatcher gửi ngay). Đồng hồ thiết bị có thể lệch; backend chưa giới hạn `detectedAt` so với giờ server.
 - ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có" / "đồng ý". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
 - **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
@@ -518,7 +519,11 @@ Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation b
 → TTS "Đã gửi cảnh báo khẩn cấp" → gọi emergency contact theo priorityOrder (Phone/Both: ACTION_CALL qua phoneNumber, Zalo: zaloDeepLink)
 → (Trạng thái `Called` do Caregiver/CenterAdmin đánh dấu qua PUT /{id}/called — mobile KHÔNG gọi endpoint này)
 ```
-- Emergency contacts cache trong SQLite để dùng được khi offline. **Standalone Mode** (VIU thuộc trung tâm, không có người thân): contacts do Staff Caregiver cấu hình, có thể gồm **112/113/114/115**, hotline trung tâm, số trực ban.
+- Emergency contacts cache trong SQLite để dùng được khi offline.
+- **Quyền `CALL_PHONE` xin trước** (lúc bắt đầu dẫn đường, mở màn khẩn cấp) — lúc khẩn cấp chỉ kiểm tra, chưa có quyền → mở trình quay số. Cuộc gọi **không chờ** gửi event (gửi chạy song song).
+- **Không bao giờ nhận "đã xác nhận" từ route param / deep link:** lệnh giọng nói đặt cờ một lần trong bộ nhớ (5 s); `app/+native-intent.tsx` chặn deep link vào màn khẩn cấp.
+- Hàng đợi `pending_emergency_events` giữ qua logout nhưng có `owner_id`: chỉ gửi khi đúng chủ đăng nhập.
+- Link Zalo chỉ chấp nhận `https://zalo.me/…` hoặc `zalo://…`. **Standalone Mode** (VIU thuộc trung tâm, không có người thân): contacts do Staff Caregiver cấu hình, có thể gồm **112/113/114/115**, hotline trung tâm, số trực ban.
 - ⚠️ Android **không cho `ACTION_CALL` gọi số khẩn cấp** (112, 113, 114, 115) — chỉ mở được trình quay số (`ACTION_DIAL`). Với các số này: mở trình quay số đã điền sẵn số + TTS "Chạm nút gọi màu xanh ở giữa phía dưới màn hình"; ưu tiên gọi trước contact không phải số khẩn cấp nếu có.
 - Sau khi event chuyển `Sent`, server **tự mở cuộc gọi WebRTC `SOS_AUTO`** tới Caregiver chính (mục 9.10): app VIU bật camera gửi video + phát audio của Caregiver.
 - KHÔNG bao giờ gọi acknowledge / escalate / resolve từ mobile — đó là hành động của Caregiver (backend cũng chặn theo role).
@@ -826,6 +831,7 @@ Sprint 9 — Settings, Hardening & Release
 | GAP-28 | Ngay | `DbSeeder`: gói license **và các config mới** (`hybrid_navigation_*`, `navigation_near_threshold_ms`, `webrtc_*`, `payos_*`, `trial_days_default`…) chỉ seed khi DB trống → DB production cũ không có. License `NONE` chặn `/api/navigation/*` là **đúng chính sách** (Update Report §3.4); chỉ cần sửa câu rule 20–22 của backend cho rõ | Seed theo từng key/`Code`; sửa câu rule | — |
 | GAP-29 | Sprint 8 | `navigation_near_threshold_ms`, `hybrid_navigation_enabled`, `webrtc_enabled`, `webrtc_max_duration_minutes` seed với `isPublic: false` → `/api/system-configs/public` không trả, mobile không đọc được | Đặt `isPublic: true` cho các key mobile cần | Dùng mặc định cứng (500 ms, bật) |
 | GAP-30 | Sprint 8 | `LicenseValidationMiddleware` không miễn `/api/webrtc/sessions*` → VIU license `NONE` / hết hạn > 3 ngày bị 402 khi nhận, gọi hoặc kết thúc cuộc gọi, kể cả cuộc gọi `SosAuto` (trái "SOS không bao giờ bị chặn") | Miễn kiểm tra license cho phiên có `emergency_event_id` (hoặc toàn bộ `/api/webrtc/sessions` của VIU) | — |
+| GAP-31 | Sprint 7 | `POST /api/emergency-events` không có khóa chống trùng → request timeout sau khi server đã tạo xong thì mobile đưa vào hàng đợi và tạo **event thứ hai** (Caregiver nhận 2 cảnh báo; hủy té ngã chỉ hủy được một) | Nhận `clientGeneratedId` như GPS, trùng → trả event cũ | — |
 
 ### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`)
 | # | Kết quả |
