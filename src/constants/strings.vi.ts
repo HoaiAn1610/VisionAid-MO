@@ -129,6 +129,9 @@ export const Strings = {
     scanAgain: 'Quét mã khác',
     scanAgainHint: 'Chạm hai lần để quét một mã QR khác',
   },
+  battery: {
+    low: 'Pin yếu, đã chuyển sang chế độ tiết kiệm, chỉ báo vật nguy hiểm.',
+  },
   emergency: {
     title: 'Khẩn cấp',
     open: 'Gọi khẩn cấp',
