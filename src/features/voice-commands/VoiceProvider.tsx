@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { Strings } from '@/constants/strings.vi';
+import { fallAlert } from '@/features/emergency/fallAlertService';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { isOnDeviceSpeechReady } from '@/services/speech/onDeviceSpeech';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
@@ -90,6 +91,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         openFaceRecognizer: () => openScreen('/face'),
         openLocation: () => openScreen('/location'),
         openEmergency: () => router.push({ pathname: '/emergency', params: { via: 'voice' } }),
+        dismissFall: () => fallAlert.cancel(),
       }),
       [openScreen],
     ),

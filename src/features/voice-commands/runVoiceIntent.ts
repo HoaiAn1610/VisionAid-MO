@@ -24,6 +24,8 @@ export interface VoiceContext {
   openLocation(): void;
   /** Lệnh "gọi khẩn cấp" đã được xác nhận (BR-14) → gửi SOS ngay. */
   openEmergency(): void;
+  /** Hủy cảnh báo té ngã đang đếm ngược; false nếu không có cảnh báo nào. */
+  dismissFall(): boolean;
   setDetectionMode(mode: DetectionMode): void;
   speechRate: number;
   setSpeechRate(rate: number): void;
@@ -47,8 +49,7 @@ export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean 
   return true;
 }
 
-// TODO(Sprint 7): hủy cảnh báo té ngã
-const NOT_IMPLEMENTED = new Set<VoiceIntent>(['I_AM_OK']);
+const NOT_IMPLEMENTED = new Set<VoiceIntent>([]);
 
 function execute(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
@@ -62,6 +63,9 @@ function execute(intent: VoiceIntent, ctx: VoiceContext): void {
       return ctx.openLocation();
     case 'EMERGENCY':
       return ctx.openEmergency();
+    case 'I_AM_OK':
+      if (!ctx.dismissFall()) ctx.say(Strings.fall.noAlert);
+      return;
     case 'START_NAVIGATION':
       return ctx.startNavigation(); // tự báo "bắt đầu dẫn đường"
     case 'STOP_NAVIGATION':

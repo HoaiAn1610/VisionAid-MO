@@ -133,3 +133,35 @@ export function unletterbox(
   const y2 = Math.min(1, ((d.y + d.h) * size - padY) / contentH);
   return { ...d, x: x1, y: y1, w: Math.max(0, x2 - x1), h: Math.max(0, y2 - y1) };
 }
+
+/** Kích thước lưới chữ ký khung hình (8×8 ô độ sáng). */
+export const SIGNATURE_GRID = 8;
+
+/**
+ * Chữ ký khung hình cho phát hiện té ngã (BR-26, tín hiệu camera): độ sáng trung bình 0–1 của lưới
+ * 8×8 trên ảnh RGB đã thu nhỏ cho YOLO (lấy mẫu cách 2 px, rất nhẹ). Hai chữ ký gần như trùng nhau
+ * = camera đứng yên.
+ */
+export function frameSignature(rgb: Float32Array, width: number, height: number): number[] {
+  'worklet';
+  const cells = SIGNATURE_GRID * SIGNATURE_GRID;
+  const sums: number[] = [];
+  const counts: number[] = [];
+  for (let i = 0; i < cells; i++) {
+    sums.push(0);
+    counts.push(0);
+  }
+  for (let y = 0; y < height; y += 2) {
+    const row = Math.min(SIGNATURE_GRID - 1, Math.floor((y * SIGNATURE_GRID) / height));
+    for (let x = 0; x < width; x += 2) {
+      const col = Math.min(SIGNATURE_GRID - 1, Math.floor((x * SIGNATURE_GRID) / width));
+      const p = (y * width + x) * 3;
+      const cell = row * SIGNATURE_GRID + col;
+      sums[cell] = sums[cell]! + 0.299 * rgb[p]! + 0.587 * rgb[p + 1]! + 0.114 * rgb[p + 2]!;
+      counts[cell] = counts[cell]! + 1;
+    }
+  }
+  const out: number[] = [];
+  for (let i = 0; i < cells; i++) out.push(counts[i]! > 0 ? sums[i]! / counts[i]! : 0);
+  return out;
+}

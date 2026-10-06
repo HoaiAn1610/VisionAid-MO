@@ -129,6 +129,19 @@ export const Strings = {
     scanAgain: 'Quét mã khác',
     scanAgainHint: 'Chạm hai lần để quét một mã QR khác',
   },
+  fall: {
+    detected: 'Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo.',
+    cancelled: 'Đã hủy cảnh báo',
+    alreadySent: 'Cảnh báo đã được gửi đến người chăm sóc',
+    cancelUncertain:
+      'Mất mạng nên chưa chắc đã hủy kịp. Cảnh báo có thể đã được gửi đến người chăm sóc.',
+    sent: 'Đã gửi cảnh báo đến người chăm sóc',
+    queued: 'Chưa có mạng, cảnh báo sẽ tự gửi khi có mạng.',
+    overlayLabel: 'Hủy cảnh báo té ngã',
+    overlayHint: 'Chạm vào bất kỳ đâu trên màn hình để hủy cảnh báo té ngã',
+    countdown: (seconds: number) => `Tự gửi cảnh báo sau ${seconds} giây`,
+    noAlert: 'Không có cảnh báo té ngã nào để hủy',
+  },
   battery: {
     low: 'Pin yếu, đã chuyển sang chế độ tiết kiệm, chỉ báo vật nguy hiểm.',
   },

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 
 import { Strings } from '@/constants/strings.vi';
 import { refreshEmergencyContacts } from '@/features/emergency/emergencyContacts';
+import { FallAlertOverlay } from '@/features/emergency/FallAlertOverlay';
 import { startBatteryMonitor } from '@/services/battery/BatteryMonitor';
 import { HapticService } from '@/services/haptics/HapticService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
@@ -39,6 +40,7 @@ export default function MainLayout() {
   return (
     <VoiceProvider>
       <Stack screenOptions={{ headerShown: false }} />
+      <FallAlertOverlay />
     </VoiceProvider>
   );
 }

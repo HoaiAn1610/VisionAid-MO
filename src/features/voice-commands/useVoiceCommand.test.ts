@@ -79,6 +79,7 @@ const nav = {
   openFaceRecognizer: jest.fn(),
   openLocation: jest.fn(),
   openEmergency: jest.fn(),
+  dismissFall: jest.fn(() => false),
 };
 const loggedStatuses = () =>
   (recordVoiceCommand as jest.Mock).mock.calls.map((c) => c[0].executionStatus as string);
