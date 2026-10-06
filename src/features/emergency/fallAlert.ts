@@ -30,22 +30,34 @@ export interface FallAlertDeps {
   tick(): void;
   sentHaptic(): void;
   setTimer(fn: () => void, ms: number): unknown;
+  now(): number;
   clearTimer(handle: unknown): void;
 }
 
-/** Giây đọc to khi đếm ngược; các giây khác chỉ rung để mic còn khoảng lặng nghe "tôi ổn". */
-const SPOKEN_SECONDS = new Set([10, 5, 4, 3, 2, 1]);
+/**
+ * Giây đọc to khi đếm ngược; các giây khác chỉ rung. Đọc ít để mic có khoảng lặng nghe "tôi ổn" —
+ * mọi câu nghe được lúc TTS đang đọc đều bị bỏ (chống tự nghe).
+ */
+const SPOKEN_SECONDS = new Set([10, 5]);
 
 /**
  * Cảnh báo té ngã `AccelerometerCamera` (BR-27, BR-28, §9.7). Online: tạo event ngay (server đặt
- * `Detected`, grace = va chạm + 15 s, tự gửi Caregiver khi hết hạn); hủy → `dismiss`. Offline: đợi hết
- * 15 s, không bị hủy → đưa event vào hàng đợi (server gửi ngay vì grace đã qua) + tự gọi người thân.
+ * `Detected`, grace = `detectedAt` + 15 s, tự gửi Caregiver khi hết hạn); hủy → `dismiss`. Offline: đợi
+ * hết 15 s, không bị hủy → đưa event vào hàng đợi (server gửi ngay vì grace đã qua) + tự gọi người thân.
+ *
+ * `detectedAt` = lúc đủ HAI tín hiệu (bắt đầu đếm ngược), không phải lúc va chạm: va chạm sớm hơn ≥ 5 s
+ * (chờ camera đứng yên) → server sẽ hết grace trước khi đồng hồ trên máy về 0. Lúc va chạm vẫn gửi
+ * trong `accelerometerData`.
+ *
+ * Mỗi lần cảnh báo có một `generation`: hủy / reset tăng số này → mọi bước `await` của lần cũ (lấy
+ * GPS, tạo event, gửi hàng đợi) dừng lại, không tạo event sau khi người dùng đã hủy.
  */
 export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertState) => void) {
   let state: FallAlertState = { phase: 'idle', remaining: 0 };
   let timer: unknown = null;
   let eventId: Promise<string | null> = Promise.resolve(null);
   let payload: EmergencyEventPayload | null = null;
+  let generation = 0;
 
   const set = (next: FallAlertState) => {
     state = next;
@@ -53,10 +65,12 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
   };
 
   const finish = async () => {
+    const gen = generation;
     timer = null;
     set({ phase: 'sent', remaining: 0 });
     deps.sentHaptic();
     const id = await eventId;
+    if (gen !== generation) return; // đã reset cho lần té ngã khác
     if (id) {
       deps.say(Strings.fall.sent);
       return;
@@ -90,15 +104,19 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
 
     async start(fall: FallEvent): Promise<void> {
       if (state.phase === 'countdown') return;
+      const gen = ++generation;
+      const detectedAt = new Date(deps.now()).toISOString();
       set({ phase: 'countdown', remaining: BusinessRules.FALL_GRACE_PERIOD_SECONDS });
       deps.tick();
       deps.say(Strings.fall.detected);
       timer = deps.setTimer(countDown, 1000);
 
       const position = await deps.position();
+      // Người dùng hủy (hoặc reset) trong lúc lấy GPS → KHÔNG tạo event nữa
+      if (gen !== generation) return;
       payload = {
         detectionMethod: 'AccelerometerCamera',
-        detectedAt: new Date(fall.impactAt).toISOString(),
+        detectedAt,
         accelerometerData: fall.accelerometerData,
         latitude: position?.latitude ?? null,
         longitude: position?.longitude ?? null,
@@ -120,8 +138,10 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
       if (state.phase !== 'countdown') return;
       if (timer !== null) deps.clearTimer(timer);
       timer = null;
+      const gen = ++generation; // chặn start() đang chờ GPS tạo event
       set({ phase: 'cancelled', remaining: 0 });
       const id = await eventId;
+      if (gen !== generation) return;
       if (!id) {
         deps.say(Strings.fall.cancelled); // chưa gửi gì lên server
         return;
@@ -140,6 +160,7 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
     },
 
     reset(): void {
+      generation++;
       if (timer !== null) deps.clearTimer(timer);
       timer = null;
       eventId = Promise.resolve(null);

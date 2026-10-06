@@ -97,6 +97,7 @@ export function createFallDetector(
         const event: FallEvent = {
           impactAt: impact.at,
           accelerometerData: JSON.stringify({
+            impactAt: new Date(impact.at).toISOString(),
             peakG: Math.round(impact.peakG * 100) / 100,
             stillMs: t - stillSince,
           }),

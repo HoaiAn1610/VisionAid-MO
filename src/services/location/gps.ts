@@ -71,12 +71,13 @@ export async function getQuickPosition(): Promise<{ latitude: number; longitude:
   try {
     if (!(await Location.getForegroundPermissionsAsync()).granted) return null;
     const known = await Location.getLastKnownPositionAsync({ maxAge: 2 * 60_000 });
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const location =
       known ??
       (await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-      ]));
+        new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), 3000))),
+      ]).finally(() => clearTimeout(timer)));
     return location
       ? { latitude: location.coords.latitude, longitude: location.coords.longitude }
       : null;

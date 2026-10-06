@@ -32,6 +32,7 @@ function setup(over: Partial<FallAlertDeps> = {}) {
     sentHaptic: jest.fn(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+    now: () => Date.parse('2026-10-06T10:00:06Z'), // đủ 2 tín hiệu 6 s sau va chạm
     ...over,
   };
   const alert = createFallAlert(deps, (s) => states.push(s));
@@ -44,13 +45,13 @@ async function runCountdown() {
 }
 
 describe('createFallAlert', () => {
-  it('online: tạo event AccelerometerCamera với detectedAt = lúc va chạm, rung mỗi giây', async () => {
+  it('online: tạo event với detectedAt = lúc đủ 2 tín hiệu (khớp grace của server), rung mỗi giây', async () => {
     const { alert, deps } = setup();
     await alert.start(fall);
     expect(deps.say).toHaveBeenCalledWith(Strings.fall.detected);
     expect(deps.createEvent).toHaveBeenCalledWith({
       detectionMethod: 'AccelerometerCamera',
-      detectedAt: '2026-10-06T10:00:00.000Z',
+      detectedAt: '2026-10-06T10:00:06.000Z',
       accelerometerData: '{"peakG":3}',
       latitude: 10.7,
       longitude: 106.7,
@@ -59,6 +60,7 @@ describe('createFallAlert', () => {
     expect(deps.tick).toHaveBeenCalledTimes(15);
     expect(deps.say).toHaveBeenCalledWith('5');
     expect(deps.say).not.toHaveBeenCalledWith('14'); // chừa khoảng lặng cho mic
+    expect(deps.say).not.toHaveBeenCalledWith('3');
     expect(deps.say).toHaveBeenLastCalledWith(Strings.fall.sent);
     expect(alert.getState().phase).toBe('sent');
     expect(deps.enqueue).not.toHaveBeenCalled(); // server tự gửi khi hết grace
@@ -75,6 +77,40 @@ describe('createFallAlert', () => {
     await runCountdown();
     expect(alert.getState().phase).toBe('cancelled');
     expect(deps.sentHaptic).not.toHaveBeenCalled();
+  });
+
+  it('hủy trong lúc đang lấy GPS → KHÔNG tạo event (Caregiver không nhận cảnh báo giả)', async () => {
+    let resolvePosition: (p: null) => void = () => undefined;
+    const { alert, deps } = setup({
+      position: jest.fn(() => new Promise<null>((r) => (resolvePosition = r))),
+    });
+    const started = alert.start(fall);
+    await alert.cancel();
+    resolvePosition(null);
+    await started;
+    await runCountdown();
+    expect(deps.createEvent).not.toHaveBeenCalled();
+    expect(deps.enqueue).not.toHaveBeenCalled();
+    expect(deps.say).toHaveBeenLastCalledWith(Strings.fall.cancelled);
+  });
+
+  it('reset cho lần té ngã mới khi lần cũ đang lấy GPS → lần cũ không ghi đè payload', async () => {
+    let resolveFirst: (p: null) => void = () => undefined;
+    const position = jest
+      .fn()
+      .mockImplementationOnce(() => new Promise<null>((r) => (resolveFirst = r)))
+      .mockResolvedValue({ latitude: 1, longitude: 2 });
+    const { alert, deps } = setup({ position });
+    const first = alert.start({ ...fall, accelerometerData: 'old' });
+    await alert.cancel();
+    alert.reset();
+    await alert.start({ ...fall, accelerometerData: 'new' });
+    resolveFirst(null);
+    await first;
+    expect(deps.createEvent).toHaveBeenCalledTimes(1);
+    expect(deps.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ accelerometerData: 'new' }),
+    );
   });
 
   it('server đã quá grace (422) → báo cảnh báo đã gửi', async () => {

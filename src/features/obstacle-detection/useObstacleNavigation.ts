@@ -55,7 +55,10 @@ export function useObstacleNavigation() {
   const staleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSeen = useRef(new Map<string, number>());
   // Phát hiện té ngã chỉ chạy trong phiên dẫn đường (cần camera, BR-26)
-  const fallDetector = useRef(createFallDetector((event) => fallAlert.trigger(event)));
+  const [fallDetectorInstance] = useState(() =>
+    createFallDetector((event) => fallAlert.trigger(event)),
+  );
+  const fallDetector = useRef(fallDetectorInstance);
 
   const onResult = useCallback(
     (r: FrameResult) => {

@@ -36,8 +36,11 @@ const controller = createFallAlert(
     sentHaptic: () => void HapticService.sosSent(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+    now: Date.now,
   },
   (next) => {
+    // Đã gửi / đã hủy → đóng mic đang nghe "tôi ổn"
+    if (state.phase === 'countdown' && next.phase !== 'countdown') speechService.abort();
     state = next;
     listeners.forEach((l) => l());
   },
