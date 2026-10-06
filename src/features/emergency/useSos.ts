@@ -12,16 +12,19 @@ import { readEmergencyContacts } from '@/services/storage/emergencyContactsRepo'
 import { enqueue } from '@/services/storage/offlineQueue';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 
-import { executeCall } from './callContact';
+import { ensureCallPermission, executeCall } from './callContact';
 import { sendSos, type SosDeps } from './sos';
 
 /** Chờ TTS đọc xong (tối đa vài giây) trước khi rời app sang cuộc gọi. */
 const MAX_ANNOUNCE_WAIT_MS = 8000;
 
+/**
+ * Đọc câu rồi chờ đọc XONG. Đăng ký nghe trước khi enqueue: câu EMERGENCY ngắt câu đang đọc làm
+ * `isSpeaking()` thoáng về false — nếu kiểm tra ngay sau enqueue sẽ tưởng đã đọc xong và gọi điện luôn.
+ */
 function announce(text: string): Promise<void> {
-  ttsService.enqueue({ text, priority: TtsPriority.EMERGENCY });
   return new Promise((resolve) => {
-    if (!ttsService.isSpeaking()) return resolve();
+    let started = false;
     const done = () => {
       clearTimeout(timer);
       off();
@@ -29,8 +32,11 @@ function announce(text: string): Promise<void> {
     };
     const timer = setTimeout(done, MAX_ANNOUNCE_WAIT_MS);
     const off = ttsService.onSpeakingChange((speaking) => {
-      if (!speaking) done();
+      if (speaking) started = true;
+      else if (started) done();
     });
+    ttsService.enqueue({ text, priority: TtsPriority.EMERGENCY });
+    if (ttsService.isSpeaking()) started = true;
   });
 }
 
@@ -102,7 +108,10 @@ export function useSos(alreadyConfirmedByVoice: boolean) {
 
   useEffect(() => {
     if (alreadyConfirmedByVoice) void send('VoiceCommand');
-    else ttsService.enqueue({ text: Strings.emergency.intro, priority: TtsPriority.SYSTEM });
+    else {
+      ttsService.enqueue({ text: Strings.emergency.intro, priority: TtsPriority.SYSTEM });
+      void ensureCallPermission(); // xin trước, để lúc khẩn cấp không phải hỏi
+    }
     return () => confirmation.current?.cancel(true);
     // Chỉ chạy khi mở màn hình
     // eslint-disable-next-line react-hooks/exhaustive-deps

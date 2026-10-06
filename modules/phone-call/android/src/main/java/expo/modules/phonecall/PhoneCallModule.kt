@@ -20,6 +20,8 @@ class PhoneCallModule : Module() {
   }
 
   private fun start(action: String, number: String) {
+    // Phòng thủ thêm: chỉ nhận số (có thể có +), chặn mã USSD/MMI (*#…#) dù JS đã lọc
+    require(Regex("""^\+?\d{3,15}$""").matches(number)) { "Invalid phone number" }
     val context = appContext.currentActivity ?: appContext.reactContext
       ?: throw IllegalStateException("No Android context")
     val intent = Intent(action, Uri.fromParts("tel", number, null))

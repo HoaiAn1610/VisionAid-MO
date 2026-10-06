@@ -36,7 +36,7 @@ describe('sendSos', () => {
     });
     expect(d.enqueue).not.toHaveBeenCalled();
     expect(d.announce).toHaveBeenCalledWith(
-      `${Strings.emergency.sent} ${Strings.emergency.calling('Mẹ')}`,
+      `${Strings.emergency.sending}. ${Strings.emergency.calling('Mẹ')}`,
     );
     expect(d.call).toHaveBeenCalledWith(expect.objectContaining({ kind: 'call' }));
   });
@@ -54,9 +54,16 @@ describe('sendSos', () => {
       expect(d.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({ detectionMethod: 'VoiceCommand' }),
       );
-      expect(d.announce).toHaveBeenCalledWith(expect.stringContaining(Strings.emergency.queued));
       expect(d.call).toHaveBeenCalled();
     }
+  });
+
+  it('mạng treo → cuộc gọi KHÔNG chờ gửi event xong', async () => {
+    const d = deps({ createEvent: jest.fn(() => new Promise<never>(() => undefined)) });
+    void sendSos('Manual', d);
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    expect(d.call).toHaveBeenCalled();
   });
 
   it('không có vị trí / không có contact → vẫn gửi, báo chưa có số, không gọi', async () => {

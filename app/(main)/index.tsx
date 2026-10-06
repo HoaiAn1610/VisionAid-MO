@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
 import { DetectionCamera } from '@/features/obstacle-detection/DetectionCamera';
 import { useObstacleNavigation } from '@/features/obstacle-detection/useObstacleNavigation';
+import { ensureCallPermission } from '@/features/emergency/callContact';
 import { useVoice } from '@/features/voice-commands/VoiceProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { ensureLocationPermission } from '@/services/location/gps';
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   // Chia sẻ vị trí: dày khi dẫn đường (xin quyền theo ngữ cảnh lúc bắt đầu), thưa ngoài phiên
   useEffect(() => {
     void (async () => {
+      if (active) await ensureCallPermission(); // té ngã offline có thể tự gọi người thân
       if (active && !(await ensureLocationPermission())) return;
       await setGpsMode(active ? 'session' : 'low-power');
     })();

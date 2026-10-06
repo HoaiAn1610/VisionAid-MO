@@ -5,12 +5,18 @@ import type { DetectionMethod, EmergencyContactType } from '@/constants/enums';
 import { apiClient } from '../client';
 import { apiResponseSchema } from '../types';
 
+/** Chỉ mở link Zalo thật — URL khác (trang lạ, scheme lạ) bị bỏ, không mở giữa lúc khẩn cấp. */
+const ZALO_LINK = /^(https:\/\/zalo\.me\/[\w.-]+|zalo:\/\/\S+)$/;
+
 const contactSchema = z.object({
   id: z.string(),
   contactName: z.string(),
   contactType: z.enum(['Phone', 'Zalo', 'Both']),
   phoneNumber: z.string().nullable(),
-  zaloDeepLink: z.string().nullable(),
+  zaloDeepLink: z
+    .string()
+    .nullable()
+    .transform((link) => (link && ZALO_LINK.test(link.trim()) ? link.trim() : null)),
   priorityOrder: z.number(),
   isActive: z.boolean(),
 });

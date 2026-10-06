@@ -41,12 +41,8 @@ export function describeCallPlan(plan: CallPlan): string {
   }
 }
 
-/**
- * SOS thủ công / giọng nói / cử chỉ (§9.7) — gọi SAU khi đã xác nhận (BR-14). Gửi event (server set
- * `Sent` ngay); lỗi mạng → vào hàng đợi, tự gửi lại. Sau đó gọi người liên hệ theo `priorityOrder`,
- * kể cả khi chưa gửi được event.
- */
-export async function sendSos(method: DetectionMethod, deps: SosDeps): Promise<SosResult> {
+/** Gửi event; lỗi mạng / offline → hàng đợi (tự gửi lại, không bao giờ bị bỏ). */
+async function deliver(method: DetectionMethod, deps: SosDeps): Promise<boolean> {
   const detectedAt = new Date(deps.now()).toISOString();
   const position = await deps.position();
   const payload: EmergencyEventPayload = {
@@ -55,26 +51,29 @@ export async function sendSos(method: DetectionMethod, deps: SosDeps): Promise<S
     latitude: position?.latitude ?? null,
     longitude: position?.longitude ?? null,
   };
-
-  let sent = false;
   if (deps.isOnline()) {
     try {
       await deps.createEvent(payload);
-      sent = true;
+      return true;
     } catch (e) {
       logger.warn('Send SOS failed, queued', e);
     }
   }
-  if (!sent) {
-    await deps.enqueue(payload).catch((e: unknown) => logger.error('Queue SOS failed', e));
-  }
+  await deps.enqueue(payload).catch((e: unknown) => logger.error('Queue SOS failed', e));
+  return false;
+}
 
+/**
+ * SOS thủ công / giọng nói / cử chỉ (§9.7) — gọi SAU khi đã xác nhận (BR-14). Gửi event (server set
+ * `Sent` ngay) chạy SONG SONG với cuộc gọi: mạng yếu không được làm chậm việc gọi người thân. Cuộc
+ * gọi dùng danh bạ cache, chạy được cả khi offline.
+ */
+export async function sendSos(method: DetectionMethod, deps: SosDeps): Promise<SosResult> {
+  const delivery = deliver(method, deps);
   const plan = planEmergencyCall(await deps.contacts().catch(() => []));
-  await deps.announce(
-    `${sent ? Strings.emergency.sent : Strings.emergency.queued} ${describeCallPlan(plan)}`,
-  );
+  await deps.announce(`${Strings.emergency.sending}. ${describeCallPlan(plan)}`);
   if (plan.kind !== 'none') {
     await deps.call(plan).catch((e: unknown) => logger.warn('Emergency call failed', e));
   }
-  return { sent, plan };
+  return { sent: await delivery, plan };
 }
