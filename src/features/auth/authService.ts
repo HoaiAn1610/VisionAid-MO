@@ -134,7 +134,7 @@ export async function signOut(): Promise<void> {
   await clearTokens();
   await clearUserData().catch((e: unknown) => logger.warn('Clear SQLite failed', e));
   await stopGpsTracking();
-  // TODO(Sprint 6): ngắt SignalR
+  // SignalR tự ngắt khi rời layout chính (useArrivalNotifications)
   useAuthStore.getState().signOut();
 }
 

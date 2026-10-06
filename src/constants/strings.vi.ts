@@ -134,6 +134,8 @@ export const Strings = {
     cached: (time: string, day: number, month: number, address: string) =>
       `Vị trí gần nhất được ghi nhận lúc ${time}, ngày ${day} tháng ${month}: ${address}. Thông tin này có thể không còn chính xác.`,
     none: 'Chưa có thông tin vị trí đã lưu',
+    arrived: (place: string, message: string | null) =>
+      message ? `Bạn đã đến ${place}. ${message}` : `Bạn đã đến ${place}`,
     trackingTitle: 'VisionAid đang chia sẻ vị trí',
     trackingBody: 'Người chăm sóc có thể biết bạn đang ở đâu.',
     again: 'Hỏi lại vị trí',
