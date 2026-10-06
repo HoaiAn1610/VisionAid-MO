@@ -106,6 +106,10 @@ export const Strings = {
       days <= 0
         ? 'Gói dịch vụ đã hết hạn. Vui lòng liên hệ người chăm sóc để gia hạn.'
         : `Gói dịch vụ sẽ hết hạn sau ${days} ngày. Vui lòng liên hệ người chăm sóc để gia hạn.`,
+    trial: (days: number) =>
+      days <= 0 ? 'Hôm nay là ngày dùng thử cuối cùng.' : `Bạn đang dùng thử, còn ${days} ngày.`,
+    navigationBlocked:
+      'Chưa có gói dịch vụ nên chưa dùng được dẫn đường. Vui lòng nhờ người chăm sóc đăng ký gói. Bạn vẫn có thể gọi khẩn cấp.',
   },
   qr: {
     title: 'Quét mã QR',

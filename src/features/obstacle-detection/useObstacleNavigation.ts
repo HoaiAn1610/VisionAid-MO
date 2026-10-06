@@ -6,6 +6,8 @@ import { useCameraPermission } from 'react-native-vision-camera';
 import { Strings } from '@/constants/strings.vi';
 import { HapticService } from '@/services/haptics/HapticService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
+import { isNavigationAllowed } from '@/features/auth/licenseNotice';
+import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
 
@@ -117,6 +119,11 @@ export function useObstacleNavigation() {
   const start = useCallback(async () => {
     // Chạm đúp (TalkBack) / bấm liên tiếp → chỉ một phiên
     if (starting.current || wantActive.current) return;
+    // Update Report §3.4: chưa có gói → không dẫn đường (SOS vẫn chạy ở màn khẩn cấp)
+    if (!isNavigationAllowed(useAuthStore.getState().user?.licenseStatus)) {
+      say(Strings.license.navigationBlocked);
+      return;
+    }
     starting.current = true;
     try {
       if (!hasPermission) {
