@@ -155,6 +155,8 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 ### Sprint 6: Location
 
+**Trạng thái (2026-10-06):** ✅ "Tôi đang ở đâu?" (đã thử trên máy: đọc đúng địa chỉ, bỏ mã bưu chính/"Việt Nam"; offline đọc cache kèm giờ, BR-15). ✅ GPS nền qua foreground service: dày khi dẫn đường (10 s / 10 m), thưa ngoài phiên (2 phút / 100 m, đề xuất chờ nhóm chốt), SQLite → `/locations/gps/batch`; cần `RECEIVE_BOOT_COMPLETED` (máy đã cài bản cũ phải gỡ cài lại). ✅ SignalR `ArrivalNotification` → TTS + rung, chống đọc lặp với FCM; chưa thử với sự kiện thật. ⏳ FCM: chờ `google-services.json` (Firebase project cùng với backend, package `vn.visionaid.mobile` và `vn.visionaid.mobile.dev`).
+
 | Task                                                                                                     | Skill                                                     | Done khi                                 |
 | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
 | Chốt: GPS ngoài session (low-power); dùng `/locations/gps/batch`, `/locations/me`, `PUT /auth/fcm-token` | `/spec`, `interview-me` (với team)                        |                                          |
