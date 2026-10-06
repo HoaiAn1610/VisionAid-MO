@@ -89,6 +89,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         openTextReader: () => openScreen('/read-text'),
         openFaceRecognizer: () => openScreen('/face'),
         openLocation: () => openScreen('/location'),
+        openEmergency: () => router.push({ pathname: '/emergency', params: { via: 'voice' } }),
       }),
       [openScreen],
     ),

@@ -65,3 +65,23 @@ export async function getCurrentPoint(): Promise<GpsPoint | null> {
     (await Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS }).catch(() => null));
   return location ? toGpsPoint(location) : null;
 }
+
+/** SOS không được chờ GPS lâu: vị trí đã biết trong 2 phút, không có thì chờ tối đa 3 giây. */
+export async function getQuickPosition(): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    if (!(await Location.getForegroundPermissionsAsync()).granted) return null;
+    const known = await Location.getLastKnownPositionAsync({ maxAge: 2 * 60_000 });
+    const location =
+      known ??
+      (await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+      ]));
+    return location
+      ? { latitude: location.coords.latitude, longitude: location.coords.longitude }
+      : null;
+  } catch (e) {
+    logger.warn('Quick position failed', e);
+    return null;
+  }
+}

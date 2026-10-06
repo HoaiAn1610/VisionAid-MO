@@ -78,6 +78,7 @@ const nav = {
   openTextReader: jest.fn(),
   openFaceRecognizer: jest.fn(),
   openLocation: jest.fn(),
+  openEmergency: jest.fn(),
 };
 const loggedStatuses = () =>
   (recordVoiceCommand as jest.Mock).mock.calls.map((c) => c[0].executionStatus as string);
@@ -115,8 +116,8 @@ describe('useVoiceCommand', () => {
     await act(() => result.current.start());
     expect(startConfirmation).toHaveBeenCalled();
     expect(listen).toHaveBeenCalledTimes(2); // không mở mic thừa sau khi đã xác nhận
-    expect(spoken()).toContain(Strings.voice.notImplemented); // SOS làm ở Sprint 7
-    expect(loggedStatuses()).toEqual(['Failed']); // đã hiểu + xác nhận, nhưng chưa có tính năng
+    expect(nav.openEmergency).toHaveBeenCalled(); // màn khẩn cấp gửi SOS ngay, không hỏi lại
+    expect(loggedStatuses()).toEqual(['Confirmed']);
   });
 
   it('"gọi khẩn cấp" nhưng không xác nhận → không thực thi', async () => {
@@ -124,7 +125,7 @@ describe('useVoiceCommand', () => {
     listen.mockResolvedValueOnce(heard('gọi khẩn cấp')).mockResolvedValueOnce(heard('không'));
     const { result } = await renderHook(() => useVoiceCommand(nav));
     await act(() => result.current.start());
-    expect(spoken()).not.toContain(Strings.voice.notImplemented);
+    expect(nav.openEmergency).not.toHaveBeenCalled();
     expect(loggedStatuses()).toEqual(['Cancelled']);
   });
 

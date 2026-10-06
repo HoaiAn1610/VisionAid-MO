@@ -22,6 +22,8 @@ export interface VoiceContext {
   openTextReader(): void;
   openFaceRecognizer(): void;
   openLocation(): void;
+  /** Lệnh "gọi khẩn cấp" đã được xác nhận (BR-14) → gửi SOS ngay. */
+  openEmergency(): void;
   setDetectionMode(mode: DetectionMode): void;
   speechRate: number;
   setSpeechRate(rate: number): void;
@@ -45,8 +47,8 @@ export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean 
   return true;
 }
 
-// TODO(Sprint 7): khẩn cấp, hủy cảnh báo té ngã
-const NOT_IMPLEMENTED = new Set<VoiceIntent>(['EMERGENCY', 'I_AM_OK']);
+// TODO(Sprint 7): hủy cảnh báo té ngã
+const NOT_IMPLEMENTED = new Set<VoiceIntent>(['I_AM_OK']);
 
 function execute(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
@@ -58,6 +60,8 @@ function execute(intent: VoiceIntent, ctx: VoiceContext): void {
       return ctx.openFaceRecognizer();
     case 'WHERE_AM_I':
       return ctx.openLocation();
+    case 'EMERGENCY':
+      return ctx.openEmergency();
     case 'START_NAVIGATION':
       return ctx.startNavigation(); // tự báo "bắt đầu dẫn đường"
     case 'STOP_NAVIGATION':

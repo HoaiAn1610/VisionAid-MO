@@ -86,6 +86,13 @@ export default function HomeScreen() {
       />
       {voiceButton}
       <Button
+        variant="danger"
+        icon="alarm-light"
+        label={Strings.emergency.open}
+        accessibilityHint={Strings.emergency.openHint}
+        onPress={() => router.push('/emergency')}
+      />
+      <Button
         variant="secondary"
         icon="text-recognition"
         label={Strings.ocr.open}

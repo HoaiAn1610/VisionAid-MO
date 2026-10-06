@@ -1,3 +1,4 @@
+import { createEmergencyEvent, type EmergencyEventPayload } from '@/api/endpoints/emergency';
 import { endSession, logDetectionEvents, startSession } from '@/api/endpoints/navigation';
 import { logOcrText, logQrScan, type OcrTextLog, type QrScanLog } from '@/api/endpoints/ocr';
 import { logVoiceCommand, type VoiceCommandLog } from '@/api/endpoints/voice';
@@ -18,9 +19,13 @@ const navigationDeps: NavSyncDeps = {
   repo: navigationRepo,
 };
 
-/** Sender của từng hàng đợi; emergency thêm ở Sprint 7. */
+/** Sender của từng hàng đợi (emergency gửi trước tiên — thứ tự trong offlineQueue). */
 const flushDeps: FlushDeps = {
   senders: {
+    emergency: {
+      mode: 'single',
+      send: async (payload) => void (await createEmergencyEvent(payload as EmergencyEventPayload)),
+    },
     gps: gpsSender,
     voice: { mode: 'single', send: (payload) => logVoiceCommand(payload as VoiceCommandLog) },
     qr: { mode: 'single', send: (payload) => logQrScan(payload as QrScanLog) },
