@@ -33,6 +33,7 @@ function setup(over: Partial<FallAlertDeps> = {}) {
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     now: () => Date.parse('2026-10-06T10:00:06Z'), // đủ 2 tín hiệu 6 s sau va chạm
+    detectedMessage: () => Strings.fall.detected,
     ...over,
   };
   const alert = createFallAlert(deps, (s) => states.push(s));

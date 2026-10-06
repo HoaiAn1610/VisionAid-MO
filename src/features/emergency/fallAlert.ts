@@ -31,6 +31,8 @@ export interface FallAlertDeps {
   sentHaptic(): void;
   setTimer(fn: () => void, ms: number): unknown;
   now(): number;
+  /** Câu báo té ngã — TalkBack bật thì phải nói "chạm hai lần". */
+  detectedMessage(): string;
   clearTimer(handle: unknown): void;
 }
 
@@ -108,7 +110,7 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
       const detectedAt = new Date(deps.now()).toISOString();
       set({ phase: 'countdown', remaining: BusinessRules.FALL_GRACE_PERIOD_SECONDS });
       deps.tick();
-      deps.say(Strings.fall.detected);
+      deps.say(deps.detectedMessage());
       timer = deps.setTimer(countDown, 1000);
 
       const position = await deps.position();

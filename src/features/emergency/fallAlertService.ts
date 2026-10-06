@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
+import { AccessibilityInfo } from 'react-native';
 
 import { createEmergencyEvent, dismissEmergencyEvent } from '@/api/endpoints/emergency';
+import { Strings } from '@/constants/strings.vi';
 import { matchIntent } from '@/features/voice-commands/intentMatcher';
 import { syncOfflineNow } from '@/features/sync/offlineSync';
 import { HapticService } from '@/services/haptics/HapticService';
@@ -18,6 +20,13 @@ import { createFallAlert, type FallAlertState } from './fallAlert';
 import type { FallEvent } from './fallDetector';
 
 let state: FallAlertState = { phase: 'idle', remaining: 0 };
+
+// TalkBack bật → chạm một lần chỉ chọn lớp phủ, phải chạm hai lần mới hủy
+let screenReaderOn = false;
+AccessibilityInfo.isScreenReaderEnabled()
+  .then((on) => (screenReaderOn = on))
+  .catch(() => undefined);
+AccessibilityInfo.addEventListener('screenReaderChanged', (on) => (screenReaderOn = on));
 const listeners = new Set<() => void>();
 
 const controller = createFallAlert(
@@ -38,6 +47,8 @@ const controller = createFallAlert(
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     now: Date.now,
+    detectedMessage: () =>
+      screenReaderOn ? Strings.fall.detectedScreenReader : Strings.fall.detected,
   },
   (next) => {
     // Đã gửi / đã hủy → đóng mic đang nghe "tôi ổn"
@@ -79,10 +90,6 @@ export const fallAlert = {
     speechService.abort();
     void controller.cancel();
     return true;
-  },
-  /** Đóng màn kết quả (đã hủy / đã gửi). */
-  dismissResult(): void {
-    if (controller.getState().phase !== 'countdown') controller.reset();
   },
 };
 

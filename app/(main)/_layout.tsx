@@ -1,9 +1,11 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { Strings } from '@/constants/strings.vi';
 import { refreshEmergencyContacts } from '@/features/emergency/emergencyContacts';
 import { FallAlertOverlay } from '@/features/emergency/FallAlertOverlay';
+import { useFallAlertState } from '@/features/emergency/fallAlertService';
 import { startBatteryMonitor } from '@/services/battery/BatteryMonitor';
 import { HapticService } from '@/services/haptics/HapticService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
@@ -37,10 +39,23 @@ export default function MainLayout() {
   // FCM: thông báo khi app đang mở + cập nhật token khi Firebase đổi
   useEffect(() => startFcm(), []);
 
+  const fallActive = useFallAlertState().phase === 'countdown';
+
   return (
-    <VoiceProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+    <>
+      {/* Đang đếm ngược té ngã: ẩn phần còn lại với TalkBack (accessibilityViewIsModal chỉ có trên iOS) */}
+      <View
+        style={styles.fill}
+        importantForAccessibility={fallActive ? 'no-hide-descendants' : 'auto'}
+      >
+        <VoiceProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </VoiceProvider>
+      </View>
+      {/* Sau VoiceProvider → nằm trên cả sheet nghe lệnh */}
       <FallAlertOverlay />
-    </VoiceProvider>
+    </>
   );
 }
+
+const styles = StyleSheet.create({ fill: { flex: 1 } });

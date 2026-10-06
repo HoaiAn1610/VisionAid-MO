@@ -10,7 +10,7 @@ import {
 } from 'react';
 
 import { Strings } from '@/constants/strings.vi';
-import { fallAlert } from '@/features/emergency/fallAlertService';
+import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
 import { markSosConfirmedByVoice } from '@/features/emergency/sosConfirmation';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { isOnDeviceSpeechReady } from '@/services/speech/onDeviceSpeech';
@@ -108,6 +108,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const listen = useCallback(
     (mode: ListenMode = 'manual') => {
+      if (isFallAlertActive()) return; // mic đang dành cho "tôi ổn"
       if (mode === 'follow-up' && !canListenSilently()) return;
       void start(mode);
     },
@@ -126,6 +127,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   // Nút tăng/giảm âm lượng = nút ra lệnh: đang nghe → hủy, không thì bắt đầu nghe
   useEffect(() => {
     const sub = addVolumeKeyListener(() => {
+      // Đang đếm ngược té ngã: phím âm lượng = hủy cảnh báo (không mở mic tranh với "tôi ổn")
+      if (fallAlert.cancel()) return;
       if (phaseRef.current === 'idle') void start('manual');
       else cancel();
     });

@@ -131,6 +131,8 @@ export const Strings = {
   },
   fall: {
     detected: 'Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo.',
+    detectedScreenReader:
+      'Phát hiện té ngã. Nói tôi ổn, hoặc chạm hai lần vào màn hình để hủy cảnh báo.',
     cancelled: 'Đã hủy cảnh báo',
     alreadySent: 'Cảnh báo đã được gửi đến người chăm sóc',
     cancelUncertain:
@@ -138,7 +140,7 @@ export const Strings = {
     sent: 'Đã gửi cảnh báo đến người chăm sóc',
     queued: 'Chưa có mạng, cảnh báo sẽ tự gửi khi có mạng.',
     overlayLabel: 'Hủy cảnh báo té ngã',
-    overlayHint: 'Chạm vào bất kỳ đâu trên màn hình để hủy cảnh báo té ngã',
+    overlayHint: 'Chạm hai lần để hủy cảnh báo té ngã',
     countdown: (seconds: number) => `Tự gửi cảnh báo sau ${seconds} giây`,
     noAlert: 'Không có cảnh báo té ngã nào để hủy',
   },
