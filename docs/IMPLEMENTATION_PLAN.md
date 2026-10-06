@@ -171,28 +171,47 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 `/ponytail lite`. Bắt buộc review 2 lớp.
 
-| Task                                                                                  | Skill                                                              | Done khi                                      |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
-| FallDetector: 2 tín hiệu (accelerometer + camera bất động)                            | `/test`, `doubt-driven-development`                                | Test: 1 tín hiệu đơn lẻ không bao giờ trigger |
-| Countdown 15s (TTS + haptic mỗi giây), chạm bất kỳ đâu = hủy, "tôi ổn" qua echo guard | `/test` (fake timers), `frontend-ui-engineering`                   | Gọi dismiss trước khi server hết grace        |
-| SOS manual/voice/gesture + confirmation 10s + gọi ACTION_CALL / Zalo                  | `source-driven-development`, `expo-module` nếu cần module gọi điện | Tự quay số, không dùng `tel:`                 |
-| Offline fallback (gọi contact ưu tiên 1 từ cache)                                     | `/test`                                                            | Emergency không bao giờ bị drop khỏi queue    |
-| BatteryMonitor < 10% → Minimal (báo 1 lần)                                            | `/test`                                                            |                                               |
-| Review                                                                                | agent `code-reviewer` + `security-auditor` + `test-engineer`       | Coverage module emergency ≥ 70%               |
+| Task                                                                                                                                                       | Skill                                                              | Done khi                                      |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| FallDetector: 2 tín hiệu (accelerometer + camera bất động)                                                                                                 | `/test`, `doubt-driven-development`                                | Test: 1 tín hiệu đơn lẻ không bao giờ trigger |
+| Countdown 15s (TTS + haptic mỗi giây), chạm bất kỳ đâu = hủy, "tôi ổn" qua echo guard                                                                      | `/test` (fake timers), `frontend-ui-engineering`                   | Gọi dismiss trước khi server hết grace        |
+| SOS manual/voice/gesture + confirmation 10s + gọi ACTION_CALL / Zalo                                                                                       | `source-driven-development`, `expo-module` nếu cần module gọi điện | Tự quay số, không dùng `tel:`                 |
+| Số khẩn cấp 112/113/114/115 (Standalone Mode): `ACTION_CALL` bị Android chặn → `ACTION_DIAL` + TTS hướng dẫn chạm nút gọi; gọi trước contact thường nếu có | `/test`                                                            | Test chọn contact + cách gọi                  |
+| License (Update Report §3.4): `NONE` → từ chối bắt đầu dẫn đường + TTS hướng dẫn; `TRIAL` → báo số ngày còn lại; SOS không bao giờ bị chặn                 | `/test`                                                            | Test cả 5 trạng thái                          |
+| Offline fallback (gọi contact ưu tiên 1 từ cache)                                                                                                          | `/test`                                                            | Emergency không bao giờ bị drop khỏi queue    |
+| BatteryMonitor < 10% → Minimal (báo 1 lần)                                                                                                                 | `/test`                                                            |                                               |
+| Review                                                                                                                                                     | agent `code-reviewer` + `security-auditor` + `test-engineer`       | Coverage module emergency ≥ 70%               |
 
-### Sprint 8: Settings, Hardening & Release
+### Sprint 8: Hybrid AI Navigation + WebRTC (Update Report 28/9/2026)
 
-| Task                                                           | Skill                                                 | Done khi                                                  |
-| -------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
-| Settings (TTS prefs, mode, profile, đổi mật khẩu)              | `/build`, `expo-data-fetching`                        | Lưu → TTS xác nhận                                        |
-| TalkBack pass toàn app, xử lý mất quyền camera/GPS             | `frontend-ui-engineering`                             | Checklist §5 đạt 100%                                     |
-| Benchmark cuối (TTS ≤ 1s, OCR ≤ 3s P95, pin ≤ 20%/h)           | `performance-optimization`, `eas-observe` (tùy chọn)  | So với CONSTRAINTS.md                                     |
-| Hiệu chỉnh ngưỡng khoảng cách ngoài trời (hoãn từ Sprint 3)    | `/test`                                               | Đứng 1–2 m / 3–5 m / > 8 m đọc đúng gần / phía trước / xa |
-| Dọn code                                                       | `/ponytail-audit`, `/ponytail-debt`, `/code-simplify` | Xử lý hoặc ghi nhận mọi `ponytail:` debt                  |
-| User Guide + Limitations (fall detection chỉ trong session...) | `documentation-and-adrs`                              |                                                           |
-| Pre-launch go/no-go                                            | `/ship`                                               |                                                           |
-| Build production AAB                                           | `eas-app-stores`                                      | **Chỉ chạy khi user xác nhận**                            |
-| (Tùy chọn) OTA                                                 | `eas-update`                                          | Chỉ chạy khi user xác nhận                                |
+Cả hai đã được Hội đồng/Mentor chốt vào phạm vi. Câu hỏi contract còn mở: GAP-23, GAP-24 (CLAUDE.md §19) — gửi backend trước khi bắt đầu.
+
+| Task                                                                                                                                                     | Skill                                                 | Done khi                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
+| Tính `position` 5 dải từ bounding box; chỉ NEAR cảnh báo ngay trên máy                                                                                   | `/test`                                               | Test ranh giới các dải                                   |
+| Gửi MEDIUM/FAR lên `POST /api/navigation/guidance` khi tập vật thay đổi (có giới hạn tần suất), đọc `ttsText`; chờ tối đa `navigation_near_threshold_ms` | `/test`, `api-and-interface-design`                   | Không gửi mỗi frame; quá hạn → fallback                  |
+| Rule-Based + template câu trên máy (chép từ `RuleBasedDecisionEngine.cs` / `TtsTemplateHelper.cs`) cho offline, phiên chưa đồng bộ, lỗi, chậm            | `/test`                                               | Cùng input → cùng `action` + câu với server              |
+| Ưu tiên TTS: cảnh báo NEAR (DANGER) luôn đè hướng dẫn rẽ/tránh; cooldown riêng cho hướng dẫn                                                             | `/test`                                               |                                                          |
+| ADR 0003: thư viện WebRTC (`react-native-webrtc` + config plugin) và cách nhường camera với VisionCamera                                                 | `documentation-and-adrs`, `source-driven-development` | Thử trên máy: gọi được, camera trả lại YOLO              |
+| Nhận cuộc gọi: `WebRtcIncomingCall` → TTS "{tên} đang gọi" + rung; `SOS_AUTO` tự nhận; nhận/kết thúc bằng phím âm lượng, nút lớn, giọng nói              | `/test`, `frontend-ui-engineering`                    | Không cần nhìn màn hình                                  |
+| Gọi đi: lệnh "gọi người chăm sóc" → `POST /api/webrtc/sessions` (`VIU_VOICE_COMMAND`); lệnh "kết thúc cuộc gọi"                                          | `/test`                                               |                                                          |
+| Signaling qua hub (`RelayOffer/Answer/IceCandidate`), ICE từ `/api/webrtc/ice-servers/public`, gửi video camera sau + audio, chỉ nghe Caregiver          | `source-driven-development`                           | Caregiver thấy video trên dashboard                      |
+| Review                                                                                                                                                   | agent `code-reviewer` + `security-auditor`            | Video chỉ truyền trong cuộc gọi, privacy policy cập nhật |
+
+### Sprint 9: Settings, Hardening & Release
+
+| Task                                                                                                                                                            | Skill                                                 | Done khi                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
+| Settings (TTS prefs, mode, profile, đổi mật khẩu)                                                                                                               | `/build`, `expo-data-fetching`                        | Lưu → TTS xác nhận                                        |
+| TalkBack pass toàn app, xử lý mất quyền camera/GPS                                                                                                              | `frontend-ui-engineering`                             | Checklist §5 đạt 100%                                     |
+| Benchmark cuối (TTS ≤ 1s, OCR ≤ 3s P95, pin ≤ 20%/h)                                                                                                            | `performance-optimization`, `eas-observe` (tùy chọn)  | So với CONSTRAINTS.md                                     |
+| Hiệu chỉnh ngưỡng khoảng cách ngoài trời (hoãn từ Sprint 3)                                                                                                     | `/test`                                               | Đứng 1–2 m / 3–5 m / > 8 m đọc đúng gần / phía trước / xa |
+| Dọn code                                                                                                                                                        | `/ponytail-audit`, `/ponytail-debt`, `/code-simplify` | Xử lý hoặc ghi nhận mọi `ponytail:` debt                  |
+| User Guide + Limitations (CLAUDE.md §20: chest strap bắt buộc, điểm mù camera, dùng kèm gậy trắng, ánh sáng yếu, fall detection chỉ trong session, số khẩn cấp) | `documentation-and-adrs`                              |                                                           |
+| Hiệu chỉnh ngưỡng Near/Medium/Far + dải `position` khi đeo chest strap                                                                                          | `/test`                                               | Đo thực tế ở tư thế đeo ngực                              |
+| Pre-launch go/no-go                                                                                                                                             | `/ship`                                               |                                                           |
+| Build production AAB                                                                                                                                            | `eas-app-stores`                                      | **Chỉ chạy khi user xác nhận**                            |
+| (Tùy chọn) OTA                                                                                                                                                  | `eas-update`                                          | Chỉ chạy khi user xác nhận                                |
 
 ---
 
@@ -200,14 +219,14 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở **CLAUDE.md mục 19**. Tóm tắt theo sprint:
 
-| Chặn     | GAP                                                                                                                                                                          |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                  |
-| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                         |
-| Sprint 5 | ✅ GAP-3/4, GAP-18–22 đã xử lý (`b878270`); còn GAP-25 ngưỡng OCR + `LowConfidence`, GAP-26 mã lỗi "không thấy mặt"                                                          |
-| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý; còn GAP-27 (Firebase app `.dev` + payload FCM đến nơi), GAP-28 (license `None` chặn `/api/navigation/*`)                                   |
-| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                        |
-| Chưa xếp | GAP-23 Hybrid AI Navigation (`POST /api/navigation/guidance` đã có, chờ chốt phạm vi + câu hỏi contract), GAP-24 WebRTC (server tự gọi `SosAuto` khi SOS, chờ spec phía VIU) |
-| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                          |
+| Chặn     | GAP                                                                                                                                                                                             |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                                     |
+| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                                            |
+| Sprint 5 | ✅ GAP-3/4, GAP-18–22 đã xử lý (`b878270`); còn GAP-25 ngưỡng OCR + `LowConfidence`, GAP-26 mã lỗi "không thấy mặt"                                                                             |
+| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý; còn GAP-27 (Firebase app `.dev` + payload FCM đến nơi), GAP-28 (license `None` chặn `/api/navigation/*`)                                                      |
+| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                                           |
+| Sprint 8 | GAP-23 Hybrid AI (tần suất, timeout Groq, tên class trong TTS, ranh giới `position`, `sessionId` offline), GAP-24 WebRTC (role trong tài liệu, ai tạo offer, tự nhận cuộc gọi, camera đang bận) |
+| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                                             |
 
 Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.
