@@ -149,13 +149,14 @@ Trạng thái Sprint 1: ✅ scaffold, lint/test, constants, TtsService + test, H
 | Face: chụp → `POST /api/face-registry/identify` multipart field **`photo`** → TTS từ `recognized` + `matchedPersonName` + `relationship` (chuỗi trong `strings.vi.ts`, không đọc `ttsText` của server)                                            | `/test`                                            | TTS ≤ 3s P95                                 |
 | Face: **xóa ảnh trong `finally`** (BR-22); **không** gọi `/recognition-logs` (server đã tự log)                                                                                                                                                   | `/test`, agent `security-auditor`                  | Test: ảnh bị xóa cả khi request lỗi          |
 | Face offline / 422 (FaceNet lỗi) → TTS "cần kết nối mạng" / "tạm thời không khả dụng"                                                                                                                                                             |                                                    |                                              |
-| Thử trên máy với ảnh thật (biển hiệu nhiều dòng, khuôn mặt chụp xa) để đo GAP-18, GAP-20 trước khi báo backend                                                                                                                                    | `/run`                                             | Có số liệu gửi backend                       |
+| Cập nhật theo backend `b878270`: OCR dùng `serverOcrAvailable` + ngưỡng `confidenceScore` (BR-24, GAP-25); Face xử lý `lowConfidence` và 422 "không thấy khuôn mặt" (GAP-26); hàng đợi coi 409 là đã có trên server                               | `/test`                                            | Test các nhánh mới                           |
+| Thử trên máy với ảnh thật (biển hiệu nhiều dòng, khuôn mặt chụp xa) sau khi backend deploy `b878270`                                                                                                                                              | `/run`                                             | Có số liệu gửi backend                       |
 
 Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên web; mục 2 trong ghi chú backend là cho web). Không cần tải `/face-registry/persons/me` nữa.
 
 ### Sprint 6: Location
 
-**Trạng thái (2026-10-06):** ✅ "Tôi đang ở đâu?" (đã thử trên máy: đọc đúng địa chỉ, bỏ mã bưu chính/"Việt Nam"; offline đọc cache kèm giờ, BR-15). ✅ GPS nền qua foreground service: dày khi dẫn đường (10 s / 10 m), thưa ngoài phiên (2 phút / 100 m, đề xuất chờ nhóm chốt), SQLite → `/locations/gps/batch`; cần `RECEIVE_BOOT_COMPLETED` (máy đã cài bản cũ phải gỡ cài lại). ✅ SignalR `ArrivalNotification` → TTS + rung, chống đọc lặp với FCM; chưa thử với sự kiện thật. ⏳ FCM: chờ `google-services.json` (Firebase project cùng với backend, package `vn.visionaid.mobile` và `vn.visionaid.mobile.dev`).
+**Trạng thái (2026-10-06):** ✅ "Tôi đang ở đâu?" (đã thử trên máy: đọc đúng địa chỉ, bỏ mã bưu chính/"Việt Nam"; offline đọc cache kèm giờ, BR-15). ✅ GPS nền qua foreground service: dày khi dẫn đường (10 s / 10 m), thưa ngoài phiên (2 phút / 100 m, đề xuất chờ nhóm chốt), SQLite → `/locations/gps/batch`; cần `RECEIVE_BOOT_COMPLETED` (máy đã cài bản cũ phải gỡ cài lại). ✅ SignalR `ArrivalNotification` → TTS + rung, chống đọc lặp với FCM; chưa thử với sự kiện thật. ✅ FCM (code, commit `07e8ab1`): token gửi lúc đăng nhập + `PUT /auth/fcm-token` khi đổi, nhận `ArrivalNotification` cả khi chạy nền. ⏳ Chưa build được bản dev: `google-services.json` thiếu `vn.visionaid.mobile.dev`; payload FCM thiếu field (GAP-27).
 
 | Task                                                                                                     | Skill                                                     | Done khi                                 |
 | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
@@ -199,13 +200,14 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở **CLAUDE.md mục 19**. Tóm tắt theo sprint:
 
-| Chặn     | GAP                                                                                                                                                                                       |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                               |
-| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                                      |
-| Sprint 5 | ✅ GAP-3/4 đã chốt (OCR lai, Face trên server); còn GAP-18 OCR chỉ đọc 1 dòng, GAP-19 contract OCR online, GAP-20 không cắt khuôn mặt, GAP-21 ngưỡng face, GAP-22 không có confidence OCR |
-| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý                                                                                                                                                          |
-| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                                     |
-| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                                       |
+| Chặn     | GAP                                                                                                                                                                          |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                  |
+| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                         |
+| Sprint 5 | ✅ GAP-3/4, GAP-18–22 đã xử lý (`b878270`); còn GAP-25 ngưỡng OCR + `LowConfidence`, GAP-26 mã lỗi "không thấy mặt"                                                          |
+| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý; còn GAP-27 (Firebase app `.dev` + payload FCM đến nơi), GAP-28 (license `None` chặn `/api/navigation/*`)                                   |
+| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                        |
+| Chưa xếp | GAP-23 Hybrid AI Navigation (`POST /api/navigation/guidance` đã có, chờ chốt phạm vi + câu hỏi contract), GAP-24 WebRTC (server tự gọi `SosAuto` khi SOS, chờ spec phía VIU) |
+| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                          |
 
 Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.
