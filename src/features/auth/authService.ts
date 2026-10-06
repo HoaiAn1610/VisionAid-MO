@@ -12,7 +12,7 @@ import { Env } from '@/config/env';
 import { Strings } from '@/constants/strings.vi';
 import { getFcmToken } from '@/services/fcm/FcmService';
 import { stopGpsTracking } from '@/services/location/gpsTracking';
-import { clearUserData } from '@/services/storage/db';
+import { clearPersonalCache, clearUserData } from '@/services/storage/db';
 import {
   clearTokens,
   getCachedUser,
@@ -144,6 +144,7 @@ export async function signOut(): Promise<void> {
 export function registerSessionExpiredHandler(): void {
   setSessionExpiredHandler(() => {
     void stopGpsTracking();
+    clearPersonalCache().catch((e: unknown) => logger.warn('Clear personal cache failed', e));
     useAuthStore.getState().signOut();
     ttsService.enqueue({ text: Strings.auth.sessionExpired, priority: TtsPriority.SYSTEM });
   });

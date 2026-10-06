@@ -11,6 +11,7 @@ import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { readEmergencyContacts } from '@/services/storage/emergencyContactsRepo';
 import { enqueue } from '@/services/storage/offlineQueue';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
+import { useAuthStore } from '@/stores/authStore';
 
 import { ensureCallPermission, executeCall } from './callContact';
 import { sendSos, type SosDeps } from './sos';
@@ -45,7 +46,7 @@ const deps: SosDeps = {
   position: getQuickPosition,
   createEvent: createEmergencyEvent,
   enqueue: async (payload) => {
-    await enqueue('emergency', payload);
+    await enqueue('emergency', payload, useAuthStore.getState().user?.id ?? null);
     syncOfflineNow();
   },
   contacts: readEmergencyContacts,

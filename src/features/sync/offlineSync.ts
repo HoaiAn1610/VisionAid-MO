@@ -10,6 +10,7 @@ import { gpsSender } from '@/services/location/gpsTracking';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import * as navigationRepo from '@/services/storage/navigationRepo';
 import { flushOfflineQueues, type FlushDeps } from '@/services/storage/offlineQueue';
+import { useAuthStore } from '@/stores/authStore';
 import { logger } from '@/utils/logger';
 
 const SYNC_INTERVAL_MS = 60_000;
@@ -32,6 +33,7 @@ const flushDeps: FlushDeps = {
     ocr: { mode: 'single', send: (payload) => logOcrText(payload as OcrTextLog) },
   },
   syncNavigation: () => syncNavigationSessions(navigationDeps),
+  currentUserId: () => useAuthStore.getState().user?.id ?? null,
 };
 
 /** Đồng bộ ngay nếu đang online, theo thứ tự ưu tiên của hàng đợi offline; lỗi không lan ra UI (§13). */

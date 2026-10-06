@@ -10,6 +10,7 @@ import { speechService } from '@/services/speech/SpeechService';
 import { readEmergencyContacts } from '@/services/storage/emergencyContactsRepo';
 import { enqueue } from '@/services/storage/offlineQueue';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
+import { useAuthStore } from '@/stores/authStore';
 import { logger } from '@/utils/logger';
 
 import { executeCall } from './callContact';
@@ -26,7 +27,7 @@ const controller = createFallAlert(
     createEvent: createEmergencyEvent,
     dismissEvent: (id) => dismissEmergencyEvent(id),
     enqueue: async (payload) => {
-      await enqueue('emergency', payload);
+      await enqueue('emergency', payload, useAuthStore.getState().user?.id ?? null);
       syncOfflineNow();
     },
     contacts: readEmergencyContacts,
