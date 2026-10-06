@@ -114,6 +114,22 @@ describe('createFallAlert', () => {
     );
   });
 
+  it('GPS treo quá 15 giây → vẫn đưa event (không vị trí) vào hàng đợi, không tạo trùng', async () => {
+    let resolvePosition: (p: { latitude: number; longitude: number }) => void = () => undefined;
+    const { alert, deps } = setup({
+      position: jest.fn(() => new Promise((r) => (resolvePosition = r))),
+    });
+    const started = alert.start(fall);
+    await runCountdown();
+    expect(deps.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ detectionMethod: 'AccelerometerCamera', latitude: null }),
+    );
+    resolvePosition({ latitude: 1, longitude: 2 });
+    await started;
+    expect(deps.createEvent).not.toHaveBeenCalled();
+    expect(deps.enqueue).toHaveBeenCalledTimes(1);
+  });
+
   it('server đã quá grace (422) → báo cảnh báo đã gửi', async () => {
     const { alert, deps } = setup({
       dismissEvent: jest.fn(async () => {

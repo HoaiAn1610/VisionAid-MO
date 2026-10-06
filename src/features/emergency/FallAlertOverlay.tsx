@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AccessibilityInfo, findNodeHandle, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
@@ -12,9 +13,19 @@ import { fallAlert, useFallAlertState } from './fallAlertService';
  */
 export function FallAlertOverlay() {
   const { phase, remaining } = useFallAlertState();
-  if (phase !== 'countdown') return null;
+  const ref = useRef<View>(null);
+  const active = phase === 'countdown';
+
+  // TalkBack: phần dưới đã bị ẩn → đưa tiêu điểm lên lớp phủ, chạm hai lần ở đâu cũng là hủy
+  useEffect(() => {
+    const node = active && ref.current ? findNodeHandle(ref.current) : null;
+    if (node) AccessibilityInfo.setAccessibilityFocus(node);
+  }, [active]);
+
+  if (!active) return null;
   return (
     <Pressable
+      ref={ref}
       style={styles.overlay}
       onPress={() => fallAlert.cancel()}
       accessibilityRole="button"

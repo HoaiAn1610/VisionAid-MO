@@ -61,6 +61,9 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
   let payload: EmergencyEventPayload | null = null;
   let generation = 0;
 
+  // Đọc qua hàm: TS thu hẹp kiểu `state` sau set() và không thấy nó đổi trong lúc await
+  const phaseOf = () => state.phase;
+
   const set = (next: FallAlertState) => {
     state = next;
     onChange(state);
@@ -113,13 +116,19 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
       deps.say(deps.detectedMessage());
       timer = deps.setTimer(countDown, 1000);
 
-      const position = await deps.position();
-      // Người dùng hủy (hoặc reset) trong lúc lấy GPS → KHÔNG tạo event nữa
-      if (gen !== generation) return;
+      // Có payload ngay (chưa có vị trí): GPS treo quá 15 s thì finish() vẫn đưa event vào hàng đợi
       payload = {
         detectionMethod: 'AccelerometerCamera',
         detectedAt,
         accelerometerData: fall.accelerometerData,
+        latitude: null,
+        longitude: null,
+      };
+      const position = await deps.position();
+      // Người dùng hủy / reset → KHÔNG tạo event. Hết giờ (finish đã gửi qua hàng đợi) → không tạo trùng
+      if (gen !== generation || phaseOf() !== 'countdown') return;
+      payload = {
+        ...payload,
         latitude: position?.latitude ?? null,
         longitude: position?.longitude ?? null,
       };
