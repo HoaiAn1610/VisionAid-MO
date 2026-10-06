@@ -7,6 +7,8 @@ import type { UploadImage } from './ocr';
 
 const identifySchema = z.object({
   recognized: z.boolean(),
+  // Backend trước `b878270` không có field này
+  lowConfidence: z.boolean().optional().default(false),
   matchedPersonName: z.string().nullable(),
   relationship: z.string().nullable(),
 });

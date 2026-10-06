@@ -35,6 +35,8 @@ export const BusinessRules = {
   // Performance targets
   VOICE_COMMAND_MAX_LATENCY_MS: 2000,
   OCR_TARGET_P95_MS: 3000,
+  // ponytail: backend chưa có config ngưỡng OCR (GAP-25) → hằng số tạm; đổi khi có `ocr_confidence_threshold`
+  OCR_MIN_CONFIDENCE: 0.5, // VietOCR: xác suất thấp nhất giữa các dòng < ngưỡng → không đọc (BR-24)
   FACE_TARGET_P95_MS: 3000,
 
   // Face registry upload formats (tham chiếu — upload do web xử lý)

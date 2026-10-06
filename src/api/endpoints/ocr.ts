@@ -45,18 +45,31 @@ export async function logQrScan(log: QrScanLog): Promise<void> {
   });
 }
 
-const serverOcrSchema = z.object({ processedText: z.string().nullable() });
+const serverOcrSchema = z.object({
+  processedText: z.string().nullable(),
+  confidenceScore: z.number().nullable().optional(),
+  // Backend trước `b878270` không có field này → suy ra từ processedText
+  serverOcrAvailable: z.boolean().optional(),
+});
+
+export interface ServerOcrResult {
+  text: string | null;
+  /** VietOCR có chạy không (false → đọc bằng máy). */
+  available: boolean;
+  /** Xác suất thấp nhất giữa các dòng (0–1); null nếu server không trả. */
+  confidence: number | null;
+}
 
 /**
- * Đọc chữ trên server (VietOCR, backend `a1e4df9`): gửi ảnh, KHÔNG gửi text → server tự nhận dạng
- * và tự ghi log. `ResultStatus`/`OcrEngine` vẫn buộc gửi (mặc định `Success` không kèm text bị 400,
- * GAP-19); server ghi đè khi VietOCR chạy. VietOCR lỗi → `processedText` null.
+ * Đọc chữ trên server (VietOCR): gửi ảnh, KHÔNG gửi text → server tự nhận dạng và tự ghi log.
+ * Vẫn gửi `ResultStatus=Failed` / `OcrEngine=pending`: khi VietOCR không chạy, log không bị ghi
+ * nhầm thành `Success` / `Tesseract` (mặc định của backend, GAP-25); server ghi đè khi VietOCR chạy.
  */
 export async function recognizeTextOnServer(
   image: UploadImage,
   trigger: TriggerMethod,
   timeoutMs: number,
-): Promise<string | null> {
+): Promise<ServerOcrResult> {
   const form = new FormData();
   form.append('Image', image as unknown as Blob);
   form.append('TriggerMethod', trigger);
@@ -68,7 +81,12 @@ export async function recognizeTextOnServer(
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: timeoutMs,
   });
-  return apiResponseSchema(serverOcrSchema).parse(res.data).data.processedText;
+  const data = apiResponseSchema(serverOcrSchema).parse(res.data).data;
+  return {
+    text: data.processedText,
+    available: data.serverOcrAvailable ?? data.processedText !== null,
+    confidence: data.confidenceScore ?? null,
+  };
 }
 
 /** Log kết quả OCR trên máy (ML Kit) — không gửi ảnh, đi qua hàng đợi offline. */

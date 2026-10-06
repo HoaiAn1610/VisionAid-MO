@@ -169,6 +169,8 @@ export const Strings = {
     matched: (name: string, relationship: string | null) =>
       relationship ? `${name}, ${relationship}, ở phía trước` : `${name} ở phía trước`,
     notMatched: 'Không nhận ra người này',
+    lowConfidence: 'Chưa rõ, vui lòng hướng camera thẳng vào khuôn mặt',
+    retake: 'Chưa nhận diện được. Hãy đưa camera lại gần khuôn mặt, ở nơi đủ sáng, rồi chụp lại.',
     unavailable: 'Tính năng nhận diện người quen tạm thời không khả dụng',
     again: 'Nhận diện người khác',
     againHint: 'Chạm hai lần để quay lại camera và chụp người khác',

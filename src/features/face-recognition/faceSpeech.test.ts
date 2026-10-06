@@ -6,20 +6,53 @@ import { describeFaceError, describeIdentification } from './faceSpeech';
 describe('describeIdentification', () => {
   it('nhận ra → tên + quan hệ', () => {
     expect(
-      describeIdentification({ recognized: true, matchedPersonName: 'Lan', relationship: 'Mẹ' }),
+      describeIdentification({
+        recognized: true,
+        lowConfidence: false,
+        matchedPersonName: 'Lan',
+        relationship: 'Mẹ',
+      }),
     ).toBe('Lan, Mẹ, ở phía trước');
     expect(
-      describeIdentification({ recognized: true, matchedPersonName: 'Lan', relationship: ' ' }),
+      describeIdentification({
+        recognized: true,
+        lowConfidence: false,
+        matchedPersonName: 'Lan',
+        relationship: ' ',
+      }),
     ).toBe('Lan ở phía trước');
   });
 
   it('không nhận ra hoặc thiếu tên → "Không nhận ra người này"', () => {
     expect(
-      describeIdentification({ recognized: false, matchedPersonName: null, relationship: null }),
+      describeIdentification({
+        recognized: false,
+        lowConfidence: false,
+        matchedPersonName: null,
+        relationship: null,
+      }),
     ).toBe(Strings.face.notMatched);
     expect(
-      describeIdentification({ recognized: true, matchedPersonName: '', relationship: null }),
+      describeIdentification({
+        recognized: true,
+        lowConfidence: false,
+        matchedPersonName: '',
+        relationship: null,
+      }),
     ).toBe(Strings.face.notMatched);
+  });
+});
+
+describe('lowConfidence', () => {
+  it('gần ngưỡng → yêu cầu hướng thẳng camera, không đoán tên', () => {
+    expect(
+      describeIdentification({
+        recognized: false,
+        lowConfidence: true,
+        matchedPersonName: null,
+        relationship: null,
+      }),
+    ).toBe(Strings.face.lowConfidence);
   });
 });
 
@@ -32,7 +65,8 @@ describe('describeFaceError', () => {
     };
     expect(describeFaceError(new E(0), false)).toBe(Strings.errors.faceNeedsNetwork);
     expect(describeFaceError(new E(0), true)).toBe(Strings.face.unavailable);
-    expect(describeFaceError(new E(422), true)).toBe(Strings.face.unavailable);
+    expect(describeFaceError(new E(422), true)).toBe(Strings.face.retake);
+    expect(describeFaceError(new E(500), true)).toBe(Strings.face.unavailable);
     expect(describeFaceError(new Error('x'), true)).toBe(Strings.face.unavailable);
   });
 });

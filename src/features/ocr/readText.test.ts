@@ -2,9 +2,15 @@ import { normalizeText, readText, SLOW_NOTICE_MS, type ReadTextDeps } from './re
 
 const image = { uri: 'file:///tmp/a.jpg', name: 'photo.jpg', type: 'image/jpeg' as const };
 
+const server = (text: string | null, confidence: number | null = null, available = true) => ({
+  text,
+  confidence,
+  available,
+});
+
 const deps = (over: Partial<ReadTextDeps> = {}): ReadTextDeps => ({
   isOnline: () => true,
-  recognizeOnServer: jest.fn(async () => 'Nhà thuốc Long Châu'),
+  recognizeOnServer: jest.fn(async () => server('Nhà thuốc Long Châu', 0.95)),
   recognizeOnDevice: jest.fn(async () => 'Nha thuoc'),
   logOnDevice: jest.fn(),
   onSlow: jest.fn(),
@@ -23,9 +29,10 @@ describe('readText', () => {
     expect(d.logOnDevice).not.toHaveBeenCalled();
   });
 
-  it.each<[string, () => Promise<string | null>]>([
-    ['server trả null (VietOCR lỗi)', async () => null],
-    ['server không ra chữ', async () => '   '],
+  it.each<[string, () => Promise<ReturnType<typeof server>>]>([
+    ['VietOCR không chạy (serverOcrAvailable = false)', async () => server(null, null, false)],
+    ['server không ra chữ', async () => server('   ', 0.9)],
+    ['độ tin cậy dưới ngưỡng (BR-24)', async () => server('Nh4 thu0c', 0.2)],
     [
       'server lỗi / timeout',
       async () => {
@@ -46,6 +53,11 @@ describe('readText', () => {
         resultStatus: 'Success',
       }),
     );
+  });
+
+  it('backend cũ không trả confidence → vẫn tin kết quả server', async () => {
+    const d = deps({ recognizeOnServer: jest.fn(async () => server('Lối ra', null)) });
+    await expect(readText(image, 'Tap', d)).resolves.toEqual({ text: 'Lối ra', source: 'server' });
   });
 
   it('offline → không gọi server', async () => {
@@ -73,7 +85,9 @@ describe('readText', () => {
     try {
       let resolve: (t: string) => void = () => undefined;
       const d = deps({
-        recognizeOnServer: jest.fn(() => new Promise<string>((r) => (resolve = r))),
+        recognizeOnServer: jest.fn(
+          () => new Promise<ReturnType<typeof server>>((r) => (resolve = (t) => r(server(t)))),
+        ),
       });
       const pending = readText(image, 'Tap', d);
       jest.advanceTimersByTime(SLOW_NOTICE_MS);
