@@ -11,6 +11,7 @@ import {
 
 import { Strings } from '@/constants/strings.vi';
 import { fallAlert } from '@/features/emergency/fallAlertService';
+import { markSosConfirmedByVoice } from '@/features/emergency/sosConfirmation';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { isOnDeviceSpeechReady } from '@/services/speech/onDeviceSpeech';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
@@ -90,7 +91,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         openTextReader: () => openScreen('/read-text'),
         openFaceRecognizer: () => openScreen('/face'),
         openLocation: () => openScreen('/location'),
-        openEmergency: () => router.push({ pathname: '/emergency', params: { via: 'voice' } }),
+        openEmergency: () => {
+          markSosConfirmedByVoice(); // cờ trong bộ nhớ, không qua route param (chống deep link giả)
+          router.push('/emergency');
+        },
         dismissFall: () => fallAlert.cancel(),
       }),
       [openScreen],

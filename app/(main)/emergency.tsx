@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -6,12 +6,14 @@ import { Header } from '@/components/Header';
 import { Screen } from '@/components/Screen';
 import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
+import { consumeSosConfirmation } from '@/features/emergency/sosConfirmation';
 import { useSos } from '@/features/emergency/useSos';
 import { colors, radius, spacing } from '@/theme';
 
 export default function EmergencyScreen() {
-  const { via } = useLocalSearchParams<{ via?: string }>();
-  const sos = useSos(via === 'voice');
+  // Chỉ lệnh giọng nói đã xác nhận trong app mới gửi ngay; mọi cách mở khác phải xác nhận lại
+  const [confirmedByVoice] = useState(() => consumeSosConfirmation());
+  const sos = useSos(confirmedByVoice);
   const sending = sos.phase === 'sending';
   const done = sos.phase === 'done';
 
