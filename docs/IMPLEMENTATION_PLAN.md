@@ -184,6 +184,8 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 ### Sprint 8: Hybrid AI Navigation + WebRTC (Update Report 28/9/2026)
 
+**Quyết định đã chốt khi đối chiếu báo cáo (2026-10-06):** app mobile chỉ cho VIU (Caregiver đăng ký / thanh toán / nhập license code trên web); `position` 5 dải đều nhau; YOLO giữ float16 + GPU (ADR 0001) — SRS/slide sửa số "INT8, 200–500 ms".
+
 Cả hai đã được Hội đồng/Mentor chốt vào phạm vi. Câu hỏi contract còn mở: GAP-23, GAP-24 (CLAUDE.md §19) — gửi backend trước khi bắt đầu.
 
 | Task                                                                                                                                                     | Skill                                                 | Done khi                                                 |
@@ -219,14 +221,14 @@ Cả hai đã được Hội đồng/Mentor chốt vào phạm vi. Câu hỏi co
 
 Danh sách GAP đầy đủ (đối chiếu source backend 2026-09-27) nằm ở **CLAUDE.md mục 19**. Tóm tắt theo sprint:
 
-| Chặn     | GAP                                                                                                                                                                                             |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                                     |
-| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                                            |
-| Sprint 5 | ✅ GAP-3/4, GAP-18–22 đã xử lý (`b878270`); còn GAP-25 ngưỡng OCR + `LowConfidence`, GAP-26 mã lỗi "không thấy mặt"                                                                             |
-| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý; còn GAP-27 (Firebase app `.dev` + payload FCM đến nơi), GAP-28 (license `None` chặn `/api/navigation/*`)                                                      |
-| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                                           |
-| Sprint 8 | GAP-23 Hybrid AI (tần suất, timeout Groq, tên class trong TTS, ranh giới `position`, `sessionId` offline), GAP-24 WebRTC (role trong tài liệu, ai tạo offer, tự nhận cuộc gọi, camera đang bận) |
-| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                                             |
+| Chặn     | GAP                                                                                                                                                                                                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sprint 2 | ✅ GAP-1 đã xử lý; GAP-13 dạng lỗi (client đã xử lý cả hai)                                                                                                                                                                         |
+| Sprint 3 | ✅ GAP-6, GAP-10 đã xử lý; GAP-14 giới hạn batch (client tự chia lô)                                                                                                                                                                |
+| Sprint 5 | ✅ GAP-3/4, GAP-18–22 đã xử lý (`b878270`); còn GAP-25 ngưỡng OCR + `LowConfidence`, GAP-26 mã lỗi "không thấy mặt"                                                                                                                 |
+| Sprint 6 | ✅ GAP-5, GAP-7, GAP-10 đã xử lý; còn GAP-27 (Firebase app `.dev` + payload FCM đến nơi), GAP-28 (license `None` chặn `/api/navigation/*`)                                                                                          |
+| Sprint 7 | ✅ GAP-9, GAP-12 (Caregiver đánh dấu) đã xử lý; còn GAP-11 snapshot riêng, key độ nhạy fall detection                                                                                                                               |
+| Sprint 8 | GAP-23 Hybrid AI (tần suất, timeout Groq, tên class trong TTS, ranh giới `position`, `sessionId` offline), GAP-24 lỗi relay WebRTC khi SOS + tài liệu §23, GAP-29 config mobile cần chưa public, GAP-30 license chặn WebRTC khi SOS |
+| Release  | ~~GAP-8 HTTPS~~ (đã có `https://api.visionaid.net`)                                                                                                                                                                                 |
 
 Mỗi GAP → gửi team Backend (spec ngắn trong `docs/specs/` nếu cần), được bổ sung rồi mới `/build`.
