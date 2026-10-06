@@ -13,6 +13,28 @@ import { getTokens } from '@/services/storage/secureStorage';
 import { logger } from '@/utils/logger';
 
 /**
+ * Token còn dưới 30 s (hoặc không đọc được hạn) → cần làm mới. Chỉ đọc `exp` để quyết định có refresh
+ * không — không dùng để xác thực.
+ */
+export function isTokenExpiring(token: string, nowMs: number): boolean {
+  try {
+    const payload = (token.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
+    const { exp } = JSON.parse(atob(payload)) as { exp?: number };
+    return typeof exp !== 'number' || exp * 1000 - nowMs < 30_000;
+  } catch {
+    return true;
+  }
+}
+
+/** Token cho mỗi lần (kết nối lại) hub. Auto-reconnect không qua interceptor axios → tự refresh. */
+async function freshAccessToken(): Promise<string> {
+  const token = (await getTokens())?.accessToken;
+  if (!token) return '';
+  if (!isTokenExpiring(token, Date.now())) return token;
+  return (await refreshSingleFlight().catch(() => null)) ?? token;
+}
+
+/**
  * Hub `/hubs/location` (§11): VIU CHỈ NHẬN `ArrivalNotification` — hub không có method cho client
  * gọi, GPS luôn gửi qua REST. Server tự đưa VIU vào nhóm `viu_{userId}` theo JWT.
  */
@@ -25,7 +47,7 @@ class LocationHubClientImpl {
     const connection = new HubConnectionBuilder()
       .withUrl(Env.signalRUrl, {
         // WebSocket gửi token qua query `access_token` (backend đọc ở OnMessageReceived)
-        accessTokenFactory: async () => (await getTokens())?.accessToken ?? '',
+        accessTokenFactory: freshAccessToken,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(LogLevel.Warning)

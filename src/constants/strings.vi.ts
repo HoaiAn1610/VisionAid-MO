@@ -138,7 +138,7 @@ export const Strings = {
     cancelUncertain:
       'Mất mạng nên chưa chắc đã hủy kịp. Cảnh báo có thể đã được gửi đến người chăm sóc.',
     sent: 'Đã gửi cảnh báo đến người chăm sóc',
-    queued: 'Chưa có mạng, cảnh báo sẽ tự gửi khi có mạng.',
+    queued: 'Chưa gửi được cảnh báo lên máy chủ, ứng dụng sẽ tự gửi lại.',
     overlayLabel: 'Hủy cảnh báo té ngã',
     overlayHint: 'Chạm hai lần để hủy cảnh báo té ngã',
     countdown: (seconds: number) => `Tự gửi cảnh báo sau ${seconds} giây`,
@@ -158,7 +158,7 @@ export const Strings = {
     cancelHint: 'Chạm hai lần để không gửi cảnh báo',
     sending: 'Đang gửi cảnh báo khẩn cấp',
     sent: 'Đã gửi cảnh báo khẩn cấp đến người chăm sóc.',
-    queued: 'Chưa có mạng, cảnh báo sẽ tự gửi khi có mạng.',
+    queued: 'Chưa gửi được cảnh báo lên máy chủ, ứng dụng sẽ tự gửi lại.',
     calling: (name: string) => `Đang gọi ${name}.`,
     dialing: (name: string, number: string) =>
       `Đã mở sẵn số ${number} của ${name}. Hãy chạm nút gọi màu xanh ở giữa, phía dưới màn hình.`,
