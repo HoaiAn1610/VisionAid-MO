@@ -169,6 +169,8 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 ### Sprint 7: Emergency
 
+**Trạng thái (2026-10-06, nhánh `feature/sprint7-emergency`):** ✅ SOS thủ công / giọng nói (xác nhận 10 s, gửi event, lỗi mạng → hàng đợi, gọi người liên hệ: `ACTION_CALL` qua module `modules/phone-call`, 112/113/114/115 → mở trình quay số, chỉ có Zalo → deep link). ✅ Danh bạ khẩn cấp cache SQLite khi mở app. ✅ License `NONE` chặn dẫn đường, `TRIAL` báo số ngày. ✅ Pin < 10% → Minimal một lần. ✅ FallDetector 2 tín hiệu (rơi tự do + va chạm, rồi camera đứng yên 5 s qua chữ ký 8×8 lấy từ frame YOLO) + đếm ngược 15 s (rung mỗi giây, đọc ở 15/10/5/4/3/2/1 để mic có khoảng lặng nghe "tôi ổn"; chạm bất kỳ đâu = hủy; online dismiss, offline hết giờ → hàng đợi + gọi người thân). ⏳ Chưa thử trên máy; ngưỡng té ngã cần hiệu chỉnh khi đeo chest strap (Sprint 9); snapshot té ngã chưa gửi (GAP-11); cử chỉ SOS (`Gesture`) chưa định nghĩa; review 2 lớp chưa chạy.
+
 `/ponytail lite`. Bắt buộc review 2 lớp.
 
 | Task                                                                                                                                                       | Skill                                                              | Done khi                                      |

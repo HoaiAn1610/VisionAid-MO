@@ -498,8 +498,8 @@ Phát hiện té ngã
    (server set Detected + grace_period_ends_at = detectedAt + 15s; trả về event có id)
 → Snapshot đi INLINE trong cùng request (snapshotBase64, JPEG đã nén nhỏ). Backend không có endpoint /snapshot riêng;
   upload MinIO lỗi thì server vẫn tạo event. Ảnh phải nén mạnh để không làm chậm việc tạo event (GAP-11: tách snapshot ra endpoint riêng)
-→ Emergency SOS UI: đếm ngược 15s bằng TTS ("Phát hiện té ngã. Nói 'Tôi ổn' hoặc chạm màn hình để hủy. 15... 14...")
-   + haptic mỗi giây; lắng nghe "tôi ổn" (xem quy tắc chống tự nghe bên dưới); chạm bất kỳ đâu trên màn hình = hủy
+→ Emergency SOS UI: đếm ngược 15s — TTS "Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo." rồi chỉ đọc số ở 10/5/4/3/2/1
+   (chừa khoảng lặng cho mic nghe "tôi ổn") + haptic mỗi giây; lắng nghe "tôi ổn" (xem quy tắc chống tự nghe bên dưới); chạm bất kỳ đâu trên màn hình = hủy
 ├── User hủy trong 15s → PUT /api/emergency-events/{id}/dismiss { notes? } → TTS "Đã hủy cảnh báo"
 │     (quá grace → 422 "Grace period has expired" → TTS "Cảnh báo đã được gửi")
 └── Hết 15s → server background job (EmergencyEventDispatcher) tự chuyển Sent + gửi Caregiver
