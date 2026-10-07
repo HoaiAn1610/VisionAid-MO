@@ -81,7 +81,7 @@
 | Push | `@react-native-firebase/app` + `@react-native-firebase/messaging` | FCM token gửi kèm **`device.fcmToken` trong `/auth/login`** (không có endpoint đăng ký riêng); nhận notification |
 | Secure storage | `expo-secure-store` | Access/refresh token, `client_device_id` |
 | Local DB | `expo-sqlite` | Offline queue (GPS, logs), location cache, emergency contacts cache |
-| Gọi điện trực tiếp | Native module dùng Intent `ACTION_CALL` (ví dụ `react-native-immediate-phone-call`) + quyền `CALL_PHONE` | SOS **tự quay số** — `tel:` qua `Linking` chỉ mở trình quay số, người khiếm thị vẫn phải tự tìm nút gọi → KHÔNG dùng `tel:` cho SOS |
+| Gọi điện trực tiếp | Module local `modules/phone-call`: `TelecomManager.placeCall` (không dùng Intent trần — app khác như Zalo chen vào hộp chọn ứng dụng) + quyền `CALL_PHONE` | SOS **tự quay số** — `tel:` qua `Linking` chỉ mở trình quay số, người khiếm thị vẫn phải tự tìm nút gọi → KHÔNG dùng `tel:` cho SOS |
 | Zalo | `expo-linking` (Zalo deep link) | Khi contactType = `Zalo` / `Both` (dùng `zaloDeepLink` từ API) |
 | Keep awake | `expo-keep-awake` | Trong navigation session |
 | WebRTC | `react-native-webrtc` (native, cần config plugin Expo) | Gọi video/audio với Caregiver (mục 9.10). VIU **gửi video camera + nghe audio**, không xem video. Signaling qua hub `/hubs/location`; ICE từ `/api/webrtc/ice-servers/public` |
@@ -509,7 +509,7 @@ Phát hiện té ngã
 - `detectedAt` = **lúc đủ hai tín hiệu** (bắt đầu đếm ngược), không phải lúc va chạm — va chạm sớm hơn ≥ 5 s (chờ camera đứng yên) nên nếu gửi lúc va chạm, server hết grace trước khi đồng hồ trên máy về 0. Thời điểm va chạm nằm trong `accelerometerData`.
 - Luôn gửi `detectedAt` từ thiết bị: event sync muộn từ offline queue → server tính grace từ thời điểm té thật (đã quá 15s → dispatcher gửi ngay). Đồng hồ thiết bị có thể lệch; backend chưa giới hạn `detectedAt` so với giờ server.
 - ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có" / "đồng ý". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
-- **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
+- **Offline khi té ngã (đã làm):** lưu event vào queue; hết 15s mà vẫn offline (hoặc tạo event lỗi) và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (xem mục 2); khi có mạng sync event lên server.
 
 **Luồng `Manual` / `VoiceCommand` / `Gesture`:**
 > `Gesture` **ngoài phạm vi capstone** (quyết định 2026-10-07): chưa có cử chỉ nào không đụng với thao tác sẵn có (phím âm lượng = nghe lệnh). App chỉ gửi `Manual` (nút) và `VoiceCommand`; giá trị enum giữ nguyên cho khớp backend.

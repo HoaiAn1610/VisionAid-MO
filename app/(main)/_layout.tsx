@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Strings } from '@/constants/strings.vi';
-import { refreshEmergencyContacts } from '@/features/emergency/emergencyContacts';
+import { startEmergencyContactsRefresh } from '@/features/emergency/emergencyContacts';
 import { FallAlertOverlay } from '@/features/emergency/FallAlertOverlay';
 import { useFallAlertState } from '@/features/emergency/fallAlertService';
 import { startBatteryMonitor } from '@/services/battery/BatteryMonitor';
@@ -16,12 +16,11 @@ import { startFcm } from '@/services/fcm/FcmService';
 import { VoiceProvider } from '@/features/voice-commands/VoiceProvider';
 import { startOnDeviceSpeechSetup } from '@/services/speech/onDeviceSpeech';
 
-// TODO: Global overlays — SOS overlay, System Alerts.
 export default function MainLayout() {
   // Chỉ chạy khi đã đăng nhập: đồng bộ hàng đợi offline (phiên dẫn đường, voice log…)
   useEffect(() => startOfflineSyncLoop(), []);
-  // Danh bạ khẩn cấp vào cache SQLite để SOS gọi được cả khi offline
-  useEffect(() => refreshEmergencyContacts(), []);
+  // Danh bạ khẩn cấp vào cache SQLite (mở app + mỗi lần quay lại app) để SOS gọi được cả khi offline
+  useEffect(() => startEmergencyContactsRefresh(), []);
   // Pin < 10% → Minimal Mode + báo một lần mỗi lần tụt ngưỡng (BR-17)
   useEffect(
     () =>

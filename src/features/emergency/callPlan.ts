@@ -1,10 +1,10 @@
 import type { EmergencyContact } from '@/api/endpoints/emergency';
 
-/** Số khẩn cấp Việt Nam: Android không cho ứng dụng tự quay (ACTION_CALL) các số này. */
+/** Số khẩn cấp Việt Nam: Android không cho ứng dụng tự quay các số này (chỉ mở được trình quay số). */
 const EMERGENCY_NUMBERS = new Set(['112', '113', '114', '115']);
 
 export type CallPlan =
-  /** Tự quay số (ACTION_CALL). */
+  /** Tự quay số (TelecomManager.placeCall). */
   | { kind: 'call'; contact: EmergencyContact; number: string }
   /** Mở trình quay số đã điền sẵn — người dùng phải chạm nút gọi (số khẩn cấp). */
   | { kind: 'dial'; contact: EmergencyContact; number: string }

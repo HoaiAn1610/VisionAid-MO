@@ -9,7 +9,7 @@ export interface AccelSample {
 }
 
 export interface FallEvent {
-  /** Thời điểm va chạm — gửi làm `detectedAt` (server tính 15 s grace từ đây). */
+  /** Thời điểm va chạm (ms). `detectedAt` gửi server là lúc đủ 2 tín hiệu, không phải lúc này (fallAlert.ts). */
   impactAt: number;
   /** Chuỗi JSON gửi trong `accelerometerData`. */
   accelerometerData: string;

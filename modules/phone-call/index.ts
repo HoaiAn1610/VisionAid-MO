@@ -8,13 +8,13 @@ interface PhoneCallModule {
 // Optional: không có trên iOS / Jest
 const PhoneCall = requireOptionalNativeModule<PhoneCallModule>('PhoneCall');
 
-/** Gọi luôn (ACTION_CALL, cần quyền CALL_PHONE). Không dùng cho số khẩn cấp. */
+/** Gọi luôn qua TelecomManager (cần quyền CALL_PHONE). Không dùng cho số khẩn cấp. */
 export function placeCall(number: string): void {
   if (!PhoneCall) throw new Error('PhoneCall native module unavailable');
   PhoneCall.call(number);
 }
 
-/** Mở trình quay số đã điền sẵn số (ACTION_DIAL) — người dùng tự bấm gọi. */
+/** Mở trình quay số mặc định, điền sẵn số — người dùng tự bấm gọi. */
 export function openDialer(number: string): void {
   if (!PhoneCall) throw new Error('PhoneCall native module unavailable');
   PhoneCall.dial(number);
