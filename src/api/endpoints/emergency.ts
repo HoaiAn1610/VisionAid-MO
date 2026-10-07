@@ -41,6 +41,8 @@ export async function fetchEmergencyContacts(): Promise<EmergencyContact[]> {
 
 /** Khớp `CreateEmergencyEventRequest`. `detectedAt` là giờ thiết bị — server tính grace từ đây. */
 export interface EmergencyEventPayload {
+  /** UUID sinh một lần cho mỗi sự cố — gửi lại (hàng đợi, timeout) không tạo event thứ hai (GAP-31). */
+  clientEventId: string;
   detectionMethod: DetectionMethod;
   detectedAt: string;
   latitude: number | null;

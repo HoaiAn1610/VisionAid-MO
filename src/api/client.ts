@@ -20,8 +20,12 @@ export class ApiError extends Error implements AppError {
     readonly title: string,
     readonly detail: string,
     readonly fieldErrors?: Record<string, string[]>,
+    /** Mã lỗi máy đọc được (ProblemDetails `errorCode`, ví dụ `FACE_SERVICE_UNAVAILABLE`). */
+    readonly errorCode?: string,
+    /** `traceId` của server — có trong log để BE tra đúng request (GAP-37). */
+    readonly traceId?: string,
   ) {
-    super(`${status} ${title}: ${detail}`);
+    super(`${status} ${title}: ${detail}${traceId ? ` [traceId ${traceId}]` : ''}`);
     this.name = 'ApiError';
   }
 }
@@ -156,6 +160,8 @@ function toApiError(error: unknown): ApiError {
         body.title,
         typeof body.detail === 'string' ? body.detail : '',
         isFieldErrors(body.errors) ? body.errors : undefined,
+        typeof body.errorCode === 'string' ? body.errorCode : undefined,
+        typeof body.traceId === 'string' ? body.traceId : undefined,
       );
     }
     // 2) ApiResponse { success: false, errors: [] }

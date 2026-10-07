@@ -31,6 +31,8 @@ export interface FallAlertDeps {
   sentHaptic(): void;
   setTimer(fn: () => void, ms: number): unknown;
   now(): number;
+  /** UUID cho `clientEventId`. */
+  newId(): string;
   /** Câu báo té ngã — TalkBack bật thì phải nói "chạm hai lần". */
   detectedMessage(): string;
   clearTimer(handle: unknown): void;
@@ -118,6 +120,7 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
 
       // Có payload ngay (chưa có vị trí): GPS treo quá 15 s thì finish() vẫn đưa event vào hàng đợi
       payload = {
+        clientEventId: deps.newId(),
         detectionMethod: 'AccelerometerCamera',
         detectedAt,
         accelerometerData: fall.accelerometerData,

@@ -33,6 +33,7 @@ function setup(over: Partial<FallAlertDeps> = {}) {
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     now: () => Date.parse('2026-10-06T10:00:06Z'), // đủ 2 tín hiệu 6 s sau va chạm
+    newId: () => 'fall-1',
     detectedMessage: () => Strings.fall.detected,
     ...over,
   };
@@ -51,6 +52,7 @@ describe('createFallAlert', () => {
     await alert.start(fall);
     expect(deps.say).toHaveBeenCalledWith(Strings.fall.detected);
     expect(deps.createEvent).toHaveBeenCalledWith({
+      clientEventId: 'fall-1',
       detectionMethod: 'AccelerometerCamera',
       detectedAt: '2026-10-06T10:00:06.000Z',
       accelerometerData: '{"peakG":3}',

@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
@@ -47,6 +48,7 @@ const controller = createFallAlert(
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     now: Date.now,
+    newId: () => Crypto.randomUUID(),
     detectedMessage: () =>
       screenReaderOn ? Strings.fall.detectedScreenReader : Strings.fall.detected,
   },

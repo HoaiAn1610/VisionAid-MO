@@ -21,6 +21,7 @@ const deps = (over: Partial<SosDeps> = {}): SosDeps => ({
   announce: jest.fn(async () => {}),
   call: jest.fn(async () => {}),
   now: () => Date.parse('2026-10-06T10:00:00Z'),
+  newId: () => 'evt-1',
   ...over,
 });
 
@@ -29,6 +30,7 @@ describe('sendSos', () => {
     const d = deps();
     await expect(sendSos('Manual', d)).resolves.toMatchObject({ sent: true });
     expect(d.createEvent).toHaveBeenCalledWith({
+      clientEventId: 'evt-1', // cùng id khi gửi lại từ hàng đợi → server không tạo trùng
       detectionMethod: 'Manual',
       detectedAt: '2026-10-06T10:00:00.000Z',
       latitude: 10.7,

@@ -226,6 +226,22 @@ describe('chuẩn hóa lỗi → ApiError', () => {
     });
   });
 
+  it('ProblemDetails có errorCode + traceId → giữ lại (traceId nằm trong message để log)', async () => {
+    useApi(() => ({
+      status: 422,
+      data: {
+        title: 'Business Rule Violation',
+        status: 422,
+        detail: 'Face recognition service is currently unavailable.',
+        errorCode: 'FACE_SERVICE_UNAVAILABLE',
+        traceId: '00-abc-01',
+      },
+    }));
+    const error: unknown = await apiClient.post('/x', {}).catch((e: unknown) => e);
+    expect(error).toMatchObject({ errorCode: 'FACE_SERVICE_UNAVAILABLE', traceId: '00-abc-01' });
+    expect((error as Error).message).toContain('traceId 00-abc-01');
+  });
+
   it('ApiResponse success:false → detail lấy từ errors[]', async () => {
     useApi(() => ({
       status: 400,

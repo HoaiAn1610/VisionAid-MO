@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { createEmergencyEvent } from '@/api/endpoints/emergency';
@@ -53,6 +54,7 @@ const deps: SosDeps = {
   announce,
   call: executeCall,
   now: Date.now,
+  newId: () => Crypto.randomUUID(),
 };
 
 export type SosPhase = 'idle' | 'confirming' | 'sending' | 'done';
