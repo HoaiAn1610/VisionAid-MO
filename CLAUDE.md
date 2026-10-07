@@ -814,32 +814,35 @@ Sprint 9 — Settings, Hardening & Release
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-07 sau commit `8ea1c9f`)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-07 sau commit `f3e85f0`)
 
 > Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
 ### Còn mở
 | # | Chặn | Thiếu gì | Đề xuất cho backend | Tạm thời phía mobile |
 |---|---|---|---|---|
-| GAP-35 | **Khẩn cấp** | `EmergencyEventDispatcher.cs:214`, `BoundaryMonitor.cs:424`, `LicenseExpiryReminderJob.cs:120` truy vấn `global_notification_rules ... is_enabled` (cột thật là `is_active`) → lỗi 42703 → transaction rollback **sau khi đã gửi SignalR** → lặp mỗi lượt job. Té ngã không bao giờ `Sent`, Caregiver không nhận FCM, VIU nhận `WebRtcIncomingCall` lặp mỗi 5 s (đã thấy trên máy 07/10); `ArrivalNotification` gửi lặp | Đổi `is_active`; gửi SignalR sau `CommitAsync`; savepoint theo từng event | — |
-| GAP-36 | Sprint 6/8 | FCM data-only không đặt `AndroidConfig.Priority = High` → trễ khi máy Doze | Đặt priority high | — |
-| GAP-37 | Vận hành | 500 không có `traceId`; log mất khi recreate container | `traceId` trong ProblemDetails; giữ log qua deploy | Ghi `traceId` khi BE có |
-| GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
-| GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
-| GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
-| SEC | Ngay | `appsettings.Development.json` (đang commit) chứa khóa thật Resend + **PayOS `ChecksumKey`** (giả mạo được webhook → kích hoạt license miễn phí); `DbSeeder` seed tài khoản mặc định ở mọi môi trường | Rotate khóa, chuyển secret ra biến môi trường, chỉ seed ở Development | — |
-| GAP-23 | Sprint 8 (Hybrid AI) | **Phạm vi đã chốt (Update Report §1).** ✅ Groq đã có timeout = 2 × `navigation_near_threshold_ms` (`2fe9c2c`). Còn: `TtsTemplateHelper.FormatClass` đọc nguyên văn tên class tiếng Anh ("Có car phía bên trái"); tần suất gọi + mỗi request ghi 1 dòng `navigation_guidance_logs` (YOLO ~3 lần/giây); cần `sessionId` phía server (phiên offline chưa có) | Map class COCO → tiếng Việt trong `FormatClass` (hoặc chốt mobile gửi tên tiếng Việt); chốt tần suất tối đa | Rule-Based + template trên máy khi chưa gọi được server |
-| GAP-25 | Sprint 5 (OCR) | Không có config ngưỡng confidence OCR; `resultStatus` chỉ `Success`/`Failed`, không có `LowConfidence`. VietOCR không chạy mà mobile không gửi `ResultStatus`/`OcrEngine` → log ghi `Success` + `Tesseract` | Thêm `ocr_confidence_threshold` + trả `LowConfidence`; khi VietOCR không chạy đặt `Failed` | Mobile vẫn gửi `ResultStatus=Failed`, `OcrEngine=pending`; ngưỡng tạm phía client |
-| GAP-26 | Sprint 5 (Face) | ✅ `FaceNetService` đã ném lại `BusinessRuleException` "không thấy mặt" (`2fe9c2c`) → identify trả 422 với `detail` riêng; upload ảnh không có mặt bị từ chối. Còn: "không thấy mặt" và "FaceNet không chạy" vẫn cùng 422, chỉ khác `detail` | (Thấp) mã lỗi riêng (`errorCode: NoFaceDetected`, 503 khi service lỗi) | Phân biệt bằng `detail` chứa "khuôn mặt" |
-| GAP-28 | Thấp | ✅ Config mới được seed theo từng key mỗi lần khởi động (`2fe9c2c`). Còn: gói license chỉ seed khi DB trống | Seed gói license theo từng `Code` | — |
-| GAP-31 | Sprint 7 | `POST /api/emergency-events` không có khóa chống trùng → request timeout sau khi server đã tạo xong thì mobile đưa vào hàng đợi và tạo **event thứ hai** (Caregiver nhận 2 cảnh báo; hủy té ngã chỉ hủy được một) | Nhận `clientGeneratedId` như GPS, trùng → trả event cũ | — |
-| GAP-32 | Sprint 7 (Standalone) | Validator `CreateEmergencyContact` dùng regex `^(0[3\|5\|7\|8\|9])[0-9]{8}$` → chỉ nhận di động 10 số: **không lưu được 112/113/114/115, hotline 1800/1900, số bàn, `+84…`**; lớp ký tự còn sai (`[3\|5…]` nhận cả `\|`) | Nhận số khẩn cấp 3 số, 1800/1900 + 4–6 số, số bàn, `+84`; sửa thành `[35789]` | Mobile đã xử lý các số này (mở trình quay số) |
-| GAP-33 | Sprint 8 (WebRTC) | Cuộc gọi `SosAuto` chỉ tạo trong `EmergencyEventDispatcher` (té ngã `Detected → Sent`); SOS `Manual`/`VoiceCommand` đi thẳng `Sent` trong `CreateEmergencyEventHandler` → **không mở WebRTC** (trái Update Report §4) | Gọi cùng logic `TryTriggerSosWebRtcCallAsync` khi tạo event `Sent` | — |
-| GAP-34 | Sprint 8 (WebRTC) | Không có ring timeout: không có key `webrtc_ring_timeout_seconds`, không job nào chuyển phiên sang `Missed` → phiên không ai nghe kẹt mãi | Config 45 s (`isPublic: true`) + job chuyển `Missed` và báo cả hai phía | — |
+| SEC | Ngay | Đã xóa khóa Resend/PayOS/JEV/Groq khỏi repo và chỉ seed tài khoản demo khi `IsDevelopment()` (`f3e85f0`). Còn: **tài khoản demo vẫn đăng nhập được trên production** (đã thử `viu@visionaid.vn` 07/10 → 200); `appsettings.Development.json` vẫn có JWT `SecretKey`, `AesEncryption.Key`, `Mapbox.AccessToken`; `docker-compose.override.yml` đặt `ASPNETCORE_ENVIRONMENT=Development` (bị `docker compose up` tự nạp nếu có trên server); các khóa cũ cần xác nhận đã rotate | Đổi mật khẩu / vô hiệu tài khoản demo trên production; xác nhận server không dùng override và JWT/AES lấy từ biến môi trường; xóa Mapbox token khỏi repo | — |
+| GAP-38 | Sprint 7/8 | `CreateEmergencyEventHandler`: (1) nhánh trùng đồng thời (23505) tìm event theo `id` **không lọc theo VIU** → biết `id` event người khác thì đọc được event đó; (2) `TryTriggerSosWebRtcCallAsync` chạy sau `SaveChangesAsync` không bọc try/catch → lỗi WebRTC biến SOS đã lưu thành 500 | Lọc `VisuallyImpairedUserId`; bọc try/catch phần WebRTC | Gửi lại với cùng `clientEventId` (idempotent) |
+| GAP-23 | Sprint 8 (Hybrid AI) | Đã map 35 class COCO sang tiếng Việt (`f3e85f0`); class ngoài bảng vẫn đọc tiếng Anh; tần suất gọi và `sessionId` offline chưa chốt | Fallback "vật cản" thay vì tên tiếng Anh; chốt tần suất ≤ 1 req/s | Chỉ gửi class có trong bảng map |
+| GAP-25 | Thấp | Đã có `ocr_confidence_threshold` + `LowConfidence` (`f3e85f0`), nhưng key `isPublic: false`; `decimal.TryParse` không chỉ định culture | `isPublic: true`; `CultureInfo.InvariantCulture` | Ngưỡng 0.5 phía client |
+| GAP-26 | Thấp | Đã có `errorCode` + `traceId` trong ProblemDetails (`f3e85f0`); "không thấy khuôn mặt" chưa có `errorCode` (chỉ `FACE_SERVICE_UNAVAILABLE`) | Thêm `NO_FACE_DETECTED` | 422 + `errorCode = FACE_SERVICE_UNAVAILABLE` → không khả dụng; 422 không có `errorCode` → không thấy mặt |
+| BR-37 | Thấp | Khóa Caregiver chính chỉ ghi log cảnh báo, chưa đánh dấu VIU cần gán lại | Làm theo SRS hoặc ghi ngoài phạm vi | — |
 
-### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`, `2fe9c2c`, `0171a4d`)
+### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`, `2fe9c2c`, `0171a4d`, `f3e85f0`)
 | # | Kết quả |
 |---|---|
+| GAP-35 | (`f3e85f0`) 3 background job dùng `is_active`; SignalR gửi sau `CommitAsync`; savepoint theo từng event → hết lặp vô hạn, té ngã chuyển `Sent` + có FCM |
+| GAP-33 | (`f3e85f0`) SOS `Manual`/`VoiceCommand` mở phiên `SosAuto` tới Caregiver chính (khi `webrtc_enabled`) |
+| GAP-34 | (`f3e85f0`) `WebRtcRingTimeoutJob` mỗi 15 s, `webrtc_ring_timeout_seconds` = 45 (public) → `Missed` + `WebRtcCallEnded` |
+| GAP-32 | (`f3e85f0`) Số người liên hệ nhận 112–115, 1800/1900, số bàn, `+84` |
+| GAP-31 | (`f3e85f0`) Field **`clientEventId`** (Guid, dùng làm `id` event) → gửi lại trả event cũ |
+| GAP-11 | (`f3e85f0`) `PUT /api/emergency-events/{id}/snapshot` body JSON `{ imageBase64, contentType }`, chỉ VIU chủ event |
+| GAP-14 | (`f3e85f0`) Validator giới hạn kích thước lô cho GPS batch và detection events batch |
+| GAP-36 | (`f3e85f0`) FCM `AndroidConfig.Priority = High` |
+| GAP-37 | (`f3e85f0`) ProblemDetails có `traceId` (+ `errorCode` khi có) |
+| GAP-13 | (`f3e85f0`) 401/403 từ JWT middleware trả ProblemDetails (trước đây body rỗng) |
+| GAP-28 | (`f3e85f0`) Gói license seed theo từng `Code` |
+| BR-36 | (`f3e85f0`) Khóa tài khoản đóng các phiên dẫn đường đang mở |
 | GAP-24 | (`2fe9c2c`) `LocationHub` relay: phiên `SosAuto` (`initiator_id` NULL) lấy `receiver_id` làm Caregiver. Tài liệu backend §23 chưa xác nhận đã sửa |
 | GAP-27 | (`2fe9c2c`) FCM `ArrivalNotification` cho VIU là data-only, có `savedLocationId`/`savedLocationName`/`ttsAnnouncement`/`occurredAt`. App `.dev` đã có trong `google-services.json`. Chưa đặt Android priority high |
 | GAP-29 | (`2fe9c2c`) `hybrid_navigation_enabled`, `navigation_near_threshold_ms`, `webrtc_enabled`, `webrtc_max_duration_minutes` → `isPublic: true` |
