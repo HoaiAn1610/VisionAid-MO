@@ -188,7 +188,9 @@ Không làm ở mobile: upload ảnh khuôn mặt (việc của Caregiver trên 
 
 **Quyết định đã chốt khi đối chiếu báo cáo (2026-10-06):** app mobile chỉ cho VIU (Caregiver đăng ký / thanh toán / nhập license code trên web); `position` 5 dải đều nhau; YOLO giữ float16 + GPU (ADR 0001) — SRS/slide sửa số "INT8, 200–500 ms".
 
-Cả hai đã được Hội đồng/Mentor chốt vào phạm vi. Câu hỏi contract còn mở: GAP-23, GAP-24 (CLAUDE.md §19) — gửi backend trước khi bắt đầu.
+Cả hai đã được Hội đồng/Mentor chốt vào phạm vi.
+
+**Trạng thái (2026-10-07, nhánh `feature/sprint8-hybrid-webrtc`):** ✅ Theo backend `f3e85f0`: `clientEventId`, `errorCode`/`traceId`, Face `FACE_SERVICE_UNAVAILABLE`. ✅ Config runtime từ `/system-configs/public`. ✅ Hybrid AI: NEAR cảnh báo trên máy; MEDIUM/FAR (5 dải) → `/navigation/guidance` (timeout `navigation_near_threshold_ms`), lỗi/offline → Rule-Based trên máy (chép `RuleBasedDecisionEngine.cs`); câu dựng trên máy từ `action` + tên tiếng Việt; ≤ 1 request/s, chỉ khi cảnh đổi. ✅ WebRTC: tự nhận cuộc gọi Caregiver, `SosAuto`, lệnh "gọi người chăm sóc", phím âm lượng gác máy, nhường camera, loa ngoài; build APK có `react-native-webrtc` 124 thành công. ⏳ **Chưa thử trên máy:** Hybrid (đo độ trễ server so với 500 ms), cuộc gọi thật với web dashboard (cần web làm phía Caregiver: nhận offer của VIU, trả answer qua `RelayAnswer`), cuộc gọi khi đang có cuộc gọi điện thoại SOS.
 
 | Task                                                                                                                                                     | Skill                                                 | Done khi                                                 |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
