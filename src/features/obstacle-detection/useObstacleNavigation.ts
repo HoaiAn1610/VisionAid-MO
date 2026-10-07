@@ -4,8 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import { useCameraPermission } from 'react-native-vision-camera';
 
+import { BusinessRules } from '@/constants/businessRules';
 import { Strings } from '@/constants/strings.vi';
+import { requestGuidance } from '@/api/endpoints/navigation';
+import { ObstacleClasses } from '@/constants/obstacleClasses';
+import { configBool, configNumber } from '@/services/config/runtimeConfig';
 import { HapticService } from '@/services/haptics/HapticService';
+import { NetworkMonitor } from '@/services/network/NetworkMonitor';
+import { getServerId } from '@/services/storage/navigationRepo';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { isNavigationAllowed } from '@/features/auth/licenseNotice';
 import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
@@ -20,7 +26,13 @@ import {
   startNavigationSession,
 } from './navigationSession';
 import {
+  createGuidanceController,
+  toGuidanceObjects,
+  type GuidanceController,
+} from './hybridGuidance';
+import {
   confirmAcrossFrames,
+  estimateDistance,
   selectPriorityObstacle,
   toTtsRequest,
   type PriorityObstacle,
@@ -36,6 +48,8 @@ const STATUS_STALE_MS = 4000;
 const ACCEL_INTERVAL_MS = 20;
 /** Vật phải xuất hiện ở 2 frame liên tiếp mới báo (khoảng 2 chu kỳ inference, cho phép trễ nhịp). */
 const CONFIRM_WINDOW_MS = 2000 / TARGET_INFERENCE_FPS;
+/** Hướng dẫn rẽ/tránh cũ hơn khoảng này thì bỏ, không đọc tin đã lỗi thời. */
+const GUIDANCE_MAX_AGE_MS = 1500;
 
 const say = (text: string, priority = TtsPriority.SYSTEM) => ttsService.enqueue({ text, priority });
 
@@ -59,28 +73,71 @@ export function useObstacleNavigation() {
     createFallDetector((event) => fallAlert.trigger(event)),
   );
   const fallDetector = useRef(fallDetectorInstance);
+  const showStatus = useCallback((text: string) => {
+    setLastAnnouncement(text);
+    if (staleTimer.current) clearTimeout(staleTimer.current);
+    staleTimer.current = setTimeout(() => setLastAnnouncement(null), STATUS_STALE_MS);
+  }, []);
+
+  // Hybrid AI (§9.1): hướng dẫn rẽ/tránh cho vật MEDIUM/FAR — server khi có mạng, luật trên máy khi
+  // không. Tạo lúc có frame đầu (trong callback, không phải lúc render).
+  const guidance = useRef<GuidanceController | null>(null);
+  const getGuidance = useCallback(
+    (): GuidanceController =>
+      (guidance.current ??= createGuidanceController({
+        serverSessionId: async () =>
+          NetworkMonitor.isOnline() && sessionId.current ? getServerId(sessionId.current) : null,
+        requestGuidance: (sid, frameId, objects) =>
+          requestGuidance(
+            sid,
+            frameId,
+            objects,
+            configNumber(
+              'navigation_near_threshold_ms',
+              BusinessRules.NAVIGATION_NEAR_THRESHOLD_MS,
+            ),
+          ),
+        say: (text) => {
+          // INFO: thấp hơn cảnh báo vật nguy hiểm ở gần (DANGER) — không đè cảnh báo NEAR
+          if (
+            ttsService.enqueue({ text, priority: TtsPriority.INFO, maxAgeMs: GUIDANCE_MAX_AGE_MS })
+          ) {
+            showStatus(text);
+          }
+        },
+        now: Date.now,
+      })),
+    [showStatus],
+  );
 
   const onResult = useCallback(
     (r: FrameResult) => {
       fallDetector.current.onFrame(r.signature, Date.now());
       if (isFallAlertActive()) return; // đang đếm ngược té ngã → im lặng để nghe "tôi ổn"
-      if (r.detections.length === 0) return;
       const confirmed = confirmAcrossFrames(
         r.detections,
         lastSeen.current,
         Date.now(),
         CONFIRM_WINDOW_MS,
       );
-      const pick = selectPriorityObstacle(confirmed, mode);
+      const hybrid = configBool('hybrid_navigation_enabled', true);
+      if (hybrid) {
+        // Layer 2: vật MEDIUM/FAR (Minimal Mode chỉ vật nguy hiểm) → hướng dẫn rẽ/tránh
+        const scene = confirmed
+          .filter((d) => mode === 'Full' || ObstacleClasses[d.label]?.dangerous)
+          .map((d) => ({ ...d, distance: estimateDistance(d) }));
+        void getGuidance().onScene(toGuidanceObjects(scene));
+      }
+      // Layer 1: bật Hybrid → máy chỉ cảnh báo vật NEAR, ngay lập tức, không chờ mạng
+      const forAlert = hybrid ? confirmed.filter((d) => estimateDistance(d) === 'Near') : confirmed;
+      const pick = selectPriorityObstacle(forAlert, mode);
       if (!pick) return;
       const request = toTtsRequest(pick);
       if (!ttsService.enqueue(request)) return; // cooldown / trùng → không phải một lần cảnh báo
-      setLastAnnouncement(request.text);
-      if (staleTimer.current) clearTimeout(staleTimer.current);
-      staleTimer.current = setTimeout(() => setLastAnnouncement(null), STATUS_STALE_MS);
+      showStatus(request.text);
       if (sessionId.current) logAlert(sessionId.current, pick, r.inferenceMs);
     },
-    [mode],
+    [mode, getGuidance, showStatus],
   );
 
   const detector = useObstacleDetector(MODEL, PREFERRED_DELEGATES, { onResult });
@@ -181,6 +238,7 @@ export function useObstacleNavigation() {
         return;
       }
       sessionId.current = id;
+      guidance.current?.reset();
     } finally {
       starting.current = false;
     }

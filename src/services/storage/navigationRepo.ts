@@ -56,6 +56,16 @@ export async function listSessions(): Promise<StoredSession[]> {
   }));
 }
 
+/** Id phiên phía server (null khi phiên tạo offline chưa đồng bộ). */
+export async function getServerId(localId: string): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ server_id: string | null }>(
+    'SELECT server_id FROM nav_sessions WHERE local_id = ?',
+    localId,
+  );
+  return row?.server_id ?? null;
+}
+
 export async function setServerId(localId: string, serverId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE nav_sessions SET server_id = ? WHERE local_id = ?', serverId, localId);

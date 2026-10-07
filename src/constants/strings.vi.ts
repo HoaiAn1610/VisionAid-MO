@@ -267,4 +267,20 @@ export const Strings = {
     Medium: 'phía trước',
     Far: 'ở xa',
   },
+  // Hướng dẫn rẽ/tránh (Hybrid AI, §9.1) — cùng mẫu câu với TtsTemplateHelper.cs của backend
+  guidance: {
+    stop: 'Dừng lại, có vật cản phía trước',
+    proceed: 'Đường thông thoáng, tiếp tục đi',
+    turnLeft: (name: string | null, where: string | null) =>
+      `Có ${name ?? 'vật cản'} phía ${where ?? 'trước'}, hãy bước sang trái`,
+    turnRight: (name: string | null, where: string | null) =>
+      `Có ${name ?? 'vật cản'} phía ${where ?? 'trước'}, hãy bước sang phải`,
+    position: {
+      LEFT: 'bên trái',
+      CENTER_LEFT: 'trái trước',
+      CENTER: 'trước',
+      CENTER_RIGHT: 'phải trước',
+      RIGHT: 'bên phải',
+    },
+  },
 } as const;

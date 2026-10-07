@@ -7,6 +7,7 @@ import { startEmergencyContactsRefresh } from '@/features/emergency/emergencyCon
 import { FallAlertOverlay } from '@/features/emergency/FallAlertOverlay';
 import { useFallAlertState } from '@/features/emergency/fallAlertService';
 import { startBatteryMonitor } from '@/services/battery/BatteryMonitor';
+import { loadRuntimeConfig } from '@/services/config/runtimeConfig';
 import { HapticService } from '@/services/haptics/HapticService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -19,6 +20,8 @@ import { startOnDeviceSpeechSetup } from '@/services/speech/onDeviceSpeech';
 export default function MainLayout() {
   // Chỉ chạy khi đã đăng nhập: đồng bộ hàng đợi offline (phiên dẫn đường, voice log…)
   useEffect(() => startOfflineSyncLoop(), []);
+  // Config công khai của server (Hybrid, WebRTC…) ghi đè mặc định trong app
+  useEffect(() => void loadRuntimeConfig(), []);
   // Danh bạ khẩn cấp vào cache SQLite (mở app + mỗi lần quay lại app) để SOS gọi được cả khi offline
   useEffect(() => startEmergencyContactsRefresh(), []);
   // Pin < 10% → Minimal Mode + báo một lần mỗi lần tụt ngưỡng (BR-17)
