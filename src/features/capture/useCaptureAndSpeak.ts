@@ -34,7 +34,7 @@ export const say = (text: string, priority = TtsPriority.FEEDBACK) =>
  */
 export function useCaptureAndSpeak(options: CaptureOptions) {
   const hasPermission = useCameraAccess(options.aim);
-  const { listen, registerCapture } = useVoice();
+  const { listen, registerScreenAction } = useVoice();
   const camera = useRef<Camera>(null);
   const busy = useRef(false);
   const mounted = useRef(true);
@@ -91,9 +91,9 @@ export function useCaptureAndSpeak(options: CaptureOptions) {
 
   const { route } = options;
   useEffect(() => {
-    registerCapture(route, again);
-    return () => registerCapture(route, null);
-  }, [registerCapture, route, again]);
+    registerScreenAction(route, again);
+    return () => registerScreenAction(route, null);
+  }, [registerScreenAction, route, again]);
 
   return { hasPermission, camera, phase, message, capture, again };
 }

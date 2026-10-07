@@ -101,7 +101,7 @@ let refreshPromise: Promise<string | null> | null = null;
  * @returns access token mới, hoặc null nếu phiên đã hết (đã xóa token + báo app).
  * @throws ApiError status 0 khi không tới được server (phiên được giữ nguyên).
  */
-function refreshSingleFlight(): Promise<string | null> {
+export function refreshSingleFlight(): Promise<string | null> {
   refreshPromise ??= refreshTokens().finally(() => {
     refreshPromise = null;
   });
