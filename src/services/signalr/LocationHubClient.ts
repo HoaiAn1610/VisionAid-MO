@@ -34,13 +34,42 @@ async function freshAccessToken(): Promise<string> {
   return (await refreshSingleFlight().catch(() => null)) ?? token;
 }
 
+/** Event WebRTC server đẩy cho VIU (§9.10). Payload JSON camelCase. */
+export const WEBRTC_EVENTS = [
+  'WebRtcIncomingCall',
+  'WebRtcCallAccepted',
+  'WebRtcOffer',
+  'WebRtcAnswer',
+  'WebRtcIceCandidate',
+  'WebRtcCallEnded',
+  'WebRtcCallRejected',
+] as const;
+export type WebRtcEvent = (typeof WEBRTC_EVENTS)[number];
+
 /**
- * Hub `/hubs/location` (§11): VIU CHỈ NHẬN `ArrivalNotification` — hub không có method cho client
- * gọi, GPS luôn gửi qua REST. Server tự đưa VIU vào nhóm `viu_{userId}` theo JWT.
+ * Hub `/hubs/location` (§11): VIU nhận `ArrivalNotification` và signaling WebRTC; gọi lên hub chỉ
+ * để relay SDP / ICE. GPS luôn gửi qua REST. Server tự đưa VIU vào nhóm `viu_{userId}` theo JWT.
  */
 class LocationHubClientImpl {
   private connection: HubConnection | null = null;
   private starting: Promise<void> | null = null;
+  private readonly listeners = new Map<WebRtcEvent, Set<(payload: unknown) => void>>();
+
+  /** Nghe một event WebRTC (đăng ký trước hay sau `start` đều được). Trả hàm hủy. */
+  subscribe(event: WebRtcEvent, listener: (payload: unknown) => void): () => void {
+    let set = this.listeners.get(event);
+    if (!set) this.listeners.set(event, (set = new Set()));
+    set.add(listener);
+    return () => set.delete(listener);
+  }
+
+  /** Gọi method của hub (RelayOffer / RelayAnswer / RelayIceCandidate). Chưa kết nối → ném lỗi. */
+  async invoke(method: string, ...args: unknown[]): Promise<void> {
+    const connection = this.connection;
+    if (!connection) throw new Error('SignalR not started');
+    await this.ensureConnected();
+    await connection.invoke(method, ...args);
+  }
 
   start(onArrival: (n: ArrivalNotification) => void): void {
     if (this.connection) return;
@@ -53,6 +82,11 @@ class LocationHubClientImpl {
       .configureLogging(LogLevel.Warning)
       .build();
     connection.on('ArrivalNotification', onArrival);
+    for (const event of WEBRTC_EVENTS) {
+      connection.on(event, (payload: unknown) => {
+        for (const listener of this.listeners.get(event) ?? []) listener(payload);
+      });
+    }
     this.connection = connection;
     void this.ensureConnected();
   }

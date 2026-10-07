@@ -16,6 +16,8 @@ const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[
     openLocation: jest.fn(),
     openEmergency: jest.fn(),
     dismissFall: jest.fn(() => false),
+    callCaregiver: jest.fn(),
+    endCall: jest.fn(() => false),
     setDetectionMode: jest.fn(),
     speechRate: 1,
     setSpeechRate: jest.fn(),

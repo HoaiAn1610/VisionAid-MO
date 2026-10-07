@@ -26,6 +26,10 @@ export interface VoiceContext {
   openEmergency(): void;
   /** Hủy cảnh báo té ngã đang đếm ngược; false nếu không có cảnh báo nào. */
   dismissFall(): boolean;
+  /** Lệnh "gọi người chăm sóc" (WebRTC, §9.10). */
+  callCaregiver(): void;
+  /** Kết thúc cuộc gọi; false nếu không có cuộc gọi. */
+  endCall(): boolean;
   setDetectionMode(mode: DetectionMode): void;
   speechRate: number;
   setSpeechRate(rate: number): void;
@@ -104,6 +108,11 @@ function execute(intent: VoiceIntent, ctx: VoiceContext): void {
     }
     case 'HELP':
       return ctx.say(Strings.voice.help(VoiceCommands.map((c) => c.keywords[0]).join(', ')));
+    case 'CALL_CAREGIVER':
+      return ctx.callCaregiver();
+    case 'END_CALL':
+      if (!ctx.endCall()) ctx.say(Strings.call.noCall);
+      return;
     case 'REPEAT':
       return ctx.say(ctx.lastAnnouncement ?? Strings.voice.nothingToRepeat);
   }

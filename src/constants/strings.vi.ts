@@ -267,6 +267,34 @@ export const Strings = {
     Medium: 'phía trước',
     Far: 'ở xa',
   },
+  // Cuộc gọi video với người chăm sóc (WebRTC, §9.10) — VIU gửi camera sau + nghe tiếng
+  call: {
+    calling: 'Đang gọi người chăm sóc',
+    incoming: (name: string | null) => `${name ?? 'Người chăm sóc'} đang gọi. Tự động nghe máy`,
+    sosWaiting: 'Đang mở cuộc gọi video khẩn cấp với người chăm sóc',
+    connecting: 'Đang kết nối cuộc gọi. Tạm dừng cảnh báo vật cản',
+    connected:
+      'Đã kết nối. Người chăm sóc đang xem camera của bạn. Bấm phím âm lượng để kết thúc cuộc gọi',
+    ended: 'Đã kết thúc cuộc gọi',
+    noAnswer: 'Người chăm sóc chưa nghe máy',
+    rejected: 'Người chăm sóc đã từ chối cuộc gọi',
+    lost: 'Mất kết nối cuộc gọi',
+    failed: 'Không gọi được người chăm sóc. Vui lòng thử lại',
+    busy: 'Đang có cuộc gọi',
+    needsNetwork: 'Gọi người chăm sóc cần kết nối mạng',
+    maxDuration: 'Cuộc gọi đã đạt thời lượng tối đa và được kết thúc',
+    noCall: 'Không có cuộc gọi nào',
+    resumed: 'Đã bật lại cảnh báo vật cản',
+    overlayLabel: 'Đang trong cuộc gọi với người chăm sóc',
+    endButton: 'Kết thúc cuộc gọi',
+    endHint: 'Chạm hai lần để kết thúc cuộc gọi',
+    phase: {
+      outgoing: 'Đang gọi…',
+      waiting: 'Đang chờ người chăm sóc nghe máy…',
+      connecting: 'Đang kết nối…',
+      connected: 'Đang trong cuộc gọi',
+    },
+  },
   // Hướng dẫn rẽ/tránh (Hybrid AI, §9.1) — cùng mẫu câu với TtsTemplateHelper.cs của backend
   guidance: {
     stop: 'Dừng lại, có vật cản phía trước',

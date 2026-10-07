@@ -16,7 +16,9 @@ export type VoiceIntent =
   | 'VOLUME_UP'
   | 'VOLUME_DOWN'
   | 'HELP'
-  | 'REPEAT';
+  | 'REPEAT'
+  | 'CALL_CAREGIVER'
+  | 'END_CALL';
 
 export interface VoiceCommandDef {
   intent: VoiceIntent;
@@ -49,6 +51,13 @@ export const VoiceCommands: readonly VoiceCommandDef[] = [
   },
   { intent: 'HELP', keywords: ['trợ giúp'], requiresConfirmation: false },
   { intent: 'REPEAT', keywords: ['lặp lại'], requiresConfirmation: false },
+  // WebRTC (§9.10) — không phải gọi khẩn cấp nên không cần xác nhận
+  { intent: 'CALL_CAREGIVER', keywords: ['gọi người chăm sóc'], requiresConfirmation: false },
+  {
+    intent: 'END_CALL',
+    keywords: ['kết thúc cuộc gọi', 'tắt cuộc gọi'],
+    requiresConfirmation: false,
+  },
 ];
 
 /** Từ xác nhận cho lệnh nguy hiểm — chỉ chấp nhận danh sách cố định (BR-14). */

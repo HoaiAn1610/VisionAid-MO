@@ -36,6 +36,8 @@ interface NavigationControls {
   openLocation(): void;
   openEmergency(): void;
   dismissFall(): boolean;
+  callCaregiver(): void;
+  endCall(): boolean;
 }
 
 /** TalkBack đọc nội dung sheet khi mở → chờ đọc xong mới mở mic (echo guard chỉ biết TTS của app). */
@@ -138,6 +140,8 @@ export function useVoiceCommand(navigation: NavigationControls) {
             openLocation: navRef.current.openLocation,
             openEmergency: navRef.current.openEmergency,
             dismissFall: navRef.current.dismissFall,
+            callCaregiver: navRef.current.callCaregiver,
+            endCall: navRef.current.endCall,
             setDetectionMode,
             speechRate: ttsService.getSettings().rate,
             setSpeechRate: (rate) => ttsService.updateSettings({ rate }),

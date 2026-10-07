@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { Strings } from '@/constants/strings.vi';
 import { startEmergencyContactsRefresh } from '@/features/emergency/emergencyContacts';
+import { CallOverlay } from '@/features/call/CallOverlay';
+import { startCallSignaling, useCallState } from '@/features/call/callService';
 import { FallAlertOverlay } from '@/features/emergency/FallAlertOverlay';
 import { useFallAlertState } from '@/features/emergency/fallAlertService';
 import { startBatteryMonitor } from '@/services/battery/BatteryMonitor';
@@ -40,21 +42,25 @@ export default function MainLayout() {
   useArrivalNotifications();
   // FCM: thông báo khi app đang mở + cập nhật token khi Firebase đổi
   useEffect(() => startFcm(), []);
+  // Cuộc gọi video với người chăm sóc (WebRTC): nghe signaling qua hub
+  useEffect(() => startCallSignaling(), []);
 
   const fallActive = useFallAlertState().phase === 'countdown';
+  const callActive = useCallState().phase !== 'idle';
 
   return (
     <>
       {/* Đang đếm ngược té ngã: ẩn phần còn lại với TalkBack (accessibilityViewIsModal chỉ có trên iOS) */}
       <View
         style={styles.fill}
-        importantForAccessibility={fallActive ? 'no-hide-descendants' : 'auto'}
+        importantForAccessibility={fallActive || callActive ? 'no-hide-descendants' : 'auto'}
       >
         <VoiceProvider>
           <Stack screenOptions={{ headerShown: false }} />
         </VoiceProvider>
       </View>
-      {/* Sau VoiceProvider → nằm trên cả sheet nghe lệnh */}
+      <CallOverlay />
+      {/* Sau VoiceProvider và cuộc gọi → nằm trên cùng */}
       <FallAlertOverlay />
     </>
   );

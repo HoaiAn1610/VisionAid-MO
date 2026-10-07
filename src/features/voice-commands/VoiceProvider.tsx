@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { Strings } from '@/constants/strings.vi';
+import { callService } from '@/features/call/callService';
 import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
 import { markSosConfirmedByVoice } from '@/features/emergency/sosConfirmation';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
@@ -96,6 +97,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           router.push('/emergency');
         },
         dismissFall: () => fallAlert.cancel(),
+        callCaregiver: () => void callService.callCaregiver(),
+        endCall: () => {
+          if (!callService.isActive()) return false;
+          void callService.hangUp();
+          return true;
+        },
       }),
       [openScreen],
     ),
@@ -109,6 +116,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const listen = useCallback(
     (mode: ListenMode = 'manual') => {
       if (isFallAlertActive()) return; // mic đang dành cho "tôi ổn"
+      if (callService.isActive()) return; // micro đang dùng cho cuộc gọi
       if (mode === 'follow-up' && !canListenSilently()) return;
       void start(mode);
     },
@@ -129,6 +137,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     const sub = addVolumeKeyListener(() => {
       // Đang đếm ngược té ngã: phím âm lượng = hủy cảnh báo (không mở mic tranh với "tôi ổn")
       if (fallAlert.cancel()) return;
+      // Đang gọi người chăm sóc: phím âm lượng = kết thúc cuộc gọi
+      if (callService.isActive()) return void callService.hangUp();
       if (phaseRef.current === 'idle') void start('manual');
       else cancel();
     });

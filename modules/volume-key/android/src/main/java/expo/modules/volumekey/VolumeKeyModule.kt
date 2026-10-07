@@ -1,7 +1,9 @@
 package expo.modules.volumekey
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.lang.ref.WeakReference
@@ -31,6 +33,29 @@ class VolumeKeyModule : Module() {
       val level = (fraction.coerceIn(0.0, 1.0) * max).roundToInt()
       audio.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0)
       level.toDouble() / max
+    }
+
+    // Cuộc gọi video với người chăm sóc: điện thoại đeo trước ngực → bắt buộc loa ngoài, không dùng loa thoại
+    Function("setSpeakerphone") { on: Boolean ->
+      if (on) {
+        audio.mode = AudioManager.MODE_IN_COMMUNICATION
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          audio.availableCommunicationDevices
+            .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+            ?.let { audio.setCommunicationDevice(it) }
+        } else {
+          @Suppress("DEPRECATION")
+          audio.isSpeakerphoneOn = true
+        }
+      } else {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          audio.clearCommunicationDevice()
+        } else {
+          @Suppress("DEPRECATION")
+          audio.isSpeakerphoneOn = false
+        }
+        audio.mode = AudioManager.MODE_NORMAL
+      }
     }
   }
 

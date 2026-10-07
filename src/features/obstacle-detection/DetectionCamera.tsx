@@ -11,6 +11,7 @@ import {
 
 import { Notice } from '@/components/Notice';
 import { Strings } from '@/constants/strings.vi';
+import { useCameraHeldByCall, useCameraUser } from '@/features/call/cameraHold';
 import { colors, radius } from '@/theme';
 
 interface Props {
@@ -34,6 +35,10 @@ export function DetectionCamera({ frameProcessor, codeScanner, cameraRef, enable
   ]);
   const focused = useIsFocused();
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
+  // Cuộc gọi video với người chăm sóc dùng camera sau → tạm nhường (§9.10)
+  const heldByCall = useCameraHeldByCall();
+  const running = enabled && focused && foreground && !heldByCall;
+  useCameraUser(running);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => setForeground(s === 'active'));
@@ -49,7 +54,7 @@ export function DetectionCamera({ frameProcessor, codeScanner, cameraRef, enable
         style={StyleSheet.absoluteFill}
         device={device}
         format={format}
-        isActive={enabled && focused && foreground}
+        isActive={running}
         frameProcessor={frameProcessor}
         codeScanner={codeScanner}
         photo={cameraRef !== undefined}

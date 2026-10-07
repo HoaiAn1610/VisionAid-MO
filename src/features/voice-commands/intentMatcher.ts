@@ -49,9 +49,17 @@ export function matchIntent(
     if (!isConfident(alt, minConfidence)) continue;
     const text = normalizeTranscript(alt.transcript);
     const matched = normalizedCommands
-      .filter((c) => c.keywords.some((k) => containsPhrase(text, k)))
-      .map((c) => c.command);
-    if (matched.length === 1) return matched[0] ?? null;
+      .map((c) => ({ command: c.command, hits: c.keywords.filter((k) => containsPhrase(text, k)) }))
+      .filter((m) => m.hits.length > 0);
+    if (matched.length === 1) return matched[0]?.command ?? null;
+    // "kết thúc cuộc gọi" khớp cả "kết thúc": chọn lệnh có từ khóa CHỨA TRỌN từ khóa của mọi lệnh
+    // khác — vẫn không đoán khi hai lệnh khớp hai cụm độc lập ("dừng lại, đọc chữ").
+    const widest = matched.find((m) =>
+      matched.every(
+        (o) => o === m || o.hits.every((h) => m.hits.some((k) => containsPhrase(k, h))),
+      ),
+    );
+    if (widest) return widest.command;
   }
   return null;
 }
