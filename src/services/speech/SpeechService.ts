@@ -79,9 +79,10 @@ export function createSpeechService(deps: SpeechDeps = defaultDeps) {
     }
     const guard = deps.createGuard();
     guard.markListeningStart();
-    current = start();
+    const session = start();
+    current = session;
     try {
-      const r = await current.promise;
+      const r = await session.promise;
       const echo = guard.shouldDiscard();
       return {
         engine,
@@ -92,7 +93,8 @@ export function createSpeechService(deps: SpeechDeps = defaultDeps) {
       };
     } finally {
       guard.dispose();
-      current = null;
+      // Lượt khác đã bắt đầu trong lúc chờ → đừng xóa phiên của lượt đó (sẽ không abort được nữa)
+      if (current === session) current = null;
     }
   }
 

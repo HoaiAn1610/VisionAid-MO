@@ -13,6 +13,8 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'dark',
   backgroundColor: '#0B0B0C', // nền gốc (expo-system-ui) — tránh chớp trắng khi chuyển màn
   android: {
+    // Firebase (FCM) — file không commit (.gitignore), lấy từ project của backend
+    googleServicesFile: './google-services.json',
     package: IS_DEV ? 'vn.visionaid.mobile.dev' : 'vn.visionaid.mobile',
     adaptiveIcon: {
       backgroundColor: '#0B0B0C',
@@ -39,10 +41,14 @@ const config: ExpoConfig = {
       'android.permission.INTERNET',
       'android.permission.ACCESS_NETWORK_STATE',
       'android.permission.HIGH_SAMPLING_RATE_SENSORS',
+      // expo-task-manager lưu lịch task GPS nền qua JobScheduler (persisted job)
+      'android.permission.RECEIVE_BOOT_COMPLETED',
     ],
   },
   plugins: [
     'expo-router',
+    '@react-native-firebase/app',
+    '@react-native-firebase/messaging',
     [
       'expo-splash-screen',
       {
@@ -82,7 +88,10 @@ const config: ExpoConfig = {
       {
         microphonePermission: 'VisionAid cần micro để nhận lệnh giọng nói.',
         speechRecognitionPermission: 'VisionAid cần nhận dạng giọng nói để hiểu lệnh của bạn.',
-        androidSpeechServicePackages: ['com.google.android.googlequicksearchbox', 'com.google.android.tts'],
+        androidSpeechServicePackages: [
+          'com.google.android.googlequicksearchbox',
+          'com.google.android.tts',
+        ],
       },
     ],
     [

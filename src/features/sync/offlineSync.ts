@@ -1,3 +1,4 @@
+import { createEmergencyEvent, type EmergencyEventPayload } from '@/api/endpoints/emergency';
 import { endSession, logDetectionEvents, startSession } from '@/api/endpoints/navigation';
 import { logOcrText, logQrScan, type OcrTextLog, type QrScanLog } from '@/api/endpoints/ocr';
 import { logVoiceCommand, type VoiceCommandLog } from '@/api/endpoints/voice';
@@ -5,9 +6,11 @@ import {
   syncNavigationSessions,
   type NavSyncDeps,
 } from '@/features/obstacle-detection/navigationSync';
+import { gpsSender } from '@/services/location/gpsTracking';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import * as navigationRepo from '@/services/storage/navigationRepo';
 import { flushOfflineQueues, type FlushDeps } from '@/services/storage/offlineQueue';
+import { useAuthStore } from '@/stores/authStore';
 import { logger } from '@/utils/logger';
 
 const SYNC_INTERVAL_MS = 60_000;
@@ -17,14 +20,20 @@ const navigationDeps: NavSyncDeps = {
   repo: navigationRepo,
 };
 
-/** Sender của từng hàng đợi; GPS / emergency thêm ở Sprint 6–7. */
+/** Sender của từng hàng đợi (emergency gửi trước tiên — thứ tự trong offlineQueue). */
 const flushDeps: FlushDeps = {
   senders: {
+    emergency: {
+      mode: 'single',
+      send: async (payload) => void (await createEmergencyEvent(payload as EmergencyEventPayload)),
+    },
+    gps: gpsSender,
     voice: { mode: 'single', send: (payload) => logVoiceCommand(payload as VoiceCommandLog) },
     qr: { mode: 'single', send: (payload) => logQrScan(payload as QrScanLog) },
     ocr: { mode: 'single', send: (payload) => logOcrText(payload as OcrTextLog) },
   },
   syncNavigation: () => syncNavigationSessions(navigationDeps),
+  currentUserId: () => useAuthStore.getState().user?.id ?? null,
 };
 
 /** Đồng bộ ngay nếu đang online, theo thứ tự ưu tiên của hàng đợi offline; lỗi không lan ra UI (§13). */

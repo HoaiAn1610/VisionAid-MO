@@ -1,4 +1,5 @@
-import type { OcrTextLog, UploadImage } from '@/api/endpoints/ocr';
+import type { OcrTextLog, ServerOcrResult, UploadImage } from '@/api/endpoints/ocr';
+import { BusinessRules } from '@/constants/businessRules';
 import type { TriggerMethod } from '@/constants/enums';
 import { logger } from '@/utils/logger';
 
@@ -9,12 +10,12 @@ export const SERVER_TIMEOUT_MS = 8000;
 
 export interface ReadTextDeps {
   isOnline(): boolean;
-  /** VietOCR trên server; `null` = server không đọc được / VietOCR lỗi. */
+  /** VietOCR trên server (tự ghi log). */
   recognizeOnServer(
     image: UploadImage,
     trigger: TriggerMethod,
     timeoutMs: number,
-  ): Promise<string | null>;
+  ): Promise<ServerOcrResult>;
   /** ML Kit trên máy. */
   recognizeOnDevice(uri: string): Promise<string>;
   logOnDevice(log: OcrTextLog): void;
@@ -33,8 +34,9 @@ export const normalizeText = (raw: string | null | undefined): string | null =>
   raw?.replace(/\s+/g, ' ').trim() || null;
 
 /**
- * OCR lai (§9.3): online → VietOCR trên server (server tự ghi log). Offline, server lỗi/chậm hoặc
- * không ra chữ (VietOCR chỉ đọc một dòng — GAP-18) → ML Kit trên máy, log qua hàng đợi offline.
+ * OCR lai (§9.3): online → VietOCR trên server (server tự ghi log). Offline, server lỗi/chậm, VietOCR
+ * không chạy (`serverOcrAvailable = false`), không ra chữ hoặc độ tin cậy thấp (BR-24) → ML Kit trên
+ * máy, log qua hàng đợi offline.
  */
 export async function readText(
   image: UploadImage,
@@ -45,8 +47,11 @@ export async function readText(
   try {
     if (deps.isOnline()) {
       try {
-        const text = normalizeText(await deps.recognizeOnServer(image, trigger, SERVER_TIMEOUT_MS));
-        if (text) return { text, source: 'server' };
+        const server = await deps.recognizeOnServer(image, trigger, SERVER_TIMEOUT_MS);
+        const text = normalizeText(server.text);
+        const confident =
+          server.confidence === null || server.confidence >= BusinessRules.OCR_MIN_CONFIDENCE;
+        if (server.available && text && confident) return { text, source: 'server' };
       } catch (e) {
         logger.warn('Server OCR failed, using on-device', e);
       }

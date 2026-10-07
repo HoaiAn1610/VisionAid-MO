@@ -30,16 +30,30 @@ export type QueueSender =
   | { mode: 'single'; send(payload: unknown): Promise<void> }
   | { mode: 'batch'; send(payloads: unknown[]): Promise<void> };
 
-export async function enqueue(queue: QueueName, payload: unknown): Promise<void> {
+/** `ownerId` chỉ dùng cho emergency (hàng đợi duy nhất còn lại sau logout). */
+export async function enqueue(
+  queue: QueueName,
+  payload: unknown,
+  ownerId: string | null = null,
+): Promise<void> {
   const db = await getDb();
   const table = TABLES[queue];
+  if (queue === 'emergency') {
+    await db.runAsync(
+      `INSERT INTO ${table} (id, payload, created_at, owner_id) VALUES (?, ?, ?, ?)`,
+      Crypto.randomUUID(),
+      JSON.stringify(payload),
+      Date.now(),
+      ownerId,
+    );
+    return; // emergency KHÔNG BAO GIỜ bị cắt bớt (§16.19)
+  }
   await db.runAsync(
     `INSERT INTO ${table} (id, payload, created_at) VALUES (?, ?, ?)`,
     Crypto.randomUUID(),
     JSON.stringify(payload),
     Date.now(),
   );
-  if (queue === 'emergency') return;
   await db.runAsync(
     `DELETE FROM ${table} WHERE id IN (
        SELECT id FROM ${table} ORDER BY created_at DESC LIMIT -1 OFFSET ?)`,
@@ -47,19 +61,30 @@ export async function enqueue(queue: QueueName, payload: unknown): Promise<void>
   );
 }
 
-/** Gửi hết một hàng đợi theo thứ tự cũ → mới. Xóa khi 2xx hoặc lỗi vĩnh viễn; lỗi tạm → dừng. */
+/**
+ * Gửi hết một hàng đợi theo thứ tự cũ → mới. Xóa khi 2xx hoặc lỗi vĩnh viễn; lỗi tạm → dừng.
+ * `ownerId` (emergency): chỉ gửi dòng của user đang đăng nhập (dòng cũ chưa có chủ vẫn gửi).
+ */
 export async function flushQueue(
   queue: QueueName,
   sender: QueueSender,
+  ownerId?: string,
 ): Promise<'done' | 'retry-later'> {
   const db = await getDb();
   const table = TABLES[queue];
   const limit = sender.mode === 'batch' ? BATCH_SIZE : 1;
   for (;;) {
-    const rows = await db.getAllAsync<{ id: string; payload: string }>(
-      `SELECT id, payload FROM ${table} ORDER BY created_at LIMIT ?`,
-      limit,
-    );
+    const rows =
+      ownerId === undefined
+        ? await db.getAllAsync<{ id: string; payload: string }>(
+            `SELECT id, payload FROM ${table} ORDER BY created_at LIMIT ?`,
+            limit,
+          )
+        : await db.getAllAsync<{ id: string; payload: string }>(
+            `SELECT id, payload FROM ${table} WHERE owner_id = ? OR owner_id IS NULL ORDER BY created_at LIMIT ?`,
+            ownerId,
+            limit,
+          );
     if (rows.length === 0) return 'done';
     const payloads = rows.map((r) => JSON.parse(r.payload) as unknown);
     try {
@@ -70,7 +95,11 @@ export async function flushQueue(
         logger.warn(`Offline queue ${queue} paused`, e instanceof ApiError ? e.status : e);
         return 'retry-later';
       }
-      logger.warn(`Offline queue ${queue} dropped rejected items`, rows.length);
+      // 400/409/422: payload không bao giờ hợp lệ được nữa. Emergency → mức error để dễ thấy
+      (queue === 'emergency' ? logger.error : logger.warn)(
+        `Offline queue ${queue} dropped rejected items`,
+        rows.length,
+      );
     }
     await db.runAsync(
       `DELETE FROM ${table} WHERE id IN (${rows.map(() => '?').join(',')})`,
@@ -84,6 +113,8 @@ export interface FlushDeps {
   senders: Partial<Record<QueueName, QueueSender>>;
   /** Session + detection event (navigationSync) — bậc "logs", sau GPS. */
   syncNavigation?: () => Promise<void>;
+  /** User đang đăng nhập — emergency chỉ gửi dòng của người này; null → chưa gửi emergency. */
+  currentUserId?: () => string | null;
 }
 
 // ponytail: lỗi tạm thì dừng và chờ lần gọi kế tiếp (vòng 60s / có mạng lại), không có exponential
@@ -112,11 +143,12 @@ export function flushOfflineQueues(deps: FlushDeps): Promise<void> {
   return running;
 }
 
-async function flushInOrder({ senders, syncNavigation }: FlushDeps): Promise<void> {
-  for (const queue of ['emergency', 'gps'] as const) {
-    const sender = senders[queue];
-    if (sender && (await flushQueue(queue, sender)) === 'retry-later') return;
+async function flushInOrder({ senders, syncNavigation, currentUserId }: FlushDeps): Promise<void> {
+  const owner = currentUserId?.();
+  if (senders.emergency && owner !== null) {
+    if ((await flushQueue('emergency', senders.emergency, owner)) === 'retry-later') return;
   }
+  if (senders.gps && (await flushQueue('gps', senders.gps)) === 'retry-later') return;
   await syncNavigation?.();
   for (const queue of ['voice', 'qr', 'ocr'] as const) {
     const sender = senders[queue];

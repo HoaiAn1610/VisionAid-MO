@@ -33,6 +33,9 @@ interface NavigationControls {
   openQrScanner(): void;
   openTextReader(): void;
   openFaceRecognizer(): void;
+  openLocation(): void;
+  openEmergency(): void;
+  dismissFall(): boolean;
 }
 
 /** TalkBack đọc nội dung sheet khi mở → chờ đọc xong mới mở mic (echo guard chỉ biết TTS của app). */
@@ -132,6 +135,9 @@ export function useVoiceCommand(navigation: NavigationControls) {
             openQrScanner: navRef.current.openQrScanner,
             openTextReader: navRef.current.openTextReader,
             openFaceRecognizer: navRef.current.openFaceRecognizer,
+            openLocation: navRef.current.openLocation,
+            openEmergency: navRef.current.openEmergency,
+            dismissFall: navRef.current.dismissFall,
             setDetectionMode,
             speechRate: ttsService.getSettings().rate,
             setSpeechRate: (rate) => ttsService.updateSettings({ rate }),

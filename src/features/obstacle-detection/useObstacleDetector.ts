@@ -15,6 +15,7 @@ import { COCO_LABELS } from '@/constants/cocoLabels';
 import {
   decodeYoloOutput,
   fitInside,
+  frameSignature,
   letterbox,
   nonMaxSuppression,
   unletterbox,
@@ -33,6 +34,8 @@ export interface FrameResult {
   inferenceMs: number;
   postprocessMs: number;
   detections: (Detection & { label: string })[];
+  /** Lưới 8×8 độ sáng của khung hình — tín hiệu camera cho phát hiện té ngã (BR-26). */
+  signature: number[];
 }
 
 interface DetectorOptions {
@@ -100,6 +103,7 @@ export function useObstacleDetector(
       });
       const contentW = landscape ? scaled.height : scaled.width;
       const contentH = landscape ? scaled.width : scaled.height;
+      const signature = frameSignature(input, contentW, contentH);
       const boxed = letterbox(input, contentW, contentH, INPUT_SIZE);
       const t1 = Date.now();
       const outputs = tflite.runSync([boxed.data.buffer as ArrayBuffer]);
@@ -117,13 +121,14 @@ export function useObstacleDetector(
         IOU_THRESHOLD,
         10,
       ).map((d) => unletterbox(d, INPUT_SIZE, boxed.padX, boxed.padY, contentW, contentH));
-      if (kept.length === 0) return; // không có gì để báo → khỏi nhảy sang JS thread
+      // Báo cả khi không có vật: phát hiện té ngã cần chữ ký khung hình liên tục (~3 lần/giây)
       const t3 = Date.now();
       void reportToJs({
         preprocessMs: t1 - t0,
         inferenceMs: t2 - t1,
         postprocessMs: t3 - t2,
         detections: kept.map((d) => ({ ...d, label: COCO_LABELS[d.classId] ?? 'unknown' })),
+        signature,
       });
     },
     [boxedModel, resize, reportToJs, lastRunAt],

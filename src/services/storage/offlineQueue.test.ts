@@ -3,7 +3,7 @@ import { ApiError } from '@/api/client';
 import { enqueue, flushOfflineQueues, MAX_QUEUE_ITEMS, type QueueSender } from './offlineQueue';
 
 // SQLite giả trong bộ nhớ: chỉ hiểu đúng 4 câu SQL mà offlineQueue dùng
-type Row = { id: string; payload: string; created_at: number };
+type Row = { id: string; payload: string; created_at: number; owner_id?: string | null };
 const mockTables = new Map<string, Row[]>();
 const rowsOf = (t: string) => mockTables.get(t) ?? [];
 jest.mock('./db', () => ({
@@ -11,8 +11,8 @@ jest.mock('./db', () => ({
     runAsync: async (sql: string, ...p: unknown[]) => {
       const table = /(?:INTO|FROM) (\w+)/.exec(sql)?.[1] ?? '';
       if (sql.startsWith('INSERT')) {
-        const [id, payload, created_at] = p as [string, string, number];
-        mockTables.set(table, [...rowsOf(table), { id, payload, created_at }]);
+        const [id, payload, created_at, owner_id] = p as [string, string, number, string | null];
+        mockTables.set(table, [...rowsOf(table), { id, payload, created_at, owner_id }]);
       } else if (sql.includes('OFFSET')) {
         const keep = p[0] as number;
         const sorted = [...rowsOf(table)].sort((a, b) => b.created_at - a.created_at);
@@ -24,9 +24,14 @@ jest.mock('./db', () => ({
         );
       }
     },
-    getAllAsync: async (sql: string, limit: number) => {
+    getAllAsync: async (sql: string, ...p: unknown[]) => {
       const table = /FROM (\w+)/.exec(sql)?.[1] ?? '';
-      return [...rowsOf(table)].sort((a, b) => a.created_at - b.created_at).slice(0, limit);
+      const byOwner = sql.includes('owner_id');
+      const limit = (byOwner ? p[1] : p[0]) as number;
+      return [...rowsOf(table)]
+        .filter((r) => !byOwner || r.owner_id === p[0] || r.owner_id == null)
+        .sort((a, b) => a.created_at - b.created_at)
+        .slice(0, limit);
     },
   }),
 }));
@@ -65,6 +70,21 @@ describe('offlineQueue', () => {
       syncNavigation: async () => void order.push('detection'),
     });
     expect(order).toEqual(['emergency', 'gps', 'detection', 'voice', 'qr', 'ocr']);
+  });
+
+  it('emergency chỉ gửi bằng tài khoản của chính chủ; chưa đăng nhập → giữ nguyên, không gửi', async () => {
+    await enqueue('emergency', 'cua-A', 'A');
+    await enqueue('emergency', 'cua-B', 'B');
+    await enqueue('emergency', 'cu-chua-co-chu');
+    const sent: unknown[] = [];
+    const senders = { emergency: single(async (p) => void sent.push(p)) };
+
+    await flushOfflineQueues({ senders, currentUserId: () => null });
+    expect(sent).toEqual([]);
+
+    await flushOfflineQueues({ senders, currentUserId: () => 'B' });
+    expect(sent).toEqual(['cua-B', 'cu-chua-co-chu']);
+    expect(rowsOf('pending_emergency_events').map((r) => r.payload)).toEqual(['"cua-A"']);
   });
 
   it('2xx → xóa; GPS gửi theo lô tối đa 100 điểm', async () => {

@@ -36,7 +36,10 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler;
 }
 
-export type LicenseEvent = { kind: 'blocked' } | { kind: 'expiring'; daysLeft: number };
+export type LicenseEvent =
+  | { kind: 'blocked' }
+  | { kind: 'expiring'; daysLeft: number }
+  | { kind: 'trial'; daysLeft: number };
 let onLicenseEvent: (event: LicenseEvent) => void = () => {};
 /**
  * App đăng ký: TTS báo license. Backend (LicenseValidationMiddleware) trả 402 khi chưa có / hết
@@ -101,7 +104,7 @@ let refreshPromise: Promise<string | null> | null = null;
  * @returns access token mới, hoặc null nếu phiên đã hết (đã xóa token + báo app).
  * @throws ApiError status 0 khi không tới được server (phiên được giữ nguyên).
  */
-function refreshSingleFlight(): Promise<string | null> {
+export function refreshSingleFlight(): Promise<string | null> {
   refreshPromise ??= refreshTokens().finally(() => {
     refreshPromise = null;
   });

@@ -9,8 +9,11 @@ import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
 import { DetectionCamera } from '@/features/obstacle-detection/DetectionCamera';
 import { useObstacleNavigation } from '@/features/obstacle-detection/useObstacleNavigation';
+import { ensureCallPermission } from '@/features/emergency/callContact';
 import { useVoice } from '@/features/voice-commands/VoiceProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { ensureLocationPermission } from '@/services/location/gps';
+import { setGpsMode } from '@/services/location/gpsTracking';
 import { useAuthStore } from '@/stores/authStore';
 import { colors, radius, spacing } from '@/theme';
 
@@ -21,6 +24,14 @@ export default function HomeScreen() {
   const voice = useVoice();
   const { registerNavigation } = voice;
   const { active, start: startNavigation, stop: stopNavigation } = nav;
+  // Chia sẻ vị trí: dày khi dẫn đường (xin quyền theo ngữ cảnh lúc bắt đầu), thưa ngoài phiên
+  useEffect(() => {
+    void (async () => {
+      if (active) await ensureCallPermission(); // té ngã offline có thể tự gọi người thân
+      if (active && !(await ensureLocationPermission())) return;
+      await setGpsMode(active ? 'session' : 'low-power');
+    })();
+  }, [active]);
   // Lệnh giọng nói (overlay toàn cục) điều khiển dẫn đường qua handle này
   useEffect(() => {
     registerNavigation({ active, start: () => void startNavigation(), stop: stopNavigation });
@@ -77,6 +88,13 @@ export default function HomeScreen() {
       />
       {voiceButton}
       <Button
+        variant="danger"
+        icon="alarm-light"
+        label={Strings.emergency.open}
+        accessibilityHint={Strings.emergency.openHint}
+        onPress={() => router.push('/emergency')}
+      />
+      <Button
         variant="secondary"
         icon="text-recognition"
         label={Strings.ocr.open}
@@ -89,6 +107,13 @@ export default function HomeScreen() {
         label={Strings.face.open}
         accessibilityHint={Strings.face.openHint}
         onPress={() => router.push('/face')}
+      />
+      <Button
+        variant="secondary"
+        icon="map-marker-radius"
+        label={Strings.location.open}
+        accessibilityHint={Strings.location.openHint}
+        onPress={() => router.push('/location')}
       />
       <Button
         variant="secondary"

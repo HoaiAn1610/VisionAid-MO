@@ -10,7 +10,9 @@ import {
 import type { AuthToken } from '@/api/types';
 import { Env } from '@/config/env';
 import { Strings } from '@/constants/strings.vi';
-import { clearUserData } from '@/services/storage/db';
+import { getFcmToken } from '@/services/fcm/FcmService';
+import { stopGpsTracking } from '@/services/location/gpsTracking';
+import { clearPersonalCache, clearUserData } from '@/services/storage/db';
 import {
   clearTokens,
   getCachedUser,
@@ -43,7 +45,8 @@ async function applyUser(user: User): Promise<void> {
 /** Đăng nhập. Role khác VIU → revoke token vừa cấp rồi ném WrongRoleError (backend không chặn role). */
 export async function signIn(email: string, password: string): Promise<void> {
   const clientDeviceId = await getOrCreateClientDeviceId();
-  const token = await login(email.trim(), password, clientDeviceId);
+  const fcmToken = await getFcmToken();
+  const token = await login(email.trim(), password, clientDeviceId, fcmToken ?? undefined);
   await saveTokens({ accessToken: token.accessToken, refreshToken: token.refreshToken });
 
   if (!isVisuallyImpaired(token.role)) {
@@ -132,13 +135,16 @@ export async function signOut(): Promise<void> {
   await logout(clientDeviceId).catch((e: unknown) => logger.warn('Logout API failed', e));
   await clearTokens();
   await clearUserData().catch((e: unknown) => logger.warn('Clear SQLite failed', e));
-  // TODO(Sprint 6): dừng GPS task, ngắt SignalR, kết thúc navigation session
+  await stopGpsTracking();
+  // SignalR tự ngắt khi rời layout chính (useArrivalNotifications)
   useAuthStore.getState().signOut();
 }
 
 /** Gọi 1 lần khi khởi động: refresh thất bại → về Login + TTS; 402 / header cảnh báo license → TTS. */
 export function registerSessionExpiredHandler(): void {
   setSessionExpiredHandler(() => {
+    void stopGpsTracking();
+    clearPersonalCache().catch((e: unknown) => logger.warn('Clear personal cache failed', e));
     useAuthStore.getState().signOut();
     ttsService.enqueue({ text: Strings.auth.sessionExpired, priority: TtsPriority.SYSTEM });
   });

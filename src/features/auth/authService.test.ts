@@ -50,7 +50,11 @@ jest.mock('@/services/storage/secureStorage', () => ({
     secure.user = json;
   }),
 }));
-jest.mock('@/services/storage/db', () => ({ clearUserData: jest.fn(async () => {}) }));
+jest.mock('@/services/storage/db', () => ({
+  clearUserData: jest.fn(async () => {}),
+  clearPersonalCache: jest.fn(async () => {}),
+}));
+jest.mock('@/services/fcm/FcmService', () => ({ getFcmToken: jest.fn(async () => 'fcm-1') }));
 jest.mock('@/services/tts/TtsService', () => ({
   TtsPriority: { SYSTEM: 2 },
   ttsService: { enqueue: jest.fn() },
@@ -94,7 +98,7 @@ describe('signIn', () => {
 
     await signIn(' viu@visionaid.vn ', 'pw');
 
-    expect(api.login).toHaveBeenCalledWith('viu@visionaid.vn', 'pw', 'device-1');
+    expect(api.login).toHaveBeenCalledWith('viu@visionaid.vn', 'pw', 'device-1', 'fcm-1');
     expect(secure.access).toBe('at');
     expect(useAuthStore.getState().status).toBe('needsConsent');
   });

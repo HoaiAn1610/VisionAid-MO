@@ -22,6 +22,12 @@ export const BusinessRules = {
   // Emergency
   FALL_GRACE_PERIOD_SECONDS: 15, // fall_grace_period_seconds
   DANGEROUS_COMMAND_CONFIRM_TIMEOUT_SECONDS: 10,
+  // Phát hiện té ngã (BR-26). ponytail: ngưỡng ước lượng theo tài liệu fall detection phổ biến,
+  // chưa đo trên người thật đeo chest strap — hiệu chỉnh ở Sprint 9; backend chưa có config key (TBC).
+  FALL_FREE_FALL_G: 0.4, // gia tốc tổng < 0.4 g = đang rơi tự do
+  FALL_IMPACT_G: 2.5, // va chạm > 2.5 g trong 1 s sau khi rơi
+  FALL_CAMERA_STILL_SECONDS: 5, // khung hình gần như không đổi liên tục sau va chạm
+  FALL_CAMERA_STILL_DIFF: 0.03, // chênh lệch độ sáng trung bình lưới 8×8 (0–1)
 
   // Battery
   LOW_BATTERY_THRESHOLD_PERCENT: 10,
@@ -35,6 +41,8 @@ export const BusinessRules = {
   // Performance targets
   VOICE_COMMAND_MAX_LATENCY_MS: 2000,
   OCR_TARGET_P95_MS: 3000,
+  // ponytail: backend chưa có config ngưỡng OCR (GAP-25) → hằng số tạm; đổi khi có `ocr_confidence_threshold`
+  OCR_MIN_CONFIDENCE: 0.5, // VietOCR: xác suất thấp nhất giữa các dòng < ngưỡng → không đọc (BR-24)
   FACE_TARGET_P95_MS: 3000,
 
   // Face registry upload formats (tham chiếu — upload do web xử lý)

@@ -10,6 +10,8 @@ import {
 } from 'react';
 
 import { Strings } from '@/constants/strings.vi';
+import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
+import { markSosConfirmedByVoice } from '@/features/emergency/sosConfirmation';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { isOnDeviceSpeechReady } from '@/services/speech/onDeviceSpeech';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
@@ -32,9 +34,14 @@ interface VoiceApi {
   listen(mode?: ListenMode): void;
   /** Home gọi khi mount / đổi trạng thái; null khi unmount. */
   registerNavigation(handle: NavigationHandle | null): void;
-  /** Màn chụp ảnh đăng ký "chụp lại" — lệnh mở lại chính màn đó thì quay về ngắm. */
-  registerCapture(route: string, again: (() => void) | null): void;
+  /**
+   * Màn hình đăng ký hành động "làm lại" (chụp lại, hỏi lại vị trí): lệnh mở lại chính màn đang mở
+   * thì chạy hành động đó thay vì chồng thêm màn mới.
+   */
+  registerScreenAction(route: ScreenRoute, action: (() => void) | null): void;
 }
+
+type ScreenRoute = '/read-text' | '/face' | '/location';
 
 const VoiceContext = createContext<VoiceApi | null>(null);
 
@@ -56,17 +63,17 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const pathRef = useRef(pathname);
   const navigation = useRef<NavigationHandle | null>(null);
-  const captures = useRef(new Map<string, () => void>());
+  const screenActions = useRef(new Map<string, () => void>());
 
   useEffect(() => {
     pathRef.current = pathname;
   }, [pathname]);
 
-  /** Lệnh mở màn đang mở → quay về ngắm để chụp lại, không chồng thêm màn mới. */
-  const openCapture = useCallback((route: '/read-text' | '/face', via: 'voice') => {
-    const again = captures.current.get(route);
-    if (pathRef.current === route && again) return again();
-    router.push({ pathname: route, params: { via } });
+  /** Lệnh mở màn đang mở → chạy lại hành động của màn đó, không chồng thêm màn mới. */
+  const openScreen = useCallback((route: ScreenRoute) => {
+    const action = screenActions.current.get(route);
+    if (pathRef.current === route && action) return action();
+    router.push({ pathname: route, params: { via: 'voice' } });
   }, []);
 
   const voice = useVoiceCommand(
@@ -81,10 +88,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         },
         stop: () => navigation.current?.stop(),
         openQrScanner: () => router.push({ pathname: '/ocr', params: { via: 'voice' } }),
-        openTextReader: () => openCapture('/read-text', 'voice'),
-        openFaceRecognizer: () => openCapture('/face', 'voice'),
+        openTextReader: () => openScreen('/read-text'),
+        openFaceRecognizer: () => openScreen('/face'),
+        openLocation: () => openScreen('/location'),
+        openEmergency: () => {
+          markSosConfirmedByVoice(); // cờ trong bộ nhớ, không qua route param (chống deep link giả)
+          router.push('/emergency');
+        },
+        dismissFall: () => fallAlert.cancel(),
       }),
-      [openCapture],
+      [openScreen],
     ),
   );
   const { start, cancel, phase } = voice;
@@ -95,6 +108,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const listen = useCallback(
     (mode: ListenMode = 'manual') => {
+      if (isFallAlertActive()) return; // mic đang dành cho "tôi ổn"
       if (mode === 'follow-up' && !canListenSilently()) return;
       void start(mode);
     },
@@ -113,6 +127,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   // Nút tăng/giảm âm lượng = nút ra lệnh: đang nghe → hủy, không thì bắt đầu nghe
   useEffect(() => {
     const sub = addVolumeKeyListener(() => {
+      // Đang đếm ngược té ngã: phím âm lượng = hủy cảnh báo (không mở mic tranh với "tôi ổn")
+      if (fallAlert.cancel()) return;
       if (phaseRef.current === 'idle') void start('manual');
       else cancel();
     });
@@ -126,9 +142,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       registerNavigation: (handle) => {
         navigation.current = handle;
       },
-      registerCapture: (route, again) => {
-        if (again) captures.current.set(route, again);
-        else captures.current.delete(route);
+      registerScreenAction: (route, action) => {
+        if (action) screenActions.current.set(route, action);
+        else screenActions.current.delete(route);
       },
     }),
     [phase, listen],

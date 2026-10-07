@@ -56,3 +56,4 @@ coverage/
 
 # Build output của native module local
 modules/*/android/build/
+modules/*/android/.gradle/

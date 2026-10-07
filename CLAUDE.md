@@ -2,7 +2,7 @@
 
 > **Mục đích:** File này là nguồn sự thật duy nhất (single source of truth) cho toàn bộ quá trình code **Mobile App** của dự án VisionAid — ứng dụng dành cho **Người khiếm thị (Visually Impaired User — VIU)**. Claude phải đọc và tuân thủ toàn bộ nội dung này trước khi generate bất kỳ code nào.
 >
-> Nguồn gốc: `VisionAid.docx` (Capstone Document — SRS, Business Rules, Use Cases), `CapstoneDescription.txt`, `DB.txt` (Database v8.0), và CLAUDE.md của Backend (ASP.NET Core 9).
+> Nguồn gốc: `VisionAid.docx` (Capstone Document — SRS, Business Rules, Use Cases), `CapstoneDescription.txt`, `DB.txt` (Database v8.0), CLAUDE.md của Backend (ASP.NET Core 9), và **`VisionAid_Update_Report.docx` (28/9/2026, sau phản biện Hội đồng/Mentor — đã chốt)**: Hybrid AI dẫn đường, License/PayOS, WebRTC, Standalone Mode, giới hạn phần cứng.
 >
 > **Contract API đã đối chiếu với source backend thật** (`../VisionAid-BE`, 2026-09-27). Khi CLAUDE.md và backend lệch nhau, **backend là chuẩn**: kiểm tra `docs/api/openapi.json`, `docs/specs/*.md`, hoặc đọc source/graph (`../VisionAid-BE/graphify-out/`). Các điểm **(GAP)** là thứ backend chưa có, cần team Backend bổ sung, xem mục 19.
 
@@ -36,13 +36,15 @@
 | VietOCR, FaceNet inference | ❌ | Container phía server (backend `a1e4df9`). OCR **lai**: online gọi server, offline ML Kit trên máy. Face: chỉ chạy trên server (`/face-registry/identify`), không có bản offline. Xem mục 9.3, 9.4 |
 
 > **Mobile App CHỈ dành cho role `VisuallyImpaired`.** Nếu user đăng nhập với role khác → từ chối, TTS: "Tài khoản này không dùng được trên ứng dụng di động. Vui lòng dùng trang web quản lý." (Screen Authorization trong SRS: mọi màn hình mobile chỉ VIU truy cập.)
+> **Caregiver không dùng app mobile này** (quyết định 2026-10-06 khi đối chiếu Update Report 28/9): đăng ký Caregiver, dùng thử, thanh toán PayOS, nhập license code, tạo tài khoản VIU đều làm trên **web dashboard**. Câu "Caregiver tải app" trong Update Report hiểu là "dùng web".
 > iOS nằm ngoài phạm vi chính (EX-07) — code không được chủ động phá vỡ iOS, nhưng chỉ test/đảm bảo trên Android.
 
 ### Nguyên tắc sản phẩm cốt lõi
 1. **Audio-first:** Người dùng KHÔNG cần nhìn màn hình. Mọi thao tác đều có phản hồi TTS tiếng Việt + haptic.
-2. **Offline-first:** Obstacle Detection (YOLOv8n) chạy hoàn toàn offline; Voice Commands offline bằng nhận dạng trên máy của Google (Android 13+, ADR 0002), máy khác dùng nút chạm.
+2. **Offline-first, Hybrid khi có mạng:** Obstacle Detection (YOLOv8n) chạy trên máy; vật **NEAR luôn cảnh báo ngay trên máy**, không chờ server. Có mạng thì vật MEDIUM/FAR được gửi lên Decision Engine để nhận hướng dẫn rẽ/tránh (Hybrid AI, mục 9.1); mất mạng/chậm → luật Rule-Based trên máy. Voice Commands offline bằng nhận dạng trên máy của Google (Android 13+, ADR 0002), máy khác dùng nút chạm.
 3. **Graceful degradation:** Mất mạng → TTS báo tính năng server (OCR, Face) tạm không khả dụng; KHÔNG crash, KHÔNG treo.
-4. **An toàn trước hết:** Fall detection, SOS, xác nhận lệnh nguy hiểm phải luôn tin cậy.
+4. **An toàn trước hết:** Fall detection, SOS, xác nhận lệnh nguy hiểm phải luôn tin cậy. **SOS không bao giờ bị chặn bởi license.**
+5. **Không thay thế gậy trắng:** VisionAid dùng kèm gậy trắng/gậy IoT, điện thoại đeo bằng túi đeo ngực (chest strap) — xem mục 20 (Limitations).
 
 ---
 
@@ -75,13 +77,14 @@
 | Battery | `expo-battery` | Auto Minimal Mode < 10% |
 | Haptics | `expo-haptics` | Kết hợp với mọi alert quan trọng |
 | Network | `@react-native-community/netinfo` | Detect online/offline |
-| Real-time | `@microsoft/signalr` | Hub `/hubs/location`: VIU **chỉ nhận** `ArrivalNotification` (hub không có method nào cho client gọi) |
+| Real-time | `@microsoft/signalr` | Hub `/hubs/location`: VIU nhận `ArrivalNotification`; GPS **không** đi qua hub. Từ backend `b878270` hub có thêm signaling WebRTC (`RelayOffer/Answer/IceCandidate`, event `WebRtc*`) — mobile chưa dùng, chờ chốt phạm vi (GAP-24) |
 | Push | `@react-native-firebase/app` + `@react-native-firebase/messaging` | FCM token gửi kèm **`device.fcmToken` trong `/auth/login`** (không có endpoint đăng ký riêng); nhận notification |
 | Secure storage | `expo-secure-store` | Access/refresh token, `client_device_id` |
 | Local DB | `expo-sqlite` | Offline queue (GPS, logs), location cache, emergency contacts cache |
-| Gọi điện trực tiếp | Native module dùng Intent `ACTION_CALL` (ví dụ `react-native-immediate-phone-call`) + quyền `CALL_PHONE` | SOS **tự quay số** — `tel:` qua `Linking` chỉ mở trình quay số, người khiếm thị vẫn phải tự tìm nút gọi → KHÔNG dùng `tel:` cho SOS |
+| Gọi điện trực tiếp | Module local `modules/phone-call`: `TelecomManager.placeCall` (không dùng Intent trần — app khác như Zalo chen vào hộp chọn ứng dụng) + quyền `CALL_PHONE` | SOS **tự quay số** — `tel:` qua `Linking` chỉ mở trình quay số, người khiếm thị vẫn phải tự tìm nút gọi → KHÔNG dùng `tel:` cho SOS |
 | Zalo | `expo-linking` (Zalo deep link) | Khi contactType = `Zalo` / `Both` (dùng `zaloDeepLink` từ API) |
 | Keep awake | `expo-keep-awake` | Trong navigation session |
+| WebRTC | `react-native-webrtc` (native, cần config plugin Expo) | Gọi video/audio với Caregiver (mục 9.10). VIU **gửi video camera + nghe audio**, không xem video. Signaling qua hub `/hubs/location`; ICE từ `/api/webrtc/ice-servers/public` |
 
 ---
 
@@ -181,6 +184,7 @@ visionaid-mobile/
 | 12 | Xác nhận gọi khẩn cấp | Emergency SOS UI | FE-10, UC-16/17/18 |
 | 13 | Đếm ngược té ngã (15s) + haptic | Emergency SOS UI | FE-28, UC-8 |
 | 14 | Xác nhận đã gửi cảnh báo | Emergency SOS UI | BR-27 |
+| 15 | Cuộc gọi với người chăm sóc (WebRTC) | Call overlay (toàn cục) | Update Report §4 |
 
 Ngoài màn hình: xem profile, đổi mật khẩu, logout (UC-3..6).
 
@@ -274,9 +278,9 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | 403 từ `/auth/refresh` | **Mọi lỗi refresh đều trả 403** (token sai / reuse / hết hạn / user bị khóa) → logout + TTS "Phiên đăng nhập đã hết hạn" |
 | 403 | TTS "Bạn không có quyền thực hiện thao tác này" |
 | 429 | TTS "Bạn thử quá nhiều lần, vui lòng đợi một phút" |
-| 402 | **License** (`LicenseValidationMiddleware`, backend `e226590`): chưa có / hết hạn quá 3 ngày. TTS một lần mỗi lần mở app: gói dịch vụ bị dừng, liên hệ người chăm sóc, **vẫn gọi khẩn cấp được** (SOS không bao giờ bị chặn). Đăng nhập vẫn vào app khi `/users/me` trả 402 (dùng thông tin trong response login). Hàng đợi offline giữ dữ liệu, gửi lại sau |
+| 402 | **License** (`LicenseValidationMiddleware`). Chính sách đã chốt (Update Report §3.4): `ACTIVE`/`TRIAL`/`EXPIRED ≤ 3 ngày` → mọi tính năng; `EXPIRED > 3 ngày` → **Navigation + SOS vẫn chạy**, tính năng khác bị chặn; `NONE` → **chỉ SOS**, Navigation bị chặn. TTS một lần mỗi lần mở app: gói dịch vụ bị dừng, liên hệ người chăm sóc, **vẫn gọi khẩn cấp được**. Đăng nhập vẫn vào app khi `/users/me` trả 402 (dùng thông tin trong response login). Hàng đợi offline giữ dữ liệu, gửi lại sau |
 | Header `X-License-Warning: expiring-in-Nd` | Còn trong 3 ngày ân hạn → TTS "Gói dịch vụ sẽ hết hạn sau N ngày" một lần mỗi lần mở app |
-| `licenseStatus` trong `/users/me` (backend `8f2641a`) | Báo trước ngay khi mở app / đăng nhập (`src/features/auth/licenseNotice.ts`): `None` hoặc hết hạn quá 3 ngày → như 402; còn ≤ 3 ngày → "sắp hết hạn". Dùng chung bộ chống lặp với 402 |
+| `licenseStatus` trong `/users/me` (backend `8f2641a`) | Báo trước ngay khi mở app / đăng nhập (`src/features/auth/licenseNotice.ts`): `None` hoặc hết hạn quá 3 ngày → như 402; còn ≤ 3 ngày → "sắp hết hạn"; `Trial` → báo còn bao nhiêu ngày dùng thử. **`None` → nút/lệnh "bắt đầu dẫn đường" bị từ chối kèm TTS hướng dẫn** (YOLO trên máy cũng không chạy, đúng chính sách); SOS luôn chạy. Dùng chung bộ chống lặp với 402 |
 | 409 / 422 | Đọc thông điệp nghiệp vụ đã map |
 | 5xx / timeout / offline | TTS "Tính năng tạm thời không khả dụng", đưa vào offline queue nếu là log |
 
@@ -299,9 +303,11 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | PATCH | `/api/navigation/sessions/{id}/end` | `{ endedAt? }`. Session đã end → 422 |
 | POST | `/api/navigation/sessions/{id}/events` | **Từng event một** (không phải batch): `{ objectClass, confidenceScore, distanceRange, boundingBox (string), alertIssued, inferenceTimeMs?, detectedAt, latitude?, longitude? }` |
 | POST | `/api/navigation/sessions/{id}/events/batch` | Mảng các event như trên → `{ … số event, số alert }`. **Dùng cái này khi flush queue** |
-| POST | `/api/ocr/requests` | multipart: `Image?`, `TriggerMethod`, `RawText?`, `ProcessedText?`, `ConfidenceScore?`, `OcrEngine`, `LanguageDetected?`, `ProcessingTimeMs?`, `ResultStatus`, `ErrorMessage?`, `TtsAnnounced`, `RequestedAt?`, `Latitude?`, `Longitude?`. **Có `Image` mà không có `ProcessedText` → server chạy VietOCR**, trả `OcrRequestResponse { processedText, rawText, confidenceScore (luôn null), ocrEngine ("vietocr" khi chạy được), resultStatus, … }`. Có `ProcessedText` → chỉ ghi log (offline). Xem 9.3 |
+| POST | `/api/navigation/guidance` | **Hybrid AI (backend `b878270`, mobile chưa tích hợp — GAP-23).** `{ sessionId (id phiên phía SERVER, phiên chưa kết thúc), frameId, detectedObjects: [{ class, confidence (0–1), distance: "MEDIUM"\|"FAR" (NEAR không gửi), position: "LEFT"\|"CENTER_LEFT"\|"CENTER"\|"CENTER_RIGHT"\|"RIGHT" }] }` → `{ logId, action: STOP\|TURN_LEFT\|TURN_RIGHT\|PROCEED, ttsText, engineUsed: Jev\|Groq\|RuleBased, isOfflineFallback, latencyMs }`. Mỗi request ghi một dòng `navigation_guidance_logs` |
+| POST | `/api/webrtc/sessions`, `/{id}/accept`, `/{id}/reject`, `/{id}/end` | **WebRTC (backend `b878270`, chưa trong plan mobile — GAP-24).** Khi emergency event chuyển `Sent`, server tự tạo phiên `SosAuto` tới Caregiver chính và gửi `WebRtcIncomingCall { sessionId, callerId, callerName, triggerType, receiverRole: "video_sender" }` cho VIU |
+| POST | `/api/ocr/requests` | multipart: `Image?`, `TriggerMethod`, `RawText?`, `ProcessedText?`, `ConfidenceScore?`, `OcrEngine`, `LanguageDetected?`, `ProcessingTimeMs?`, `ResultStatus`, `ErrorMessage?`, `TtsAnnounced`, `RequestedAt?`, `Latitude?`, `Longitude?`. **Có `Image` mà không có `ProcessedText` → server chạy VietOCR** (tách dòng + nhận dạng từng dòng) và bỏ qua validate `ResultStatus`/`OcrEngine`; trả `OcrRequestResponse { processedText, rawText, confidenceScore (xác suất thấp nhất giữa các dòng), ocrEngine, resultStatus (Success/Failed), serverOcrAvailable, … }`. `serverOcrAvailable = false` → VietOCR không chạy. Có `ProcessedText` → chỉ ghi log (offline). Xem 9.3 |
 | POST | `/api/ocr/qr-scans` | multipart: `QrContent`, `QrType?`, `IsUrl`, `UrlDomain?`, `TriggerMethod`, `ResultStatus`, `ScannedAt?`, `Latitude?`, `Longitude?`, `Image?` … |
-| POST | `/api/face-registry/identify` | multipart: **`photo`** (file), `latitude?`, `longitude?` → `IdentifyFaceResponse { recognized, matchedPersonId?, matchedPersonName?, relationship?, similarityScore?, ttsText?, engine, processingTimeMs }`. **Server tự ghi log** nhận diện. FaceNet lỗi → 422 |
+| POST | `/api/face-registry/identify` | multipart: **`photo`** (file), `latitude?`, `longitude?` → `IdentifyFaceResponse { recognized, lowConfidence, matchedPersonId?, matchedPersonName?, relationship?, similarityScore?, ttsText, engine, processingTimeMs }`. Server cắt mặt bằng MTCNN, ngưỡng `facenet_similarity_threshold` (mặc định 0.75), `lowConfidence` khi similarity trong [ngưỡng − 0.10, ngưỡng). **Server tự ghi log**. Ảnh không có mặt → **422** (detail tiếng Việt "Không tìm thấy khuôn mặt…"); FaceNet không chạy → 422 |
 | ~~POST~~ | `/api/face-registry/recognition-logs` | Không dùng nữa (identify đã tự ghi log) |
 | ~~GET~~ | `/api/face-registry/persons/me` | Không cần nữa (không nhận diện on-device) |
 | POST | `/api/voice-commands` | **Từng log một**: `{ rawTranscript?, matchedCommand?, recognitionEngine? (chuỗi tự do), confidenceScore?, executionStatus, requiredConfirmation, confirmedAt?, processingTimeMs?, audioDurationMs?, isOffline, executedAt?, latitude?, longitude? }` |
@@ -313,6 +319,8 @@ Axios interceptor chuẩn hóa mọi lỗi thành `AppError { status, title, det
 | ~~PUT~~ | `/api/emergency-events/{id}/called` | **Chỉ Caregiver/CenterAdmin** (người chăm sóc đánh dấu đã gọi). Mobile KHÔNG gọi |
 
 Không có: `/api/emergency-events/{id}/snapshot` (GAP-11) → xem mục 19.
+
+> Từ backend `b878270`: vi phạm unique (Postgres 23505) trả **409 Conflict** thay vì 500. Hàng đợi offline của mobile phải coi 409 là "đã có trên server" (xóa item), không retry mãi.
 
 ### Enum serialization
 Backend dùng `JsonStringEnumConverter` mặc định → enum trong JSON là **tên C# PascalCase**: `"AccelerometerCamera"`, `"Near"`, `"Minimal"`, `"Android"`, `"VisuallyImpaired"`. DB lưu SCREAMING_SNAKE nhưng **API không dùng dạng đó**. Role trong JWT và trong response cũng là PascalCase.
@@ -389,7 +397,7 @@ Server revoke mọi token + terminate GPS sessions → client nhận 401 ở l�
 
 ## 9. CORE FEATURES — ĐẶC TẢ TRIỂN KHAI
 
-### 9.1 Obstacle Detection (YOLOv8n — OFFLINE)
+### 9.1 Obstacle Detection + Hybrid AI Navigation
 ```
 Camera (vision-camera) → frame processor (frame skipping) → resize/normalize
 → YOLOv8n inference (TFLite qua react-native-fast-tflite, 320×320) → NMS → lọc confidence >= yolo_confidence_threshold
@@ -403,6 +411,14 @@ Camera (vision-camera) → frame processor (frame skipping) → resize/normalize
 - **Minimal Mode:** chỉ announce class có cờ `dangerous` trong `obstacleClasses.ts` (xe máy, ô tô, xe buýt, xe tải, xe đạp, bậc thang/hố... — danh sách chốt theo class model hỗ trợ). **Full Mode:** announce tất cả.
 - **Câu TTS:** `"{Tên vật tiếng Việt} {ở gần | phía trước | ở xa}"` — ngắn gọn.
 - **Logging:** ghi event (`objectClass`, `confidenceScore`, `distanceRange`, `boundingBox` — chuỗi JSON toạ độ chuẩn hoá 0–1, `alertIssued`, `inferenceTimeMs`, `detectedAt`, `latitude`, `longitude`) vào SQLite → flush định kỳ / khi online. Flush qua **`POST /navigation/sessions/{id}/events/batch`** (mỗi batch tối đa ~100 event; backend chưa đặt giới hạn nên client tự chia). Chỉ log event có `alertIssued = true` hoặc lấy mẫu để tránh phình dữ liệu.
+- **Hybrid AI (Update Report §1, đã chốt; backend `POST /api/navigation/guidance`):**
+  - **Layer 1 — trên máy (an toàn):** vật **NEAR** → TTS cảnh báo **ngay**, không gửi server, không chờ mạng.
+  - **Layer 2 — server:** vật **MEDIUM/FAR** đóng gói `{ sessionId, frameId, detectedObjects: [{ class, confidence, distance: "MEDIUM"|"FAR", position }] }` → Decision Engine (JEV → Groq → Rule-Based) trả `action` (STOP / TURN_LEFT / TURN_RIGHT / PROCEED) + `ttsText` dựng từ **template cố định** (không phải LLM) → mobile đọc `ttsText`.
+  - `position` chia khung hình theo tâm bounding box thành **5 dải ngang bằng nhau** (mỗi dải 20% chiều rộng): `LEFT` / `CENTER_LEFT` / `CENTER` / `CENTER_RIGHT` / `RIGHT` — khớp validator và luật của backend. Update Report §1.2 ghi `LEFT/CENTER/RIGHT` nhưng ví dụ JSON dùng `CENTER_RIGHT` → theo 5 dải.
+  - Model YOLO vẫn là **float16 + GPU delegate** (ADR 0001, đo ~65 ms/cycle trên Galaxy S20 FE); Update Report ghi "INT8, 200–500 ms" là số cũ — SRS/slide cần sửa theo ADR 0001.
+  - **Fallback trên máy:** offline, phiên chưa có id phía server, lỗi, hoặc quá `navigation_near_threshold_ms` (mặc định 500 ms, đọc từ `/system-configs/public`) → chạy **cùng luật Rule-Based** với server (chép từ `RuleBasedDecisionEngine.cs`: vật ở CENTER* → STOP; ở RIGHT → TURN_LEFT; ở LEFT → TURN_RIGHT; không có → PROCEED) và cùng template câu TTS (đặt trong `strings.vi.ts`).
+  - Không gửi mỗi frame: chỉ gửi khi tập vật MEDIUM/FAR (class + distance + position) thay đổi, có giới hạn tần suất (chờ chốt với backend — GAP-23). Hướng dẫn rẽ/tránh dùng cooldown riêng, không đè cảnh báo NEAR (priority DANGER > INFO).
+  - Bật/tắt bằng `hybrid_navigation_enabled`. License `NONE` → Navigation bị chặn (mục 6).
 - **Session:** Start → `POST /navigation/sessions { detectionMode, deviceModel, appVersion, startedAt }` (nếu offline: tạo session local, sync sau với `startedAt` gốc) + bắt đầu GPS sharing (UC-22 included) + bật FallDetector. End → `PATCH /navigation/sessions/{id}/end { endedAt }`, tắt FallDetector.
 
 ### 9.2 TTS Service — Priority Queue (FE-35)
@@ -416,11 +432,11 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 - Không để queue phình: object announce cũ hơn 1 cycle bị drop.
 
 ### 9.3 OCR & QR (ONLINE cho OCR, QR decode offline)
-- **OCR lai** (backend `a1e4df9`):
-  - **Online:** chụp → nén JPEG (cạnh dài ~1600px, < 1MB; server giới hạn 10MB) → `POST /api/ocr/requests` multipart gồm `Image`, `TriggerMethod`, `ResultStatus=Failed`, `OcrEngine=pending`, `TtsAnnounced=false`; **không** gửi `ProcessedText`/`RawText`/`ConfidenceScore`. `ResultStatus` và `OcrEngine` buộc phải gửi (mặc định `Success` không kèm text bị validator trả 400); server ghi đè khi VietOCR chạy (GAP-19).
-  - Đọc response: `ocrEngine == "vietocr"` và `processedText` có chữ → TTS. `vietocr` nhưng rỗng (`Failed`) → "Không đọc rõ, vui lòng chụp lại ở nơi đủ sáng" (BR-24). `ocrEngine` khác `vietocr` (server không gọi được VietOCR), timeout (~8s) hoặc 5xx → **fallback ML Kit** trên máy.
+- **OCR lai** (backend `a1e4df9`, cập nhật `b878270`):
+  - **Online:** chụp → nén JPEG (cạnh dài ~1600px, < 1MB; server giới hạn 10MB) → `POST /api/ocr/requests` multipart gồm `Image`, `TriggerMethod`, `TtsAnnounced`; **không** gửi `ProcessedText`/`RawText`/`ConfidenceScore`. Backend không còn bắt validate `ResultStatus`/`OcrEngine` ở chế độ này, nhưng mobile vẫn gửi `ResultStatus=Failed`, `OcrEngine=pending` để khi VietOCR không chạy, log không bị ghi nhầm thành `Success`/`Tesseract` (mặc định của backend).
+  - Đọc response: `serverOcrAvailable == false`, timeout (~8s) hoặc 5xx → **fallback ML Kit** trên máy. `serverOcrAvailable == true`: `processedText` có chữ và `confidenceScore` ≥ ngưỡng → TTS; rỗng (`Failed`) hoặc `confidenceScore` < ngưỡng → thử ML Kit, vẫn không được thì "Không đọc rõ, vui lòng chụp lại ở nơi đủ sáng" (BR-24). Ngưỡng OCR chưa có config key (GAP-25).
   - **Offline:** ML Kit Text Recognition (Latin, on-device) → TTS → log `/api/ocr/requests` với `ProcessedText`, `OcrEngine=mlkit`, không gửi ảnh, qua hàng đợi offline.
-  - ⚠️ VietOCR chỉ **nhận dạng một dòng chữ**, server chưa có bước phát hiện vùng chữ (GAP-18). Server không trả confidence (GAP-22) nên BR-24 chỉ dựa vào text rỗng.
+  - VietOCR đã tách dòng bằng projection ngang (OpenCV) trước khi nhận dạng; ảnh nghiêng hoặc nhiều cột có thể vẫn sai thứ tự dòng → đo trên máy thật.
   - Target ≤ 3s (P95). Hiện TTS "Đang đọc..." nếu > 1.5s.
 - **QR:** decode on-device bằng code scanner → đọc nội dung qua TTS; nếu là URL → đọc domain + hỏi có mở không (xác nhận bằng giọng nói); log qua `POST /api/ocr/qr-scans` (multipart: `QrContent`, `QrType`, `IsUrl`, `UrlDomain`, `TriggerMethod`, `ResultStatus`, `ScannedAt`, `Latitude`, `Longitude`; queue nếu offline).
 - VIU **không xem lại lịch sử OCR** trên app — lịch sử chỉ dành cho Caregiver trên web (BR-25).
@@ -428,9 +444,9 @@ enum TtsPriority { EMERGENCY = 0, DANGER = 1, SYSTEM = 2, FEEDBACK = 3, INFO = 4
 
 ### 9.4 Face Recognition (ONLINE)
 - **Chạy trên server** (backend `a1e4df9`): chụp → nén JPEG → `POST /api/face-registry/identify` (multipart field **`photo`**, kèm `latitude`/`longitude`) → server tạo embedding FaceNet (vggface2, 512 chiều), tìm cosine bằng pgvector trong registry của VIU, **tự ghi log**. Mobile **không** gọi `/recognition-logs`, **không** tải `/persons/me`.
-- `recognized: true` → TTS "{matchedPersonName} ({relationship}) ở phía trước" (dựng câu từ `strings.vi.ts`, không đọc `ttsText` của server). `false` → "Không nhận ra người này". Server không trả `LowConfidence`.
-- 422 (FaceNet không chạy) / 5xx / timeout → "Tính năng nhận diện người quen tạm thời không khả dụng".
-- ⚠️ Server chưa cắt khuôn mặt trước khi tạo embedding (GAP-20) và dùng ngưỡng cứng 0.60 thay vì BR-21 0.75 (GAP-21).
+- `recognized: true` → TTS "{matchedPersonName} ({relationship}) ở phía trước" (dựng câu từ `strings.vi.ts`, không đọc `ttsText` của server). `lowConfidence: true` → "Chưa rõ, vui lòng hướng camera thẳng vào khuôn mặt". Còn lại → "Không nhận ra người này".
+- 422 có hai nghĩa: không thấy khuôn mặt (detail "Không tìm thấy khuôn mặt…") → TTS hướng dẫn chụp lại gần, đủ sáng; FaceNet không chạy → "Tính năng nhận diện người quen tạm thời không khả dụng". Hai trường hợp chỉ phân biệt được qua `detail` (GAP-26). 5xx / timeout → "tạm thời không khả dụng".
+- Server cắt và căn khuôn mặt bằng MTCNN cho cả upload lẫn identify; ngưỡng đọc từ `facenet_similarity_threshold` (backend `b878270`).
 - **Privacy (BR-22):** ảnh tạm dùng để nhận diện **xóa khỏi thiết bị ngay** sau khi request xong (kể cả lỗi) — dùng `finally`. KHÔNG lưu vào gallery, KHÔNG cache, KHÔNG log.
 - VIU **không quản lý** face registry — việc đó do Caregiver làm trên web.
 - Offline → TTS: "Tính năng nhận diện người quen cần kết nối mạng".
@@ -482,27 +498,36 @@ Phát hiện té ngã
    (server set Detected + grace_period_ends_at = detectedAt + 15s; trả về event có id)
 → Snapshot đi INLINE trong cùng request (snapshotBase64, JPEG đã nén nhỏ). Backend không có endpoint /snapshot riêng;
   upload MinIO lỗi thì server vẫn tạo event. Ảnh phải nén mạnh để không làm chậm việc tạo event (GAP-11: tách snapshot ra endpoint riêng)
-→ Emergency SOS UI: đếm ngược 15s bằng TTS ("Phát hiện té ngã. Nói 'Tôi ổn' hoặc chạm màn hình để hủy. 15... 14...")
-   + haptic mỗi giây; lắng nghe "tôi ổn" (xem quy tắc chống tự nghe bên dưới); chạm bất kỳ đâu trên màn hình = hủy
+→ Emergency SOS UI: đếm ngược 15s — TTS "Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo." rồi chỉ đọc số ở 10 và 5
+   (chừa khoảng lặng cho mic nghe "tôi ổn") + haptic mỗi giây; lắng nghe "tôi ổn" (xem quy tắc chống tự nghe bên dưới); chạm bất kỳ đâu trên màn hình = hủy
 ├── User hủy trong 15s → PUT /api/emergency-events/{id}/dismiss { notes? } → TTS "Đã hủy cảnh báo"
 │     (quá grace → 422 "Grace period has expired" → TTS "Cảnh báo đã được gửi")
 └── Hết 15s → server background job (EmergencyEventDispatcher) tự chuyển Sent + gửi Caregiver
       → app TTS "Đã gửi cảnh báo đến người chăm sóc" (Alert confirmation)
 ```
 - Grace period được **server làm chuẩn** (source of truth); countdown trên app chỉ là UI. Việc dismiss phải gọi API trước khi server hết grace.
+- `detectedAt` = **lúc đủ hai tín hiệu** (bắt đầu đếm ngược), không phải lúc va chạm — va chạm sớm hơn ≥ 5 s (chờ camera đứng yên) nên nếu gửi lúc va chạm, server hết grace trước khi đồng hồ trên máy về 0. Thời điểm va chạm nằm trong `accelerometerData`.
 - Luôn gửi `detectedAt` từ thiết bị: event sync muộn từ offline queue → server tính grace từ thời điểm té thật (đã quá 15s → dispatcher gửi ngay). Đồng hồ thiết bị có thể lệch; backend chưa giới hạn `detectedAt` so với giờ server.
 - ⚠️ **Chống tự nghe (echo) — CRITICAL:** câu TTS countdown chứa chính cụm "Tôi ổn", câu xác nhận SOS chứa "có" / "đồng ý". Nếu mic nghe trong lúc TTS đang phát, app sẽ **tự hủy cảnh báo té ngã / tự xác nhận SOS**. Bắt buộc: bỏ qua mọi transcript thu được trong lúc TTS đang phát (hoặc chỉ mở mic trong khoảng lặng giữa các lần đọc). Chạm màn hình là cách hủy chính, luôn hoạt động.
-- **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
+- **Offline khi té ngã (đã làm):** lưu event vào queue; hết 15s mà vẫn offline (hoặc tạo event lỗi) và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (xem mục 2); khi có mạng sync event lên server.
 
 **Luồng `Manual` / `VoiceCommand` / `Gesture`:**
+> `Gesture` **ngoài phạm vi capstone** (quyết định 2026-10-07): chưa có cử chỉ nào không đụng với thao tác sẵn có (phím âm lượng = nghe lệnh). App chỉ gửi `Manual` (nút) và `VoiceCommand`; giá trị enum giữ nguyên cho khớp backend.
 ```
 Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation bắt buộc (10s timeout)
 → POST /api/emergency-events { detectionMethod: "Manual" | "VoiceCommand" | "Gesture", detectedAt, latitude, longitude }
    (server set Sent ngay, grace = NULL, tạo notification cho Caregiver)
-→ TTS "Đã gửi cảnh báo khẩn cấp" → gọi emergency contact theo priorityOrder (Phone/Both: ACTION_CALL qua phoneNumber, Zalo: zaloDeepLink)
+→ TTS "Đã gửi cảnh báo khẩn cấp" → gọi emergency contact theo priorityOrder (Phone/Both: `TelecomManager.placeCall` qua phoneNumber, Zalo: zaloDeepLink)
 → (Trạng thái `Called` do Caregiver/CenterAdmin đánh dấu qua PUT /{id}/called — mobile KHÔNG gọi endpoint này)
 ```
 - Emergency contacts cache trong SQLite để dùng được khi offline.
+- **Quyền `CALL_PHONE` xin trước** (lúc bắt đầu dẫn đường, mở màn khẩn cấp) — lúc khẩn cấp chỉ kiểm tra, chưa có quyền → mở trình quay số. Cuộc gọi **không chờ** gửi event (gửi chạy song song).
+- **Không bao giờ nhận "đã xác nhận" từ route param / deep link:** lệnh giọng nói đặt cờ một lần trong bộ nhớ (5 s); `app/+native-intent.tsx` chặn deep link vào màn khẩn cấp.
+- Hàng đợi `pending_emergency_events` giữ qua logout nhưng có `owner_id`: chỉ gửi khi đúng chủ đăng nhập.
+- Link Zalo chỉ chấp nhận `https://zalo.me/…` hoặc `zalo://…`. **Standalone Mode** (VIU thuộc trung tâm, không có người thân): contacts do Staff Caregiver cấu hình, có thể gồm **112/113/114/115**, hotline trung tâm, số trực ban.
+- **Không dùng Intent `ACTION_CALL`/`ACTION_DIAL` trần:** app khác (Zalo…) cũng nhận intent đó → Android hiện hộp "chọn ứng dụng", người khiếm thị kẹt (đã gặp trên máy thật 2026-10-06). Module `modules/phone-call` gọi qua `TelecomManager.placeCall`; trình quay số mở bằng `setPackage(defaultDialerPackage)`.
+- ⚠️ Android **không cho `ACTION_CALL` gọi số khẩn cấp** (112, 113, 114, 115) — chỉ mở được trình quay số (`ACTION_DIAL`). Với các số này: mở trình quay số đã điền sẵn số + TTS "Chạm nút gọi màu xanh ở giữa phía dưới màn hình"; ưu tiên gọi trước contact không phải số khẩn cấp nếu có.
+- Sau khi event chuyển `Sent`, server **tự mở cuộc gọi WebRTC `SOS_AUTO`** tới Caregiver chính (mục 9.10): app VIU bật camera gửi video + phát audio của Caregiver.
 - KHÔNG bao giờ gọi acknowledge / escalate / resolve từ mobile — đó là hành động của Caregiver (backend cũng chặn theo role).
 - Chỉ role VIU mới tạo/dismiss được event; VIU chỉ dismiss được event của chính mình.
 
@@ -512,7 +537,15 @@ Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation b
 
 ### 9.9 Settings & Privacy
 - TTS preferences: đồng bộ server, cache local để áp dụng ngay khi khởi động (kể cả offline).
-- Privacy consent: hiển thị/đọc nội dung chính sách (thu thập GPS, ảnh khuôn mặt người quen) → chấp nhận bằng nút lớn hoặc giọng nói → `accept-privacy-policy` với `privacy_policy_version` hiện tại.
+- Privacy consent: hiển thị/đọc nội dung chính sách (thu thập GPS, ảnh khuôn mặt người quen) → chấp nhận bằng nút lớn hoặc giọng nói → `accept-privacy-policy` với `privacy_policy_version` hiện tại. Bản chính sách phải nói thêm: **video camera được truyền cho người chăm sóc trong cuộc gọi WebRTC** (kể cả cuộc gọi tự động khi SOS).
+
+### 9.10 WebRTC — Gọi với người chăm sóc (Update Report §4, đã vào phạm vi)
+- **3 cách kích hoạt:** Caregiver gọi từ dashboard (`CAREGIVER_INITIATED`), VIU nói **"gọi người chăm sóc"** (`VIU_VOICE_COMMAND` → `POST /api/webrtc/sessions`), hệ thống tự gọi khi SOS `Sent` (`SOS_AUTO`).
+- **Vai trò VIU:** gửi **video camera sau + audio micro**, chỉ **nghe** Caregiver, không xem video (role `video_sender` trong `WebRtcIncomingCall`). Caregiver xem video và nói chuyện.
+- **Nhận cuộc gọi không cần nhìn:** `WebRtcIncomingCall` → TTS "{callerName} đang gọi" + rung; `SOS_AUTO` tự nhận; cuộc gọi Caregiver chủ động: nhận bằng nút âm lượng / nút lớn / lệnh "nghe máy" (chờ chốt tự nhận hay không — GAP-24). Kết thúc: lệnh "kết thúc cuộc gọi", nút lớn, hoặc `WebRtcCallEnded`.
+- **Signaling:** HTTP (`/api/webrtc/sessions`, `/{id}/accept|reject|end`) + hub `/hubs/location` (`RelayOffer` / `RelayAnswer` / `RelayIceCandidate`; event `WebRtcIncomingCall`, `WebRtcCallAccepted`, `WebRtcOffer`, `WebRtcAnswer`, `WebRtcIceCandidate`, `WebRtcCallEnded`, `WebRtcCallRejected`). ICE từ `/api/webrtc/ice-servers/public` (STUN Google + TURN Coturn).
+- **Camera:** trong phiên dẫn đường camera đang dùng cho YOLO → khi cuộc gọi kết nối, tạm dừng nhận diện vật cản (TTS báo) và trả camera lại khi kết thúc, trừ khi backend/nhóm chốt khác (GAP-24).
+- Bật/tắt bằng `webrtc_enabled`; tối đa `webrtc_max_duration_minutes` (60). Cuộc gọi đi qua mạng → offline thì TTS "cần kết nối mạng"; SOS vẫn gọi điện thoại như mục 9.7.
 
 ---
 
@@ -570,7 +603,10 @@ export const BusinessRules = {
 "ArrivalNotification" → { viuId, savedLocationId, savedLocationName, ttsAnnouncement?, latitude, longitude, occurredAt }
                         → TTS + haptic (dedupe với FCM cùng sự kiện)
 
-// Mobile → Server: KHÔNG có hub method nào. GPS gửi qua REST POST /api/locations/gps (mục 9.6).
+// Mobile → Server: GPS KHÔNG đi qua hub, gửi qua REST POST /api/locations/gps (mục 9.6).
+// Từ backend b878270 hub có method signaling WebRTC (RelayOffer / RelayAnswer / RelayIceCandidate)
+// và event WebRtcIncomingCall / WebRtcCallAccepted / WebRtcOffer / WebRtcAnswer / WebRtcIceCandidate /
+// WebRtcCallEnded / WebRtcCallRejected — mobile chưa dùng, chờ chốt phạm vi (GAP-24).
 ```
 - Kết nối lại khi app từ background → foreground và khi mạng có lại.
 - SignalR chỉ dùng để nhận; GPS không phụ thuộc vào trạng thái kết nối hub.
@@ -597,6 +633,8 @@ export const BusinessRules = {
 | 11 | "trợ giúp" | Đọc danh sách lệnh | ❌ |
 | 12 | "lặp lại" | Đọc lại thông báo gần nhất | ❌ |
 | 13 | "tăng âm lượng" / "giảm âm lượng" (cũng nhận "to lên", "nhỏ lại") | Tăng / giảm âm lượng media (±15%, tối thiểu 30%) — thay cho phím âm lượng | ❌ |
+| 14 | "gọi người chăm sóc" | Gọi WebRTC tới Caregiver chính (`VIU_VOICE_COMMAND`) | ❌ (không phải gọi khẩn cấp) |
+| 15 | "kết thúc cuộc gọi" | Kết thúc cuộc gọi WebRTC | ❌ |
 
 ---
 
@@ -613,6 +651,8 @@ export const BusinessRules = {
 | Face Recognition | ❌ | TTS "cần kết nối mạng" |
 | "Tôi đang ở đâu" | ⚠️ | Địa chỉ cache + timestamp (BR-15) |
 | GPS sharing | ⚠️ | Lưu SQLite, flush khi online |
+| Hướng dẫn rẽ/tránh (Hybrid) | ⚠️ | Rule-Based trên máy (cùng luật + câu với server); NEAR luôn trên máy |
+| WebRTC | ❌ | TTS "cần kết nối mạng" |
 
 **Offline queue (SQLite):** bảng `pending_gps`, `pending_detection_events`, `pending_voice_logs`, `pending_qr_logs`, `pending_emergency_events`. Flush theo thứ tự ưu tiên: emergency → GPS → logs. GPS và detection event flush bằng **endpoint batch** (chia lô ~100); voice log / QR log / emergency gửi từng item. Retry với exponential backoff; xóa item khi server trả 2xx (GPS trùng `clientGeneratedId` cũng trả 200). Các lỗi 4xx vĩnh viễn (400/422, trừ 401/429) → bỏ item, log cảnh báo, để khỏi kẹt queue. Giới hạn dung lượng queue (drop log cũ nhất trước, KHÔNG BAO GIỜ drop emergency).
 
@@ -630,6 +670,8 @@ POST_NOTIFICATIONS (Android 13+)
 CALL_PHONE (SOS tự quay số)
 VIBRATE, WAKE_LOCK, INTERNET, ACCESS_NETWORK_STATE
 HIGH_SAMPLING_RATE_SENSORS (accelerometer tần số cao, Android 12+)
+RECEIVE_BOOT_COMPLETED (expo-task-manager lưu lịch task GPS nền)
+MODIFY_AUDIO_SETTINGS (WebRTC: loa ngoài khi gọi)
 ```
 - Xin quyền theo ngữ cảnh, **giải thích bằng TTS trước** khi hiện dialog hệ thống.
 - Background location xin riêng sau khi có foreground location (yêu cầu của Android).
@@ -728,13 +770,20 @@ Sprint 6 — Location
   ✦ ArrivalNotification handler
   ✦ FCM token registration
 
-Sprint 7 — Emergency
+Sprint 7 — Emergency + License policy
   ✦ FallDetector (accelerometer + camera immobility)
   ✦ Fall countdown UI (TTS + haptic, dismiss by tap/voice)
-  ✦ SOS manual / voice / gesture + emergency contacts calling
+  ✦ SOS manual / voice / gesture + emergency contacts calling (số khẩn cấp 112/115 → ACTION_DIAL)
   ✦ Battery monitor auto Minimal Mode
+  ✦ License: NONE chặn dẫn đường, Trial đếm ngày, SOS không bao giờ bị chặn
 
-Sprint 8 — Settings, Hardening & Release
+Sprint 8 — Hybrid AI Navigation + WebRTC (Update Report 28/9)
+  ✦ Position 5 dải + gửi MEDIUM/FAR lên /api/navigation/guidance, đọc ttsText
+  ✦ Rule-Based + template trên máy khi offline / quá navigation_near_threshold_ms
+  ✦ WebRTC: nhận cuộc gọi (TTS + rung), SOS_AUTO tự nhận, "gọi người chăm sóc", gửi video + nghe audio
+  ✦ Nhường camera giữa YOLO và cuộc gọi
+
+Sprint 9 — Settings, Hardening & Release
   ✦ Settings screen (TTS prefs, mode, profile, change password)
   ✦ TalkBack compatibility pass, permission-revoke handling
   ✦ Performance benchmark (TTS ≤ 1s, OCR ≤ 3s P95, pin ≤ 20%/h)
@@ -765,27 +814,39 @@ Sprint 8 — Settings, Hardening & Release
 
 ---
 
-## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-02 sau commit `a1e4df9`)
+## 19. GAP VỚI BACKEND (đối chiếu source, cập nhật 2026-10-06 sau commit `b878270`)
 
 > Những thứ mobile cần nhưng backend **chưa có**. Khi được bổ sung thì sửa mục liên quan và chuyển dòng sang bảng "Đã xử lý". Chi tiết auth: `docs/specs/auth.md`.
 
 ### Còn mở
 | # | Chặn | Thiếu gì | Đề xuất cho backend | Tạm thời phía mobile |
 |---|---|---|---|---|
-| GAP-18 | Sprint 5 (OCR) | `vietocr-service` gọi `Predictor.predict` trên **cả ảnh**. VietOCR là model nhận dạng **một dòng**, không có bước phát hiện vùng chữ → ảnh biển hiệu/tài liệu nhiều dòng cho kết quả sai hoặc chỉ một dòng | Thêm text detection (ví dụ PaddleOCR det / CRAFT), cắt từng dòng rồi mới đưa vào VietOCR | Fallback ML Kit khi kết quả rỗng; đo trên máy rồi gửi số liệu |
-| GAP-19 | Sprint 5 (OCR) | Chế độ online vẫn bắt client gửi `ResultStatus` (mặc định `Success` không kèm text → 400) và `OcrEngine`; client chỉ phân biệt "VietOCR lỗi" với "ảnh không có chữ" bằng cách so `ocrEngine` | Flag riêng cho online (ví dụ `mode=online`) và trả rõ server có chạy OCR không | Gửi `ResultStatus=Failed`, `OcrEngine=pending`; `ocrEngine != "vietocr"` → coi như server OCR lỗi |
-| GAP-20 | Sprint 5 (Face) | `facenet-service` resize **cả ảnh** về 160×160, không phát hiện/cắt khuôn mặt (MTCNN có sẵn trong `facenet_pytorch` nhưng không dùng) → embedding phụ thuộc bố cục ảnh, nhận diện kém khi chụp xa/lệch | Dùng MTCNN cắt và căn khuôn mặt cho cả upload lẫn identify; ảnh không có mặt → trả lỗi rõ | TTS hướng dẫn đưa camera gần mặt; đo trên máy |
-| GAP-21 | Sprint 5 (Face) | `IdentifyFaceHandler` dùng ngưỡng cứng `distance ≤ 0.40` (similarity ≥ 0.60), lệch BR-21 (> 0.75), không đọc `facenet_similarity_threshold` từ system config; không có kết quả `LowConfidence` | Đọc ngưỡng từ system config; trả `LowConfidence` khi gần ngưỡng | Theo `recognized` của server |
-| GAP-22 | Sprint 5 (OCR) | VietOCR trả `confidence: null` → không áp được BR-24 theo ngưỡng | Bật `return_prob=True` của Predictor để có xác suất | BR-24 chỉ dựa vào text rỗng |
 | GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
 | SEC | Ngay | `appsettings.Development.json` (đang commit) chứa khóa thật Resend + **PayOS `ChecksumKey`** (giả mạo được webhook → kích hoạt license miễn phí); `DbSeeder` seed tài khoản mặc định ở mọi môi trường | Rotate khóa, chuyển secret ra biến môi trường, chỉ seed ở Development | — |
-| GAP-17 | Chưa xếp | Hybrid AI Navigation (YOLO scene → JEV/Groq/RuleBased → TTS): mới có entity `NavigationGuidanceLog`, chưa có endpoint. WebRTC: mới có ICE server (`GET /api/webrtc/ice-servers/public`), chưa có signaling | Contract request/response, độ trễ, fallback offline, sprint bàn giao | Giữ pipeline YOLO + luật cục bộ hiện tại |
+| GAP-23 | Sprint 8 (Hybrid AI) | **Phạm vi đã chốt (Update Report §1).** Còn hỏi: tần suất gọi (mỗi request ghi 1 dòng log, YOLO ~3 lần/giây); Groq không có timeout nên tổng thời gian có thể vượt `navigation_near_threshold_ms`; `class` bị đọc nguyên văn trong `ttsText` (báo cáo dùng `"motorbike"` → "Có motorbike phía…"); ranh giới 5 dải `position`; cần `sessionId` phía server (phiên offline chưa có). `distance`/`position` so khớp không phân biệt hoa thường — không cần đổi | Trả lời các câu hỏi; map class sang tiếng Việt phía server hoặc quy ước mobile gửi tên tiếng Việt | Rule-Based + template trên máy khi chưa gọi được server |
+| GAP-24 | Sprint 8 (WebRTC) | **Phạm vi và vai trò đã chốt** (VIU gửi video + nghe audio). Theo code: VIU (`video_sender`) luôn tạo offer sau `WebRtcCallAccepted` — tài liệu backend §23 (VIU `audio_receiver`, Answer trước Offer) cần sửa cho khớp. **Lỗi:** phiên `SosAuto` có `initiator_id = NULL` → `LocationHub.ComputeTargetGroup` không tìm được Caregiver khi VIU relay offer/ICE → `HubException`, cuộc gọi SOS không kết nối được | Sửa `ComputeTargetGroup` (VIU → `receiver_id` khi `initiator_id` null); sửa tài liệu §23 | Chưa làm WebRTC. Tự nhận cuộc gọi Caregiver chủ động và nhường camera là quyết định của nhóm/mobile |
+| GAP-25 | Sprint 5 (OCR) | Không có config ngưỡng confidence OCR; `resultStatus` chỉ `Success`/`Failed`, không có `LowConfidence`. VietOCR không chạy mà mobile không gửi `ResultStatus`/`OcrEngine` → log ghi `Success` + `Tesseract` | Thêm `ocr_confidence_threshold` + trả `LowConfidence`; khi VietOCR không chạy đặt `Failed` | Mobile vẫn gửi `ResultStatus=Failed`, `OcrEngine=pending`; ngưỡng tạm phía client |
+| GAP-26 | Sprint 5 (Face) | **Lỗi:** `FaceNetService` ném `BusinessRuleException` "Không tìm thấy khuôn mặt…" bên trong `try`, nhưng `catch (Exception)` nuốt mất và trả `null` → client luôn nhận "service unavailable" (422), không bao giờ biết là không thấy mặt. Upload ảnh Caregiver không có mặt cũng âm thầm lưu không embedding | Không bắt `BusinessRuleException` trong `catch`; thêm mã lỗi riêng (`errorCode: NoFaceDetected` hoặc 503 khi service lỗi); báo Caregiver khi ảnh upload không có mặt | Đọc chung một câu "chưa nhận diện được, chụp lại gần hơn, đủ sáng" cho 422 |
+| GAP-27 | Sprint 6 (FCM) | `google-services.json` chỉ có `vn.visionaid.mobile`, thiếu `vn.visionaid.mobile.dev` → bản dev build lỗi; payload FCM `ArrivalNotification` chỉ có `notificationId`/`notificationType`, thiếu `savedLocationId`/`savedLocationName`/`ttsAnnouncement`/`occurredAt` và luôn kèm `Notification` (Android tự hiện, app không TTS khi chạy nền) | Thêm app `.dev` vào Firebase project `visionaid-firebase-5cccb`; thêm field vào `data`, gửi data-only + priority high cho VIU | Code FCM đã xong, bỏ qua payload thiếu field |
+| GAP-28 | Ngay | `DbSeeder`: gói license **và các config mới** (`hybrid_navigation_*`, `navigation_near_threshold_ms`, `webrtc_*`, `payos_*`, `trial_days_default`…) chỉ seed khi DB trống → DB production cũ không có. License `NONE` chặn `/api/navigation/*` là **đúng chính sách** (Update Report §3.4); chỉ cần sửa câu rule 20–22 của backend cho rõ | Seed theo từng key/`Code`; sửa câu rule | — |
+| GAP-29 | Sprint 8 | `navigation_near_threshold_ms`, `hybrid_navigation_enabled`, `webrtc_enabled`, `webrtc_max_duration_minutes` seed với `isPublic: false` → `/api/system-configs/public` không trả, mobile không đọc được | Đặt `isPublic: true` cho các key mobile cần | Dùng mặc định cứng (500 ms, bật) |
+| GAP-30 | Sprint 8 | `LicenseValidationMiddleware` không miễn `/api/webrtc/sessions*` → VIU license `NONE` / hết hạn > 3 ngày bị 402 khi nhận, gọi hoặc kết thúc cuộc gọi, kể cả cuộc gọi `SosAuto` (trái "SOS không bao giờ bị chặn") | Miễn kiểm tra license cho phiên có `emergency_event_id` (hoặc toàn bộ `/api/webrtc/sessions` của VIU) | — |
+| GAP-31 | Sprint 7 | `POST /api/emergency-events` không có khóa chống trùng → request timeout sau khi server đã tạo xong thì mobile đưa vào hàng đợi và tạo **event thứ hai** (Caregiver nhận 2 cảnh báo; hủy té ngã chỉ hủy được một) | Nhận `clientGeneratedId` như GPS, trùng → trả event cũ | — |
+| GAP-32 | Sprint 7 (Standalone) | Validator `CreateEmergencyContact` dùng regex `^(0[3\|5\|7\|8\|9])[0-9]{8}$` → chỉ nhận di động 10 số: **không lưu được 112/113/114/115, hotline 1800/1900, số bàn, `+84…`**; lớp ký tự còn sai (`[3\|5…]` nhận cả `\|`) | Nhận số khẩn cấp 3 số, 1800/1900 + 4–6 số, số bàn, `+84`; sửa thành `[35789]` | Mobile đã xử lý các số này (mở trình quay số) |
+| GAP-33 | Sprint 8 (WebRTC) | Cuộc gọi `SosAuto` chỉ tạo trong `EmergencyEventDispatcher` (té ngã `Detected → Sent`); SOS `Manual`/`VoiceCommand` đi thẳng `Sent` trong `CreateEmergencyEventHandler` → **không mở WebRTC** (trái Update Report §4) | Gọi cùng logic `TryTriggerSosWebRtcCallAsync` khi tạo event `Sent` | — |
+| GAP-34 | Sprint 8 (WebRTC) | Không có ring timeout: không có key `webrtc_ring_timeout_seconds`, không job nào chuyển phiên sang `Missed` → phiên không ai nghe kẹt mãi | Config 45 s (`isPublic: true`) + job chuyển `Missed` và báo cả hai phía | — |
 
-### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`)
+### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`)
 | # | Kết quả |
 |---|---|
+| GAP-18 | (`b878270`) VietOCR tách dòng (OpenCV projection) rồi nhận dạng từng dòng |
+| GAP-19 | (`b878270`) Gửi ảnh online không còn bắt `ResultStatus`/`OcrEngine`; response có `serverOcrAvailable` |
+| GAP-20 | (`b878270`) MTCNN cắt + căn khuôn mặt; không có mặt → 422 |
+| GAP-21 | (`b878270`) Ngưỡng từ `facenet_similarity_threshold` (0.75), thêm `LowConfidence` / `lowConfidence` |
+| GAP-22 | (`b878270`) `confidence` = xác suất thấp nhất giữa các dòng |
+| GAP-17 | (`b878270`) Đã có endpoint Hybrid Navigation và signaling WebRTC; câu hỏi còn lại chuyển sang GAP-23, GAP-24 |
 | GAP-3 | (`a1e4df9`) OCR lai: `/ocr/requests` có ảnh, không có `ProcessedText` → server chạy VietOCR; offline client gửi text như cũ |
 | GAP-4 | (`a1e4df9`) `POST /face-registry/identify` nhận diện trên server, tự ghi log; upload ảnh tự tạo embedding |
 | GAP-1 | `privacyConsentAcceptedAt`, `privacyPolicyVersion` có trong `UserResponse` và `AuthTokenResponse` |
@@ -799,6 +860,18 @@ Sprint 8 — Settings, Hardening & Release
 | GAP-2 | Không đổi (mobile tự chặn role) — chấp nhận |
 | GAP-15 | (`8f2641a`) License NULL = None; `/api/users/me*` luôn qua license check (kể cả emergency-contacts, tts-preferences); VIU B2C thừa hưởng license của Caregiver chính (`LicenseCacheSyncJob` mỗi giờ + ngay khi Caregiver tạo VIU). Lưu ý: Caregiver kích hoạt gói sau khi đã có VIU → VIU chờ tới lượt sync (≤ 1 giờ + cache Redis 5 phút) |
 | GAP-16 | (`8f2641a`) `UserResponse` và `AuthTokenResponse` có `licenseStatus` (`Trial`/`Active`/`Expired`/`None`, có thể null) và `licenseExpiresAt` |
+
+---
+
+## 20. LIMITATIONS & GUARDRAILS (Update Report §6 — đưa vào SRS, User Guide, slide)
+
+- **Phụ kiện bắt buộc:** túi đeo ngực (chest strap) cố định điện thoại ngang tầm nhìn, camera sau hướng về phía trước. Ngưỡng khoảng cách Near/Medium/Far và ước lượng vị trí trái/phải hiệu chỉnh theo tư thế này.
+- **Điểm mù camera:** không phát hiện hố sâu, mép vỉa hè (camera nhìn ngang), biển báo quá cao, vật ngoài góc nhìn.
+- **Ánh sáng yếu, mưa:** độ chính xác giảm.
+- **Bắt buộc dùng kèm gậy trắng hoặc gậy IoT** — VisionAid không thay thế công cụ hỗ trợ hiện có.
+- **Fall detection chỉ hoạt động trong phiên dẫn đường** (cần camera, BR-26).
+- **Gọi số khẩn cấp (112/115):** Android không cho app tự quay; app mở trình quay số và hướng dẫn bằng giọng nói.
+- **SOS bằng cử chỉ (`Gesture`) không có:** chỉ kích hoạt bằng nút "Gọi khẩn cấp", lệnh giọng nói "gọi khẩn cấp", hoặc tự động khi té ngã trong phiên dẫn đường.
 
 ---
 
