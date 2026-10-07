@@ -512,11 +512,12 @@ Phát hiện té ngã
 - **Offline khi té ngã (đề xuất — cần chốt với team):** lưu event vào queue; hết 15s mà vẫn offline và không bị hủy → tự gọi emergency contact ưu tiên 1 từ cache SQLite (ACTION_CALL, xem mục 2); khi có mạng sync event lên server.
 
 **Luồng `Manual` / `VoiceCommand` / `Gesture`:**
+> `Gesture` **ngoài phạm vi capstone** (quyết định 2026-10-07): chưa có cử chỉ nào không đụng với thao tác sẵn có (phím âm lượng = nghe lệnh). App chỉ gửi `Manual` (nút) và `VoiceCommand`; giá trị enum giữ nguyên cho khớp backend.
 ```
 Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation bắt buộc (10s timeout)
 → POST /api/emergency-events { detectionMethod: "Manual" | "VoiceCommand" | "Gesture", detectedAt, latitude, longitude }
    (server set Sent ngay, grace = NULL, tạo notification cho Caregiver)
-→ TTS "Đã gửi cảnh báo khẩn cấp" → gọi emergency contact theo priorityOrder (Phone/Both: ACTION_CALL qua phoneNumber, Zalo: zaloDeepLink)
+→ TTS "Đã gửi cảnh báo khẩn cấp" → gọi emergency contact theo priorityOrder (Phone/Both: `TelecomManager.placeCall` qua phoneNumber, Zalo: zaloDeepLink)
 → (Trạng thái `Called` do Caregiver/CenterAdmin đánh dấu qua PUT /{id}/called — mobile KHÔNG gọi endpoint này)
 ```
 - Emergency contacts cache trong SQLite để dùng được khi offline.
@@ -524,6 +525,7 @@ Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation b
 - **Không bao giờ nhận "đã xác nhận" từ route param / deep link:** lệnh giọng nói đặt cờ một lần trong bộ nhớ (5 s); `app/+native-intent.tsx` chặn deep link vào màn khẩn cấp.
 - Hàng đợi `pending_emergency_events` giữ qua logout nhưng có `owner_id`: chỉ gửi khi đúng chủ đăng nhập.
 - Link Zalo chỉ chấp nhận `https://zalo.me/…` hoặc `zalo://…`. **Standalone Mode** (VIU thuộc trung tâm, không có người thân): contacts do Staff Caregiver cấu hình, có thể gồm **112/113/114/115**, hotline trung tâm, số trực ban.
+- **Không dùng Intent `ACTION_CALL`/`ACTION_DIAL` trần:** app khác (Zalo…) cũng nhận intent đó → Android hiện hộp "chọn ứng dụng", người khiếm thị kẹt (đã gặp trên máy thật 2026-10-06). Module `modules/phone-call` gọi qua `TelecomManager.placeCall`; trình quay số mở bằng `setPackage(defaultDialerPackage)`.
 - ⚠️ Android **không cho `ACTION_CALL` gọi số khẩn cấp** (112, 113, 114, 115) — chỉ mở được trình quay số (`ACTION_DIAL`). Với các số này: mở trình quay số đã điền sẵn số + TTS "Chạm nút gọi màu xanh ở giữa phía dưới màn hình"; ưu tiên gọi trước contact không phải số khẩn cấp nếu có.
 - Sau khi event chuyển `Sent`, server **tự mở cuộc gọi WebRTC `SOS_AUTO`** tới Caregiver chính (mục 9.10): app VIU bật camera gửi video + phát audio của Caregiver.
 - KHÔNG bao giờ gọi acknowledge / escalate / resolve từ mobile — đó là hành động của Caregiver (backend cũng chặn theo role).
@@ -832,6 +834,9 @@ Sprint 9 — Settings, Hardening & Release
 | GAP-29 | Sprint 8 | `navigation_near_threshold_ms`, `hybrid_navigation_enabled`, `webrtc_enabled`, `webrtc_max_duration_minutes` seed với `isPublic: false` → `/api/system-configs/public` không trả, mobile không đọc được | Đặt `isPublic: true` cho các key mobile cần | Dùng mặc định cứng (500 ms, bật) |
 | GAP-30 | Sprint 8 | `LicenseValidationMiddleware` không miễn `/api/webrtc/sessions*` → VIU license `NONE` / hết hạn > 3 ngày bị 402 khi nhận, gọi hoặc kết thúc cuộc gọi, kể cả cuộc gọi `SosAuto` (trái "SOS không bao giờ bị chặn") | Miễn kiểm tra license cho phiên có `emergency_event_id` (hoặc toàn bộ `/api/webrtc/sessions` của VIU) | — |
 | GAP-31 | Sprint 7 | `POST /api/emergency-events` không có khóa chống trùng → request timeout sau khi server đã tạo xong thì mobile đưa vào hàng đợi và tạo **event thứ hai** (Caregiver nhận 2 cảnh báo; hủy té ngã chỉ hủy được một) | Nhận `clientGeneratedId` như GPS, trùng → trả event cũ | — |
+| GAP-32 | Sprint 7 (Standalone) | Validator `CreateEmergencyContact` dùng regex `^(0[3\|5\|7\|8\|9])[0-9]{8}$` → chỉ nhận di động 10 số: **không lưu được 112/113/114/115, hotline 1800/1900, số bàn, `+84…`**; lớp ký tự còn sai (`[3\|5…]` nhận cả `\|`) | Nhận số khẩn cấp 3 số, 1800/1900 + 4–6 số, số bàn, `+84`; sửa thành `[35789]` | Mobile đã xử lý các số này (mở trình quay số) |
+| GAP-33 | Sprint 8 (WebRTC) | Cuộc gọi `SosAuto` chỉ tạo trong `EmergencyEventDispatcher` (té ngã `Detected → Sent`); SOS `Manual`/`VoiceCommand` đi thẳng `Sent` trong `CreateEmergencyEventHandler` → **không mở WebRTC** (trái Update Report §4) | Gọi cùng logic `TryTriggerSosWebRtcCallAsync` khi tạo event `Sent` | — |
+| GAP-34 | Sprint 8 (WebRTC) | Không có ring timeout: không có key `webrtc_ring_timeout_seconds`, không job nào chuyển phiên sang `Missed` → phiên không ai nghe kẹt mãi | Config 45 s (`isPublic: true`) + job chuyển `Missed` và báo cả hai phía | — |
 
 ### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`)
 | # | Kết quả |
@@ -866,6 +871,7 @@ Sprint 9 — Settings, Hardening & Release
 - **Bắt buộc dùng kèm gậy trắng hoặc gậy IoT** — VisionAid không thay thế công cụ hỗ trợ hiện có.
 - **Fall detection chỉ hoạt động trong phiên dẫn đường** (cần camera, BR-26).
 - **Gọi số khẩn cấp (112/115):** Android không cho app tự quay; app mở trình quay số và hướng dẫn bằng giọng nói.
+- **SOS bằng cử chỉ (`Gesture`) không có:** chỉ kích hoạt bằng nút "Gọi khẩn cấp", lệnh giọng nói "gọi khẩn cấp", hoặc tự động khi té ngã trong phiên dẫn đường.
 
 ---
 
