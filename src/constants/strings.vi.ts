@@ -106,6 +106,10 @@ export const Strings = {
       days <= 0
         ? 'Gói dịch vụ đã hết hạn. Vui lòng liên hệ người chăm sóc để gia hạn.'
         : `Gói dịch vụ sẽ hết hạn sau ${days} ngày. Vui lòng liên hệ người chăm sóc để gia hạn.`,
+    trial: (days: number) =>
+      days <= 0 ? 'Hôm nay là ngày dùng thử cuối cùng.' : `Bạn đang dùng thử, còn ${days} ngày.`,
+    navigationBlocked:
+      'Chưa có gói dịch vụ nên chưa dùng được dẫn đường. Vui lòng nhờ người chăm sóc đăng ký gói. Bạn vẫn có thể gọi khẩn cấp.',
   },
   qr: {
     title: 'Quét mã QR',
@@ -124,6 +128,45 @@ export const Strings = {
     openLinkHint: 'Chạm hai lần để mở đường dẫn trong mã QR bằng trình duyệt',
     scanAgain: 'Quét mã khác',
     scanAgainHint: 'Chạm hai lần để quét một mã QR khác',
+  },
+  fall: {
+    detected: 'Phát hiện té ngã. Nói tôi ổn, hoặc chạm vào màn hình để hủy cảnh báo.',
+    detectedScreenReader:
+      'Phát hiện té ngã. Nói tôi ổn, hoặc chạm hai lần vào màn hình để hủy cảnh báo.',
+    cancelled: 'Đã hủy cảnh báo',
+    alreadySent: 'Cảnh báo đã được gửi đến người chăm sóc',
+    cancelUncertain:
+      'Mất mạng nên chưa chắc đã hủy kịp. Cảnh báo có thể đã được gửi đến người chăm sóc.',
+    sent: 'Đã gửi cảnh báo đến người chăm sóc',
+    queued: 'Chưa gửi được cảnh báo lên máy chủ, ứng dụng sẽ tự gửi lại.',
+    overlayLabel: 'Hủy cảnh báo té ngã',
+    overlayHint: 'Chạm hai lần để hủy cảnh báo té ngã',
+    countdown: (seconds: number) => `Tự gửi cảnh báo sau ${seconds} giây`,
+    noAlert: 'Không có cảnh báo té ngã nào để hủy',
+  },
+  battery: {
+    low: 'Pin yếu, đã chuyển sang chế độ tiết kiệm, chỉ báo vật nguy hiểm.',
+  },
+  emergency: {
+    title: 'Khẩn cấp',
+    open: 'Gọi khẩn cấp',
+    openHint: 'Chạm hai lần để gửi cảnh báo khẩn cấp cho người chăm sóc và gọi người thân',
+    intro: 'Màn hình khẩn cấp. Chạm nút lớn để gửi cảnh báo và gọi người thân.',
+    confirm: 'Xác nhận gửi',
+    confirmHint: 'Chạm hai lần để gửi cảnh báo khẩn cấp ngay',
+    cancel: 'Hủy',
+    cancelHint: 'Chạm hai lần để không gửi cảnh báo',
+    sending: 'Đang gửi cảnh báo khẩn cấp',
+    sent: 'Đã gửi cảnh báo khẩn cấp đến người chăm sóc.',
+    queued: 'Chưa gửi được cảnh báo lên máy chủ, ứng dụng sẽ tự gửi lại.',
+    calling: (name: string) => `Đang gọi ${name}.`,
+    dialing: (name: string, number: string) =>
+      `Đã mở sẵn số ${number} của ${name}. Hãy chạm nút gọi màu xanh ở giữa, phía dưới màn hình.`,
+    zalo: (name: string) => `Đang mở Zalo để liên lạc ${name}.`,
+    noContact: 'Chưa có số liên lạc khẩn cấp. Hãy nhờ người chăm sóc thêm số trên trang quản lý.',
+    callPermissionExplain: 'Để tự gọi cho người thân khi khẩn cấp, VisionAid cần quyền gọi điện.',
+    again: 'Gửi cảnh báo lần nữa',
+    againHint: 'Chạm hai lần để gửi thêm một cảnh báo khẩn cấp',
   },
   location: {
     title: 'Tôi đang ở đâu',

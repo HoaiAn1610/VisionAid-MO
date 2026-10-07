@@ -36,7 +36,10 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler;
 }
 
-export type LicenseEvent = { kind: 'blocked' } | { kind: 'expiring'; daysLeft: number };
+export type LicenseEvent =
+  | { kind: 'blocked' }
+  | { kind: 'expiring'; daysLeft: number }
+  | { kind: 'trial'; daysLeft: number };
 let onLicenseEvent: (event: LicenseEvent) => void = () => {};
 /**
  * App đăng ký: TTS báo license. Backend (LicenseValidationMiddleware) trả 402 khi chưa có / hết

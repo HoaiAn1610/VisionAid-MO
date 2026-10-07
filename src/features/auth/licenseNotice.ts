@@ -7,7 +7,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Báo trước bằng giọng nói từ `licenseStatus` của /users/me (backend 8f2641a), thay vì chỉ biết khi
- * gặp 402. Khớp chính sách của LicenseValidationMiddleware: hết hạn ≤ 3 ngày vẫn dùng được.
+ * gặp 402. Khớp chính sách (Update Report §3.4) và LicenseValidationMiddleware: hết hạn ≤ 3 ngày vẫn
+ * dùng được; dùng thử luôn báo số ngày còn lại.
  */
 export function licenseEventFor(
   status: string | null | undefined,
@@ -22,8 +23,9 @@ export function licenseEventFor(
       return daysLeft !== null && daysLeft > -BusinessRules.LICENSE_GRACE_PERIOD_DAYS
         ? { kind: 'expiring', daysLeft: 0 }
         : { kind: 'blocked' };
-    case 'Active':
     case 'Trial':
+      return daysLeft !== null ? { kind: 'trial', daysLeft: Math.max(0, daysLeft) } : null;
+    case 'Active':
       return daysLeft !== null && daysLeft <= BusinessRules.LICENSE_GRACE_PERIOD_DAYS
         ? { kind: 'expiring', daysLeft: Math.max(0, daysLeft) }
         : null;
@@ -31,6 +33,13 @@ export function licenseEventFor(
       return null; // null = chưa đồng bộ → để middleware quyết định, gặp 402 sẽ báo
   }
 }
+
+/**
+ * Dẫn đường (YOLO trên máy + Hybrid) bị chặn khi CHƯA từng có gói (`None`) — Update Report §3.4.
+ * Hết hạn (`Expired`) vẫn dẫn đường được. Chưa biết trạng thái (null) → không chặn.
+ */
+export const isNavigationAllowed = (status: string | null | undefined): boolean =>
+  status !== 'None';
 
 // ponytail: chỉ báo một lần mỗi lần mở app (lưu trong bộ nhớ) — đủ để không lặp sau mỗi request;
 // lưu ngày vào SecureStore nếu người dùng thấy bị nhắc quá nhiều mỗi ngày.
@@ -42,7 +51,11 @@ export function announceLicense(event: LicenseEvent): void {
   announced.add(event.kind);
   ttsService.enqueue({
     text:
-      event.kind === 'blocked' ? Strings.license.blocked : Strings.license.expiring(event.daysLeft),
+      event.kind === 'blocked'
+        ? Strings.license.blocked
+        : event.kind === 'trial'
+          ? Strings.license.trial(event.daysLeft)
+          : Strings.license.expiring(event.daysLeft),
     priority: TtsPriority.SYSTEM,
   });
 }

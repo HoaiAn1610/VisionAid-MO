@@ -14,6 +14,8 @@ const ctx = (over: Partial<VoiceContext> = {}): VoiceContext & { spoken: string[
     openTextReader: jest.fn(),
     openFaceRecognizer: jest.fn(),
     openLocation: jest.fn(),
+    openEmergency: jest.fn(),
+    dismissFall: jest.fn(() => false),
     setDetectionMode: jest.fn(),
     speechRate: 1,
     setSpeechRate: jest.fn(),
@@ -71,10 +73,17 @@ describe('runVoiceIntent', () => {
     expect(c.spoken[1]).toBe('Xe máy ở gần');
   });
 
-  it('lệnh của sprint sau → báo đang phát triển, trả false (log Failed)', () => {
+  it('"tôi ổn" khi không có cảnh báo té ngã → báo không có gì để hủy', () => {
     const c = ctx();
-    expect(runVoiceIntent('I_AM_OK', c)).toBe(false);
-    expect(c.spoken).toEqual([Strings.voice.notImplemented]);
+    expect(runVoiceIntent('I_AM_OK', c)).toBe(true);
+    expect(c.dismissFall).toHaveBeenCalled();
+    expect(c.spoken).toEqual([Strings.fall.noAlert]);
+  });
+
+  it('"tôi ổn" khi đang đếm ngược → hủy cảnh báo, không nói thêm', () => {
+    const c = ctx({ dismissFall: jest.fn(() => true) });
+    runVoiceIntent('I_AM_OK', c);
+    expect(c.spoken).toEqual([]);
   });
 
   it('"quét mã" → mở màn quét QR', () => {

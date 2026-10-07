@@ -1,7 +1,12 @@
 import { Strings } from '@/constants/strings.vi';
 import { ttsService } from '@/services/tts/TtsService';
 
-import { announceLicense, licenseEventFor, resetLicenseNotice } from './licenseNotice';
+import {
+  announceLicense,
+  isNavigationAllowed,
+  licenseEventFor,
+  resetLicenseNotice,
+} from './licenseNotice';
 
 jest.mock('@/services/tts/TtsService', () => ({
   TtsPriority: { SYSTEM: 2 },
@@ -22,11 +27,21 @@ describe('licenseEventFor (khớp LicenseValidationMiddleware)', () => {
     ['Expired', inDays(-5), { kind: 'blocked' }], // quá 3 ngày ân hạn
     ['Expired', inDays(-1), { kind: 'expiring', daysLeft: 0 }], // còn trong ân hạn
     ['Active', inDays(2), { kind: 'expiring', daysLeft: 2 }],
-    ['Trial', inDays(3), { kind: 'expiring', daysLeft: 3 }],
+    ['Trial', inDays(3), { kind: 'trial', daysLeft: 3 }],
+    ['Trial', inDays(6), { kind: 'trial', daysLeft: 6 }], // dùng thử luôn báo số ngày
     ['Active', inDays(20), null],
     [null, null, null], // chưa đồng bộ → để middleware quyết định
   ])('%s, hết hạn %s → %o', (status, expiresAt, expected) => {
     expect(licenseEventFor(status, expiresAt, NOW)).toEqual(expected);
+  });
+});
+
+describe('isNavigationAllowed (Update Report §3.4)', () => {
+  it('chỉ chặn khi chưa từng có gói; hết hạn / chưa đồng bộ vẫn dẫn đường', () => {
+    expect(isNavigationAllowed('None')).toBe(false);
+    expect(isNavigationAllowed('Expired')).toBe(true);
+    expect(isNavigationAllowed('Trial')).toBe(true);
+    expect(isNavigationAllowed(null)).toBe(true);
   });
 });
 

@@ -41,6 +41,16 @@ jest.mock('./navigationSession', () => ({
   endNavigationSession: jest.fn(async () => {}),
   recordDetectionEvent: jest.fn(async () => {}),
 }));
+jest.mock('expo-sensors', () => ({
+  Accelerometer: {
+    setUpdateInterval: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+  },
+}));
+jest.mock('@/features/emergency/fallAlertService', () => ({
+  fallAlert: { trigger: jest.fn() },
+  isFallAlertActive: jest.fn(() => false),
+}));
 jest.mock('expo-keep-awake', () => ({
   activateKeepAwakeAsync: jest.fn(async () => {}),
   deactivateKeepAwake: jest.fn(async () => {}),
@@ -61,6 +71,7 @@ const frame = (label: string, over = {}): FrameResult => ({
   inferenceMs: 30,
   postprocessMs: 12,
   detections: [{ label, classId: 0, score: 0.9, x: 0.2, y: 0.2, w: 0.6, h: 0.6, ...over }],
+  signature: [],
 });
 
 /** Vật phải xuất hiện ở 2 frame liên tiếp mới được báo. */

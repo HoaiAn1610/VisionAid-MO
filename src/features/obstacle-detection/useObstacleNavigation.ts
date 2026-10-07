@@ -1,4 +1,5 @@
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { Accelerometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import { useCameraPermission } from 'react-native-vision-camera';
@@ -6,6 +7,10 @@ import { useCameraPermission } from 'react-native-vision-camera';
 import { Strings } from '@/constants/strings.vi';
 import { HapticService } from '@/services/haptics/HapticService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
+import { isNavigationAllowed } from '@/features/auth/licenseNotice';
+import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
+import { createFallDetector } from '@/features/emergency/fallDetector';
+import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
 
@@ -27,6 +32,8 @@ const PREFERRED_DELEGATES = ['android-gpu' as const];
 const KEEP_AWAKE_TAG = 'navigation-session';
 /** Không có cảnh báo mới trong khoảng này → dòng trạng thái về "chưa phát hiện" (tránh hiển thị tin cũ). */
 const STATUS_STALE_MS = 4000;
+/** ~50 Hz: đủ bắt pha rơi tự do (~0,3 s) và đỉnh va chạm. */
+const ACCEL_INTERVAL_MS = 20;
 /** Vật phải xuất hiện ở 2 frame liên tiếp mới báo (khoảng 2 chu kỳ inference, cho phép trễ nhịp). */
 const CONFIRM_WINDOW_MS = 2000 / TARGET_INFERENCE_FPS;
 
@@ -47,9 +54,17 @@ export function useObstacleNavigation() {
   const wantActive = useRef(false);
   const staleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSeen = useRef(new Map<string, number>());
+  // Phát hiện té ngã chỉ chạy trong phiên dẫn đường (cần camera, BR-26)
+  const [fallDetectorInstance] = useState(() =>
+    createFallDetector((event) => fallAlert.trigger(event)),
+  );
+  const fallDetector = useRef(fallDetectorInstance);
 
   const onResult = useCallback(
     (r: FrameResult) => {
+      fallDetector.current.onFrame(r.signature, Date.now());
+      if (isFallAlertActive()) return; // đang đếm ngược té ngã → im lặng để nghe "tôi ổn"
+      if (r.detections.length === 0) return;
       const confirmed = confirmAcrossFrames(
         r.detections,
         lastSeen.current,
@@ -90,6 +105,18 @@ export function useObstacleNavigation() {
     };
   }, [sessionActive]);
 
+  // Gia tốc kế cho phát hiện té ngã — chỉ trong phiên, dừng khi kết thúc (§16.7)
+  useEffect(() => {
+    if (!sessionActive) return;
+    const detector = fallDetector.current;
+    detector.reset();
+    Accelerometer.setUpdateInterval(ACCEL_INTERVAL_MS);
+    const sub = Accelerometer.addListener(({ x, y, z }) =>
+      detector.onAccel({ x, y, z, t: Date.now() }),
+    );
+    return () => sub.remove();
+  }, [sessionActive]);
+
   // Camera tắt khi app xuống nền (DetectionCamera) → phải báo, kẻo người dùng tưởng vẫn được cảnh báo
   useEffect(() => {
     if (!sessionActive) return;
@@ -117,6 +144,11 @@ export function useObstacleNavigation() {
   const start = useCallback(async () => {
     // Chạm đúp (TalkBack) / bấm liên tiếp → chỉ một phiên
     if (starting.current || wantActive.current) return;
+    // Update Report §3.4: chưa có gói → không dẫn đường (SOS vẫn chạy ở màn khẩn cấp)
+    if (!isNavigationAllowed(useAuthStore.getState().user?.licenseStatus)) {
+      say(Strings.license.navigationBlocked);
+      return;
+    }
     starting.current = true;
     try {
       if (!hasPermission) {

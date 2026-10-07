@@ -1,4 +1,6 @@
 import {
+  frameSignature,
+  SIGNATURE_GRID,
   decodeYoloOutput,
   fitInside,
   LETTERBOX_FILL,
@@ -107,5 +109,18 @@ describe('letterbox (model thấy cả khung, không cắt)', () => {
 
     const onPad: Detection = { classId: 0, score: 1, x: 0, y: 0, w: 0.1, h: 0.1 };
     expect(unletterbox(onPad, 320, 70, 0, 180, 320).w).toBe(0);
+  });
+});
+
+describe('frameSignature', () => {
+  it('lưới 8×8 độ sáng: nửa trên trắng, nửa dưới đen', () => {
+    const w = 16;
+    const h = 16;
+    const rgb = new Float32Array(w * h * 3);
+    for (let y = 0; y < h / 2; y++) rgb.fill(1, y * w * 3, (y + 1) * w * 3);
+    const sig = frameSignature(rgb, w, h);
+    expect(sig).toHaveLength(SIGNATURE_GRID * SIGNATURE_GRID);
+    expect(sig[0]).toBeCloseTo(1);
+    expect(sig[63]).toBeCloseTo(0);
   });
 });

@@ -45,6 +45,11 @@ const MIGRATIONS: readonly string[] = [
     id TEXT PRIMARY KEY NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0
   );
   `,
+  // v4 — Sprint 7: emergency KHÔNG bị xóa khi logout → ghi chủ sở hữu để không gửi nhầm bằng tài khoản
+  // người đăng nhập sau (kèm vị trí của người trước)
+  `
+  ALTER TABLE pending_emergency_events ADD COLUMN owner_id TEXT;
+  `,
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -74,7 +79,16 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
-/** Xóa dữ liệu người dùng khi logout (giữ schema). */
+/** Phiên hết hạn (không qua logout): xóa cache cá nhân để người đăng nhập sau không gọi nhầm danh bạ. */
+export async function clearPersonalCache(): Promise<void> {
+  const db = await getDb();
+  await db.execAsync('DELETE FROM emergency_contacts; DELETE FROM location_cache;');
+}
+
+/**
+ * Xóa dữ liệu người dùng khi logout (giữ schema). `pending_emergency_events` được GIỮ (emergency không
+ * bao giờ bị bỏ) — mỗi dòng có `owner_id`, chỉ gửi khi đúng chủ đăng nhập lại.
+ */
 export async function clearUserData(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`

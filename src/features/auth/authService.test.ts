@@ -50,7 +50,10 @@ jest.mock('@/services/storage/secureStorage', () => ({
     secure.user = json;
   }),
 }));
-jest.mock('@/services/storage/db', () => ({ clearUserData: jest.fn(async () => {}) }));
+jest.mock('@/services/storage/db', () => ({
+  clearUserData: jest.fn(async () => {}),
+  clearPersonalCache: jest.fn(async () => {}),
+}));
 jest.mock('@/services/fcm/FcmService', () => ({ getFcmToken: jest.fn(async () => 'fcm-1') }));
 jest.mock('@/services/tts/TtsService', () => ({
   TtsPriority: { SYSTEM: 2 },
