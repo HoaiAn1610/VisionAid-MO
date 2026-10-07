@@ -821,6 +821,9 @@ Sprint 9 — Settings, Hardening & Release
 ### Còn mở
 | # | Chặn | Thiếu gì | Đề xuất cho backend | Tạm thời phía mobile |
 |---|---|---|---|---|
+| GAP-35 | **Khẩn cấp** | `EmergencyEventDispatcher.cs:214`, `BoundaryMonitor.cs:424`, `LicenseExpiryReminderJob.cs:120` truy vấn `global_notification_rules ... is_enabled` (cột thật là `is_active`) → lỗi 42703 → transaction rollback **sau khi đã gửi SignalR** → lặp mỗi lượt job. Té ngã không bao giờ `Sent`, Caregiver không nhận FCM, VIU nhận `WebRtcIncomingCall` lặp mỗi 5 s (đã thấy trên máy 07/10); `ArrivalNotification` gửi lặp | Đổi `is_active`; gửi SignalR sau `CommitAsync`; savepoint theo từng event | — |
+| GAP-36 | Sprint 6/8 | FCM data-only không đặt `AndroidConfig.Priority = High` → trễ khi máy Doze | Đặt priority high | — |
+| GAP-37 | Vận hành | 500 không có `traceId`; log mất khi recreate container | `traceId` trong ProblemDetails; giữ log qua deploy | Ghi `traceId` khi BE có |
 | GAP-11 | Sprint 7 | Snapshot chỉ inline base64 trong request tạo event (đã có `snapshotContentType`) | Endpoint `/emergency-events/{id}/snapshot` riêng | Nén JPEG mạnh (≤ ~150KB) trước khi gửi |
 | GAP-13 | Mọi sprint | Lỗi lúc là ProblemDetails, lúc là `ApiResponse{success:false}` | Thống nhất một dạng | `src/api/client.ts` xử lý cả hai |
 | GAP-14 | Sprint 3/6 | Endpoint batch (`/locations/gps/batch`, `/events/batch`) chưa giới hạn số phần tử | Thêm giới hạn (ví dụ ≤ 500/lô) | Client tự chia lô ~100 |
