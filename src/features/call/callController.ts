@@ -59,14 +59,22 @@ export interface IncomingCall {
   triggerType?: string | null;
 }
 
+/** Dự phòng thêm vào thời gian đổ chuông của server (đổ chuông + thiết lập kết nối). */
+const SETUP_GRACE_MS = 20_000;
+
 export function createCallController(deps: CallDeps, onChange: (s: CallState) => void) {
   let state: CallState = { phase: 'idle', sessionId: null };
   let peer: CallPeer | null = null;
+  /** Một lần tạo peer cho mỗi cuộc gọi — accepted và offer đến gần nhau không mở camera hai lần. */
+  let peerPromise: Promise<CallPeer | null> | null = null;
+  /** ICE của phía kia đến trước khi có remote description → giữ lại, nạp sau (chuẩn WebRTC). */
   let pendingIce: string[] = [];
+  let remoteDescriptionSet = false;
   let offerSent = false;
   let remoteOffered = false;
   let generation = 0;
-  let ringTimer: unknown = null;
+  /** Từ lúc bắt đầu tới khi kết nối được: quá giờ → kết thúc (không kẹt lớp phủ cuộc gọi). */
+  let setupTimer: unknown = null;
   let durationTimer: unknown = null;
 
   const set = (next: CallState) => {
@@ -76,9 +84,9 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
   const isCurrent = (sessionId: string | undefined) =>
     !!sessionId && state.phase !== 'idle' && sessionId === state.sessionId;
   const clearTimers = () => {
-    if (ringTimer !== null) deps.clearTimer(ringTimer);
+    if (setupTimer !== null) deps.clearTimer(setupTimer);
     if (durationTimer !== null) deps.clearTimer(durationTimer);
-    ringTimer = durationTimer = null;
+    setupTimer = durationTimer = null;
   };
 
   /** Dọn sạch cuộc gọi: đóng peer, trả camera, tắt loa ngoài. Không gọi API. */
@@ -87,8 +95,9 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
     clearTimers();
     peer?.close();
     peer = null;
+    peerPromise = null;
     pendingIce = [];
-    offerSent = remoteOffered = false;
+    remoteDescriptionSet = offerSent = remoteOffered = false;
     const hadMedia = state.phase === 'connecting' || state.phase === 'connected';
     set({ phase: 'idle', sessionId: null });
     if (message) deps.say(message);
@@ -105,14 +114,44 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
     if (sessionId) void deps.end(sessionId, 'Failed').catch(() => undefined);
   };
 
-  /** Nhường camera, tạo peer; chạy một lần cho mỗi cuộc gọi. */
-  async function ensurePeer(gen: number): Promise<CallPeer | null> {
-    if (peer) return peer;
+  /**
+   * Người chăm sóc chưa nghe (gọi đi / SOS) hoặc kết nối không thành: quá thời gian đổ chuông của
+   * server + dự phòng → kết thúc. Server cũng chuyển Missed; đồng hồ này chống lỡ event.
+   */
+  const startSetupTimer = (gen: number) => {
+    setupTimer = deps.setTimer(() => {
+      if (gen !== generation || state.phase === 'connected') return;
+      const ringing = state.phase === 'outgoing' || state.phase === 'waiting';
+      const sessionId = state.sessionId;
+      cleanup(ringing ? Strings.call.noAnswer : Strings.call.lost);
+      if (sessionId) void deps.end(sessionId, ringing ? 'Missed' : 'Failed').catch(() => undefined);
+    }, deps.ringTimeoutMs() + SETUP_GRACE_MS);
+  };
+
+  /** Nạp ICE đã giữ lại — chỉ sau khi có remote description. */
+  const flushIce = async (p: CallPeer) => {
+    remoteDescriptionSet = true;
+    const queued = pendingIce;
+    pendingIce = [];
+    for (const c of queued) await p.addIceCandidate(c).catch(() => undefined);
+  };
+
+  /** Nhường camera, tạo peer — một lần cho mỗi cuộc gọi. */
+  function ensurePeer(gen: number): Promise<CallPeer | null> {
+    peerPromise ??= createPeerOnce(gen);
+    return peerPromise;
+  }
+
+  async function createPeerOnce(gen: number): Promise<CallPeer | null> {
     set({ phase: 'connecting', sessionId: state.sessionId });
     deps.say(Strings.call.connecting);
     const ice = await deps.fetchIceServers().catch(() => []);
+    if (gen !== generation) return null; // gác máy lúc đang lấy ICE → không giữ camera nữa
     await deps.holdCamera();
-    if (gen !== generation) return null;
+    if (gen !== generation) {
+      deps.releaseCamera(); // cleanup đã chạy trong lúc chờ camera → tự trả lại
+      return null;
+    }
     const sessionId = state.sessionId!;
     const created = await deps.createPeer(ice, {
       onIceCandidate: (c) =>
@@ -120,6 +159,8 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
       onConnected: () => {
         if (gen !== generation || state.phase === 'connected') return;
         set({ phase: 'connected', sessionId });
+        if (setupTimer !== null) deps.clearTimer(setupTimer);
+        setupTimer = null;
         deps.speaker(true);
         deps.say(Strings.call.connected);
         durationTimer = deps.setTimer(
@@ -136,8 +177,6 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
       return null;
     }
     peer = created;
-    for (const c of pendingIce) await peer.addIceCandidate(c).catch(() => undefined);
-    pendingIce = [];
     return peer;
   }
 
@@ -173,12 +212,7 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
           return;
         }
         set({ phase: 'outgoing', sessionId });
-        // Server tự chuyển Missed sau webrtc_ring_timeout_seconds; đồng hồ trên máy là dự phòng
-        ringTimer = deps.setTimer(() => {
-          if (gen !== generation) return;
-          void deps.end(sessionId, 'Missed').catch(() => undefined);
-          cleanup(Strings.call.noAnswer);
-        }, deps.ringTimeoutMs() + 5000);
+        startSetupTimer(gen);
       } catch (e) {
         if (gen === generation) fail(e, Strings.call.failed);
       }
@@ -186,9 +220,10 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
 
     /** `WebRtcIncomingCall`: SOS tự động → chờ người chăm sóc nghe; người chăm sóc gọi → tự nhận. */
     async onIncoming(call: IncomingCall): Promise<void> {
-      if (state.phase !== 'idle') return; // đang có cuộc gọi khác (server cũng chỉ mở một)
+      if (state.phase !== 'idle' || !call.sessionId) return; // đang gọi khác / event hỏng
       const gen = ++generation;
       set({ phase: 'waiting', sessionId: call.sessionId });
+      startSetupTimer(gen);
       if (call.triggerType === 'SosAuto') {
         deps.say(Strings.call.sosWaiting);
         return;
@@ -207,9 +242,7 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
     async onAccepted(p: { sessionId?: string }): Promise<void> {
       if (!isCurrent(p.sessionId) || (state.phase !== 'outgoing' && state.phase !== 'waiting'))
         return;
-      if (ringTimer !== null) deps.clearTimer(ringTimer);
-      ringTimer = null;
-      await startMediaAndOffer();
+      await startMediaAndOffer(); // đồng hồ chờ vẫn chạy tới khi kết nối được
     },
 
     async onOffer(p: { sessionId?: string; sdp?: string }): Promise<void> {
@@ -220,7 +253,9 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
         const pc = await ensurePeer(gen);
         if (!pc || gen !== generation) return;
         const answer = await pc.acceptOffer(p.sdp);
-        if (gen === generation) await deps.relayAnswer(state.sessionId!, answer);
+        if (gen !== generation) return;
+        await flushIce(pc);
+        await deps.relayAnswer(state.sessionId!, answer);
       } catch (e) {
         if (gen === generation) fail(e, Strings.call.failed);
       }
@@ -228,13 +263,19 @@ export function createCallController(deps: CallDeps, onChange: (s: CallState) =>
 
     async onAnswer(p: { sessionId?: string; sdp?: string }): Promise<void> {
       if (!isCurrent(p.sessionId) || !p.sdp || !peer) return;
-      await peer.acceptAnswer(p.sdp).catch((e: unknown) => fail(e, Strings.call.failed));
+      const pc = peer;
+      try {
+        await pc.acceptAnswer(p.sdp);
+        await flushIce(pc);
+      } catch (e) {
+        fail(e, Strings.call.failed);
+      }
     },
 
     async onIceCandidate(p: { sessionId?: string; candidateJson?: string }): Promise<void> {
       if (!isCurrent(p.sessionId) || !p.candidateJson) return;
-      if (!peer) {
-        pendingIce.push(p.candidateJson); // đến trước khi peer sẵn sàng
+      if (!peer || !remoteDescriptionSet) {
+        pendingIce.push(p.candidateJson); // đến trước peer / remote description → nạp sau
         return;
       }
       await peer

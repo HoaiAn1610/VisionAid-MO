@@ -84,7 +84,9 @@ describe('createCallController', () => {
     const { c, deps } = setup();
     await c.callCaregiver();
     expect(c.getState()).toEqual({ phase: 'outgoing', sessionId: 's-out' });
-    await jest.advanceTimersByTimeAsync(50_000);
+    await jest.advanceTimersByTimeAsync(64_000);
+    expect(deps.end).not.toHaveBeenCalled(); // 45 s đổ chuông + 20 s dự phòng
+    await jest.advanceTimersByTimeAsync(2_000);
     expect(deps.end).toHaveBeenCalledWith('s-out', 'Missed');
     expect(deps.say).toHaveBeenLastCalledWith(Strings.call.noAnswer);
     expect(c.getState().phase).toBe('idle');
@@ -117,6 +119,8 @@ describe('createCallController', () => {
     await c.onIceCandidate({ sessionId: 'sos', candidateJson: '{"candidate":"a"}' });
     await c.onIceCandidate({ sessionId: 'other', candidateJson: '{"candidate":"b"}' });
     await c.onAccepted({ sessionId: 'sos' });
+    expect(peer.addIceCandidate).not.toHaveBeenCalled(); // chưa có remote description
+    await c.onAnswer({ sessionId: 'sos', sdp: 'their-answer' });
     expect(peer.addIceCandidate).toHaveBeenCalledTimes(1);
     expect(peer.addIceCandidate).toHaveBeenCalledWith('{"candidate":"a"}');
     c.onEnded({ sessionId: 'other' });
@@ -169,5 +173,60 @@ describe('createCallController', () => {
     expect(deps.say).toHaveBeenLastCalledWith(Strings.call.lost);
     expect(deps.end).toHaveBeenCalledWith('s1', 'Failed');
     expect(c.getState().phase).toBe('idle');
+  });
+
+  it('accepted và offer đến cùng lúc → chỉ tạo MỘT peer (không mở camera hai lần)', async () => {
+    const { c, deps } = setup();
+    await c.onIncoming({ sessionId: 'sos', triggerType: 'SosAuto' });
+    await Promise.all([
+      c.onAccepted({ sessionId: 'sos' }),
+      c.onOffer({ sessionId: 'sos', sdp: 'their-offer' }),
+    ]);
+    expect(deps.createPeer).toHaveBeenCalledTimes(1);
+    expect(deps.holdCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it('gác máy lúc đang lấy ICE server → không giữ camera', async () => {
+    let resolveIce: (v: []) => void = () => undefined;
+    const { c, deps } = setup({
+      fetchIceServers: jest.fn(() => new Promise<[]>((r) => (resolveIce = r))),
+    });
+    const pending = c.onIncoming({ sessionId: 's1', triggerType: 'CaregiverInitiated' });
+    await Promise.resolve();
+    await Promise.resolve();
+    await c.hangUp();
+    resolveIce([]);
+    await pending;
+    expect(deps.holdCamera).not.toHaveBeenCalled();
+    expect(deps.createPeer).not.toHaveBeenCalled();
+  });
+
+  it('gác máy lúc đang chờ camera nhả → tự trả camera, không tạo peer', async () => {
+    let resolveHold: () => void = () => undefined;
+    const { c, deps } = setup({
+      holdCamera: jest.fn(() => new Promise<void>((r) => (resolveHold = r))),
+    });
+    const pending = c.onIncoming({ sessionId: 's1', triggerType: 'CaregiverInitiated' });
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(deps.holdCamera).toHaveBeenCalled();
+    await c.hangUp();
+    resolveHold();
+    await pending;
+    expect(deps.releaseCamera).toHaveBeenCalledTimes(2); // cleanup + tự trả sau khi hold xong
+    expect(deps.createPeer).not.toHaveBeenCalled();
+  });
+
+  it('WebRtcIncomingCall thiếu sessionId → bỏ qua, không kẹt', async () => {
+    const { c } = setup();
+    await c.onIncoming({ sessionId: '', triggerType: 'SosAuto' });
+    expect(c.getState().phase).toBe('idle');
+  });
+
+  it('SOS chờ mà lỡ event kết thúc → hết giờ tự đóng (không kẹt lớp phủ)', async () => {
+    const { c, deps } = setup();
+    await c.onIncoming({ sessionId: 'sos', triggerType: 'SosAuto' });
+    await jest.advanceTimersByTimeAsync(66_000);
+    expect(c.getState().phase).toBe('idle');
+    expect(deps.end).toHaveBeenCalledWith('sos', 'Missed');
   });
 });
