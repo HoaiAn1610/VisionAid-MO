@@ -206,6 +206,8 @@ Cả hai đã được Hội đồng/Mentor chốt vào phạm vi.
 
 ### Sprint 9: Settings, Hardening & Release
 
+**Trạng thái (2026-10-08, nhánh `feature/sprint9-settings`):** ✅ Màn Cài đặt: tốc độ / âm lượng đọc, chế độ cảnh báo, hồ sơ, đổi mật khẩu (đăng xuất sau khi đổi). ✅ Tùy chọn đồng bộ `/users/me/tts-preferences`, cache trên máy, an toàn khi offline. ⏳ Giọng nam/nữ (cần thử trên máy để map giọng vi-VN). ⏳ Các mục còn lại bên dưới.
+
 | Task                                                                                                                                                            | Skill                                                 | Done khi                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
 | Settings (TTS prefs, mode, profile, đổi mật khẩu)                                                                                                               | `/build`, `expo-data-fetching`                        | Lưu → TTS xác nhận                                        |

@@ -538,7 +538,8 @@ Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation b
 - Gửi `batteryLevel` kèm mỗi điểm GPS.
 
 ### 9.9 Settings & Privacy
-- TTS preferences: đồng bộ server, cache local để áp dụng ngay khi khởi động (kể cả offline).
+- TTS preferences (`src/features/settings/`): tốc độ (±0.25), âm lượng giọng đọc (±10%, tối thiểu 10%), chế độ Tối giản/Đầy đủ. Áp dụng ngay, cache SecureStore (gắn userId), đồng bộ `/users/me/tts-preferences` (GET 404 = chưa lưu → mặc định; PUT là upsert). Đổi lúc offline → đánh dấu, lần mở app sau đẩy lên server, không bị bản server ghi đè. Lệnh giọng nói đổi tốc độ / chế độ cũng đi qua đây. Pin yếu chuyển Minimal **tạm thời**, không lưu. **Giọng nam/nữ chưa làm:** `expo-speech` trên Android không cho biết giới tính giọng → cần liệt kê giọng vi-VN trên máy thật rồi mới map.
+- Đổi mật khẩu: kiểm tra trên máy theo đúng `ChangePasswordValidator` (≥ 8 ký tự, hoa, thường, số, ký tự đặc biệt, khác mật khẩu cũ); sai mật khẩu cũ → 403. Server **thu hồi mọi refresh token kể cả máy này** → app đọc thông báo rồi đăng xuất.
 - Privacy consent: hiển thị/đọc nội dung chính sách (thu thập GPS, ảnh khuôn mặt người quen) → chấp nhận bằng nút lớn hoặc giọng nói → `accept-privacy-policy` với `privacy_policy_version` hiện tại. Bản chính sách phải nói thêm: **video camera được truyền cho người chăm sóc trong cuộc gọi WebRTC** (kể cả cuộc gọi tự động khi SOS).
 
 ### 9.10 WebRTC — Gọi với người chăm sóc (Update Report §4, đã vào phạm vi)
