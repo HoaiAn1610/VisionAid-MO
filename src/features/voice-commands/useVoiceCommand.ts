@@ -6,7 +6,7 @@ import type { CommandStatus } from '@/constants/enums';
 import { Strings } from '@/constants/strings.vi';
 import { HapticService } from '@/services/haptics/HapticService';
 import { OfflineSpeechUnavailableError, speechService } from '@/services/speech/SpeechService';
-import { preferences } from '@/features/settings/preferencesService';
+import { chooseDetectionMode, preferences } from '@/features/settings/preferencesService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 
 import { getMediaVolume, setMediaVolume } from '../../../modules/volume-key';
@@ -142,7 +142,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
             callCaregiver: navRef.current.callCaregiver,
             endCall: navRef.current.endCall,
             // Lưu lại + đồng bộ server như đổi trong màn Cài đặt
-            setDetectionMode: (detectionMode) => void preferences.update({ detectionMode }),
+            setDetectionMode: (detectionMode) => void chooseDetectionMode(detectionMode),
             speechRate: ttsService.getSettings().rate,
             setSpeechRate: (speedRate) => void preferences.update({ speedRate }),
             lastAnnouncement,

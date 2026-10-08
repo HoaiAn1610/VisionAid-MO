@@ -15,7 +15,7 @@ import { colors, radius, spacing } from '@/theme';
 export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const signOut = useSignOut();
-  const { speedRate, volumeLevel, detectionMode } = usePreferenceValues();
+  const { speedRate, volumeLevel, detectionMode, batterySaver } = usePreferenceValues();
 
   return (
     <Screen scroll>
@@ -84,6 +84,9 @@ export default function SettingsScreen() {
         <ThemedText variant="label" accessibilityRole="header">
           {Strings.settings.modeTitle}
         </ThemedText>
+        {batterySaver ? (
+          <ThemedText variant="caption">{Strings.settings.batterySaverNote}</ThemedText>
+        ) : null}
         <Button
           variant={detectionMode === 'Full' ? 'primary' : 'secondary'}
           selected={detectionMode === 'Full'}

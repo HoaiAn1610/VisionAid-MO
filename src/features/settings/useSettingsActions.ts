@@ -3,17 +3,16 @@ import { useSyncExternalStore } from 'react';
 
 import { ApiError } from '@/api/client';
 import { changePassword } from '@/api/endpoints/auth';
-import type { TtsPreferences } from '@/api/endpoints/users';
 import { BusinessRules } from '@/constants/businessRules';
 import type { DetectionMode } from '@/constants/enums';
 import { Strings } from '@/constants/strings.vi';
 import { signOut } from '@/features/auth/authService';
 import { HapticService } from '@/services/haptics/HapticService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { selectEffectiveMode, useSettingsStore } from '@/stores/settingsStore';
 
 import { validatePasswordChange } from './passwordRules';
-import { preferences } from './preferencesService';
+import { chooseDetectionMode, preferences } from './preferencesService';
 
 const VOLUME_STEP = 0.1;
 const say = (text: string, priority = TtsPriority.FEEDBACK): void => {
@@ -21,8 +20,11 @@ const say = (text: string, priority = TtsPriority.FEEDBACK): void => {
 };
 
 /** Đổi tùy chọn rồi đọc xác nhận — bằng chính tốc độ / âm lượng mới để người dùng nghe thử. */
-async function changeAndConfirm(patch: Partial<TtsPreferences>, confirm: string): Promise<void> {
-  const result = await preferences.update(patch);
+async function changeAndConfirm(
+  change: Promise<'saved' | 'local'>,
+  confirm: string,
+): Promise<void> {
+  const result = await change;
   void HapticService.tap();
   say(result === 'saved' ? confirm : `${confirm}. ${Strings.settings.savedLocal}`);
 }
@@ -36,7 +38,10 @@ export const settingsActions = {
       Math.max(BusinessRules.TTS_MIN_SPEED, speedRate + (faster ? step : -step)),
     );
     if (next === speedRate) return say(Strings.settings.atLimit);
-    void changeAndConfirm({ speedRate: next }, Strings.settings.speedChanged(next));
+    void changeAndConfirm(
+      preferences.update({ speedRate: next }),
+      Strings.settings.speedChanged(next),
+    );
   },
   changeVolume(louder: boolean): void {
     const { volumeLevel } = preferences.get();
@@ -46,12 +51,16 @@ export const settingsActions = {
           10,
       ) / 10;
     if (next === volumeLevel) return say(Strings.settings.atLimit);
-    void changeAndConfirm({ volumeLevel: next }, Strings.settings.volumeChanged(next));
+    void changeAndConfirm(
+      preferences.update({ volumeLevel: next }),
+      Strings.settings.volumeChanged(next),
+    );
   },
   setMode(detectionMode: DetectionMode): void {
     const confirm = detectionMode === 'Full' ? Strings.voice.modeFull : Strings.voice.modeMinimal;
-    if (preferences.get().detectionMode === detectionMode) return say(confirm);
-    void changeAndConfirm({ detectionMode }, confirm);
+    const { batterySaver } = useSettingsStore.getState();
+    if (!batterySaver && preferences.get().detectionMode === detectionMode) return say(confirm);
+    void changeAndConfirm(chooseDetectionMode(detectionMode), confirm);
   },
 };
 
@@ -63,11 +72,13 @@ export function usePreferenceValues(): {
   speedRate: number;
   volumeLevel: number;
   detectionMode: DetectionMode;
+  batterySaver: boolean;
 } {
-  const detectionMode = useSettingsStore((s) => s.detectionMode);
+  const detectionMode = useSettingsStore(selectEffectiveMode);
+  const batterySaver = useSettingsStore((s) => s.batterySaver);
   const speedRate = useSyncExternalStore(subscribe, () => ttsService.getSettings().rate);
   const volumeLevel = useSyncExternalStore(subscribe, () => ttsService.getSettings().volume);
-  return { speedRate, volumeLevel, detectionMode };
+  return { speedRate, volumeLevel, detectionMode, batterySaver };
 }
 
 export function passwordErrorMessage(error: unknown): string {

@@ -88,6 +88,8 @@ export const Strings = {
     modeMinimal: 'Tối giản',
     modeMinimalHint: 'Chỉ báo vật nguy hiểm như xe cộ, bậc thang',
     modeSelected: 'Đang chọn',
+    batterySaverNote:
+      'Pin yếu nên đang tạm dùng chế độ Tối giản. Chọn lại chế độ để bỏ, hoặc sạc pin.',
     savedLocal: 'Đã lưu trên máy, sẽ đồng bộ khi có mạng',
     changePassword: 'Đổi mật khẩu',
     changePasswordHint: 'Chạm hai lần để mở màn đổi mật khẩu',

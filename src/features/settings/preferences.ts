@@ -46,6 +46,8 @@ export function normalizePreferences(p: TtsPreferences): TtsPreferences {
  */
 export function createPreferences(deps: PreferencesDeps) {
   let current: TtsPreferences = DEFAULT_PREFERENCES;
+  /** Tăng mỗi lần người dùng đổi — bản server tải về muộn không được ghi đè thay đổi mới hơn. */
+  let version = 0;
 
   const save = async (prefs: TtsPreferences, dirty: boolean) => {
     const userId = deps.userId();
@@ -85,7 +87,9 @@ export function createPreferences(deps: PreferencesDeps) {
           await save(current, false);
           return;
         }
+        const startedAt = version;
         const remote = await deps.fetchRemote();
+        if (version !== startedAt) return; // người dùng vừa đổi trong lúc tải → giữ thay đổi đó
         if (remote) {
           setCurrent(remote);
           await save(current, false);
@@ -97,6 +101,7 @@ export function createPreferences(deps: PreferencesDeps) {
 
     /** Đổi một phần tùy chọn. Trả `'saved'` nếu đã lên server, `'local'` nếu chỉ lưu trên máy. */
     async update(patch: Partial<TtsPreferences>): Promise<'saved' | 'local'> {
+      version++;
       setCurrent({ ...current, ...patch });
       await save(current, true);
       try {

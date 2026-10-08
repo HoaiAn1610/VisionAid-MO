@@ -2,6 +2,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Accelerometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
+import { useIsFocused } from 'expo-router';
 import { useCameraPermission, type Camera } from 'react-native-vision-camera';
 
 import { BusinessRules } from '@/constants/businessRules';
@@ -19,7 +20,7 @@ import { createFallDetector } from '@/features/emergency/fallDetector';
 import { registerFallSnapshotCamera } from '@/features/emergency/fallSnapshot';
 import { useCameraHeldByCall } from '@/features/call/cameraHold';
 import { useAuthStore } from '@/stores/authStore';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { selectEffectiveMode, useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
 
 import {
@@ -65,7 +66,7 @@ const say = (text: string, priority = TtsPriority.SYSTEM) => ttsService.enqueue(
  */
 export function useObstacleNavigation() {
   const { hasPermission, requestPermission } = useCameraPermission();
-  const mode = useSettingsStore((s) => s.detectionMode);
+  const mode = useSettingsStore(selectEffectiveMode);
   const [active, setActive] = useState(false);
   const [lastAnnouncement, setLastAnnouncement] = useState<string | null>(null);
   const awaitingModel = useRef(false);
@@ -206,12 +207,15 @@ export function useObstacleNavigation() {
     return () => sub.remove();
   }, [sessionActive]);
 
-  // Chỉ canh khi camera đáng lẽ phải chạy (chạy nền / cuộc gọi giữ camera đã có thông báo riêng)
+  // Chỉ canh khi camera dẫn đường đáng lẽ phải chạy: đang ở màn chính (sang màn đọc chữ / QR /
+  // khuôn mặt thì camera này tắt), app ở foreground, cuộc gọi không giữ camera, model đã nạp xong
+  const focused = useIsFocused();
+  const modelLoaded = detector.modelState === 'loaded';
   useEffect(() => {
-    if (!sessionActive || !foreground || heldByCall) return;
+    if (!sessionActive || !foreground || heldByCall || !focused || !modelLoaded) return;
     watchdog.start();
     return () => watchdog.stop();
-  }, [sessionActive, foreground, heldByCall, watchdog]);
+  }, [sessionActive, foreground, heldByCall, focused, modelLoaded, watchdog]);
 
   // Camera tắt khi app xuống nền (DetectionCamera) → phải báo, kẻo người dùng tưởng vẫn được cảnh báo
   useEffect(() => {

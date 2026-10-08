@@ -1,12 +1,14 @@
 import { Strings } from '@/constants/strings.vi';
 import { ttsService } from '@/services/tts/TtsService';
+import { selectEffectiveMode, useSettingsStore } from '@/stores/settingsStore';
 
-import { preferences } from './preferencesService';
+import { chooseDetectionMode, preferences } from './preferencesService';
 import { passwordErrorMessage, settingsActions } from './useSettingsActions';
 import { ApiError } from '@/api/client';
 
 jest.mock('./preferencesService', () => ({
   preferences: { get: jest.fn(), update: jest.fn(async () => 'saved') },
+  chooseDetectionMode: jest.fn(async () => 'saved'),
 }));
 jest.mock('@/services/tts/TtsService', () => ({
   TtsPriority: { SYSTEM: 2, FEEDBACK: 3 },
@@ -46,10 +48,35 @@ describe('settingsActions', () => {
   });
 
   it('offline → báo đã lưu trên máy, sẽ đồng bộ', async () => {
-    prefs.update.mockResolvedValueOnce('local');
+    (chooseDetectionMode as jest.Mock).mockResolvedValueOnce('local');
     settingsActions.setMode('Minimal');
     await flush();
     expect(spoken()[0]).toBe(`${Strings.voice.modeMinimal}. ${Strings.settings.savedLocal}`);
+  });
+});
+
+describe('chế độ khi pin yếu', () => {
+  afterEach(() => useSettingsStore.setState({ batterySaver: false }));
+
+  it('đang tiết kiệm pin → chọn lại đúng chế độ cũ vẫn bỏ tiết kiệm pin', async () => {
+    useSettingsStore.setState({ batterySaver: true });
+    settingsActions.setMode('Full'); // preference đang là Full
+    await flush();
+    expect(chooseDetectionMode).toHaveBeenCalledWith('Full');
+  });
+
+  it('không tiết kiệm pin, chọn trùng chế độ → chỉ đọc xác nhận', () => {
+    settingsActions.setMode('Full');
+    expect(chooseDetectionMode).not.toHaveBeenCalled();
+    expect(spoken()).toEqual([Strings.voice.modeFull]);
+  });
+
+  it('chế độ thực tế: pin yếu ép Tối giản, không đổi lựa chọn của người dùng', () => {
+    const s = { detectionMode: 'Full' as const, batterySaver: true };
+    expect(selectEffectiveMode({ ...useSettingsStore.getState(), ...s })).toBe('Minimal');
+    expect(selectEffectiveMode({ ...useSettingsStore.getState(), ...s, batterySaver: false })).toBe(
+      'Full',
+    );
   });
 });
 

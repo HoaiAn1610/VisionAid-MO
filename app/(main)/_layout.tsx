@@ -32,11 +32,14 @@ export default function MainLayout() {
   // Pin < 10% → Minimal Mode + báo một lần mỗi lần tụt ngưỡng (BR-17)
   useEffect(
     () =>
-      startBatteryMonitor(() => {
-        useSettingsStore.getState().setDetectionMode('Minimal');
-        ttsService.enqueue({ text: Strings.battery.low, priority: TtsPriority.SYSTEM });
-        void HapticService.warning();
-      }),
+      startBatteryMonitor(
+        () => {
+          useSettingsStore.getState().setBatterySaver(true);
+          ttsService.enqueue({ text: Strings.battery.low, priority: TtsPriority.SYSTEM });
+          void HapticService.warning();
+        },
+        () => useSettingsStore.getState().setBatterySaver(false), // sạc lên → về chế độ đã chọn
+      ),
     [],
   );
   // Lệnh giọng nói offline: kiểm tra / tải gói tiếng Việt nhận dạng trên máy (ADR 0002)

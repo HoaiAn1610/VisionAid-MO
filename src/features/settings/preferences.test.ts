@@ -51,6 +51,19 @@ describe('preferences', () => {
     expect(next.p.get().speedRate).toBe(1.75);
   });
 
+  it('đổi trong lúc đang tải bản server → bản server về muộn KHÔNG ghi đè', async () => {
+    let resolveRemote: (p: TtsPreferences) => void = () => undefined;
+    const { p } = setup({
+      fetchRemote: jest.fn(() => new Promise<TtsPreferences>((r) => (resolveRemote = r))),
+    });
+    const loading = p.load();
+    await new Promise((r) => setImmediate(r));
+    await p.update({ speedRate: 1.5 });
+    resolveRemote({ speedRate: 1, volumeLevel: 1, detectionMode: 'Full' });
+    await loading;
+    expect(p.get().speedRate).toBe(1.5);
+  });
+
   it('bản trên máy của tài khoản khác → bỏ qua', async () => {
     const store = { value: JSON.stringify({ userId: 'other', prefs: remote, dirty: true }) };
     const { p, deps } = setup({}, store);

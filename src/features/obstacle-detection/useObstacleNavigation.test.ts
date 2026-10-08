@@ -14,6 +14,7 @@ import { useObstacleNavigation } from './useObstacleNavigation';
 
 const mockPermission = { hasPermission: true, requestPermission: jest.fn(async () => true) };
 jest.mock('react-native-vision-camera', () => ({ useCameraPermission: () => mockPermission }));
+jest.mock('expo-router', () => ({ useIsFocused: () => true }));
 
 const mockDetector: {
   modelState: 'loading' | 'loaded' | 'error';
