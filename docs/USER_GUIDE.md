@@ -91,12 +91,13 @@ Nói **"bắt đầu"** (hoặc chạm nút lớn màu vàng **"Bắt đầu d�
 
 ### 3.4 Các thông báo cần chú ý
 
-| Bạn nghe                                                    | Ý nghĩa — nên làm gì                                                                                                                                                   |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _"Camera không hoạt động, cảnh báo vật cản đang tạm dừng…"_ | Camera ngừng gửi hình (lỗi, bị ứng dụng khác dùng). **Dừng lại, dùng gậy**, nói "dừng lại" rồi "bắt đầu" lại. Khi có hình lại ứng dụng báo _"Camera đã hoạt động lại"_ |
-| _"Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản…"_        | Bạn vừa thoát ra màn hình chính / khóa máy. Mở lại VisionAid để tiếp tục                                                                                               |
-| _"Định vị trên điện thoại đang tắt…"_                       | Người chăm sóc không thấy vị trí của bạn. Nhờ bật **Vị trí** trong cài đặt nhanh                                                                                       |
-| _"Chưa có gói dịch vụ…"_                                    | Chưa có gói nên chưa dẫn đường được — liên hệ người chăm sóc. **Gọi khẩn cấp vẫn dùng được**                                                                           |
+| Bạn nghe                                                    | Ý nghĩa — nên làm gì                                                                                                                                                      |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _"Camera không hoạt động, cảnh báo vật cản đang tạm dừng…"_ | Camera ngừng gửi hình (lỗi, bị ứng dụng khác dùng). **Dừng lại, dùng gậy**, nói "dừng lại" rồi "bắt đầu" lại. Khi có hình lại ứng dụng báo _"Camera đã hoạt động lại"_    |
+| _"Tạm dừng cảnh báo vật cản"_                               | Bạn vừa mở màn khác (đọc chữ, QR, người quen, cài đặt…) trong lúc dẫn đường — camera đang dùng cho việc đó. Quay về màn chính, ứng dụng báo _"Tiếp tục cảnh báo vật cản"_ |
+| _"Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản…"_        | Bạn vừa thoát ra màn hình chính / khóa máy. Mở lại VisionAid để tiếp tục                                                                                                  |
+| _"Định vị trên điện thoại đang tắt…"_                       | Người chăm sóc không thấy vị trí của bạn. Nhờ bật **Vị trí** trong cài đặt nhanh                                                                                          |
+| _"Chưa có gói dịch vụ…"_                                    | Chưa có gói nên chưa dẫn đường được — liên hệ người chăm sóc. **Gọi khẩn cấp vẫn dùng được**                                                                              |
 
 ---
 
