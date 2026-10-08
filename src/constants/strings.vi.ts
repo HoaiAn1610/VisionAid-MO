@@ -118,7 +118,6 @@ export const Strings = {
     location: 'Tôi đang ở đâu',
     emergency: 'Khẩn cấp',
     settings: 'Cài đặt',
-    notImplemented: 'Tính năng đang được phát triển',
   },
   home: {
     title: 'Màn hình chính',
@@ -293,7 +292,6 @@ export const Strings = {
     quietest: 'Đã ở mức âm lượng nhỏ nhất',
     nothingToRepeat: 'Chưa có thông báo nào để đọc lại',
     help: (commands: string) => `Bạn có thể nói: ${commands}.`,
-    notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
     wakeHint:
       'Khi cần ra lệnh, nhấn nút tăng hoặc giảm âm lượng. Muốn chỉnh âm lượng, hãy nói tăng âm lượng hoặc giảm âm lượng.',

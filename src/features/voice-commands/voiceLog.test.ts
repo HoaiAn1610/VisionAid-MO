@@ -7,6 +7,9 @@ import { recordVoiceCommand, toVoiceLog } from './voiceLog';
 
 jest.mock('@/services/storage/offlineQueue', () => ({ enqueue: jest.fn(async () => {}) }));
 jest.mock('@/features/sync/offlineSync', () => ({ syncOfflineNow: jest.fn() }));
+jest.mock('@/services/location/gps', () => ({
+  getQuickPosition: jest.fn(async () => ({ latitude: 10.8, longitude: 106.7 })),
+}));
 
 const outcome = (over: Partial<ListenOutcome> = {}): ListenOutcome => ({
   engine: 'GoogleSpeech',
@@ -83,7 +86,7 @@ describe('toVoiceLog (khớp LogVoiceCommandValidator của backend)', () => {
 });
 
 describe('recordVoiceCommand', () => {
-  it('ghi vào hàng đợi "voice" rồi đồng bộ', async () => {
+  it('ghi vào hàng đợi "voice" kèm vị trí gần nhất rồi đồng bộ', async () => {
     const log = toVoiceLog({
       outcome: outcome(),
       command: null,
@@ -91,9 +94,8 @@ describe('recordVoiceCommand', () => {
       executedAt: at,
     });
     recordVoiceCommand(log);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(enqueue).toHaveBeenCalledWith('voice', log);
+    await new Promise((r) => setImmediate(r));
+    expect(enqueue).toHaveBeenCalledWith('voice', { ...log, latitude: 10.8, longitude: 106.7 });
     expect(syncOfflineNow).toHaveBeenCalled();
   });
 });

@@ -34,12 +34,6 @@ export interface AppError {
   fieldErrors?: Record<string, string[]>;
 }
 
-/** WGS84 — Backend tự convert sang geography(Point,4326). */
-export interface GeoPoint {
-  latitude: number;
-  longitude: number;
-}
-
 /** `AuthTokenResponse` của backend (login + refresh). `expiresAt` là hạn của REFRESH token. */
 export const authTokenSchema = z.object({
   accessToken: z.string().min(1),

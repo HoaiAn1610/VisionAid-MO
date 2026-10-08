@@ -77,7 +77,7 @@ describe('runVoiceIntent', () => {
 
   it('"tôi ổn" khi không có cảnh báo té ngã → báo không có gì để hủy', () => {
     const c = ctx();
-    expect(runVoiceIntent('I_AM_OK', c)).toBe(true);
+    runVoiceIntent('I_AM_OK', c);
     expect(c.dismissFall).toHaveBeenCalled();
     expect(c.spoken).toEqual([Strings.fall.noAlert]);
   });
@@ -90,7 +90,7 @@ describe('runVoiceIntent', () => {
 
   it('"quét mã" → mở màn quét QR', () => {
     const c = ctx();
-    expect(runVoiceIntent('SCAN_QR', c)).toBe(true);
+    runVoiceIntent('SCAN_QR', c);
     expect(c.openQrScanner).toHaveBeenCalled();
   });
 
@@ -120,15 +120,11 @@ describe('runVoiceIntent', () => {
 
   it('"đọc chữ" / "đây là ai" → mở màn đọc chữ / nhận diện người quen', () => {
     const c = ctx();
-    expect(runVoiceIntent('READ_TEXT', c)).toBe(true);
-    expect(runVoiceIntent('RECOGNIZE_FACE', c)).toBe(true);
+    runVoiceIntent('READ_TEXT', c);
+    runVoiceIntent('RECOGNIZE_FACE', c);
     expect(c.openTextReader).toHaveBeenCalled();
     expect(c.openFaceRecognizer).toHaveBeenCalled();
-    expect(runVoiceIntent('WHERE_AM_I', c)).toBe(true);
+    runVoiceIntent('WHERE_AM_I', c);
     expect(c.openLocation).toHaveBeenCalled();
-  });
-
-  it('lệnh đã có tính năng → trả true', () => {
-    expect(runVoiceIntent('HELP', ctx())).toBe(true);
   });
 });

@@ -128,7 +128,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
         }
         let handled = false;
         try {
-          handled = runVoiceIntent(command.intent, {
+          runVoiceIntent(command.intent, {
             say,
             navigationActive: navRef.current.active,
             startNavigation: navRef.current.start,
@@ -149,6 +149,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
             mediaVolume: getMediaVolume(),
             setMediaVolume: (volume) => void setMediaVolume(volume),
           });
+          handled = true; // lệnh ném lỗi → log Failed
         } finally {
           log(handled ? (confirmedAt ? 'Confirmed' : 'Success') : 'Failed', confirmedAt);
         }

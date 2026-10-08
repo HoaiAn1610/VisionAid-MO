@@ -40,22 +40,8 @@ export interface VoiceContext {
   setMediaVolume(volume: number): void;
 }
 
-/**
- * Thực thi một lệnh đã khớp (và đã xác nhận nếu là lệnh nguy hiểm). Luôn có phản hồi TTS (§5.4).
- * @returns false nếu tính năng của lệnh chưa có (voice log ghi `Failed`).
- */
-export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean {
-  if (NOT_IMPLEMENTED.has(intent)) {
-    ctx.say(Strings.voice.notImplemented);
-    return false;
-  }
-  execute(intent, ctx);
-  return true;
-}
-
-const NOT_IMPLEMENTED = new Set<VoiceIntent>([]);
-
-function execute(intent: VoiceIntent, ctx: VoiceContext): void {
+/** Thực thi một lệnh đã khớp (và đã xác nhận nếu là lệnh nguy hiểm). Luôn có phản hồi TTS (§5.4). */
+export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
     case 'SCAN_QR':
       return ctx.openQrScanner(); // màn quét tự đọc hướng dẫn

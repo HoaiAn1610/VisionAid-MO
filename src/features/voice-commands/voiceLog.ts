@@ -3,6 +3,7 @@ import type { CommandStatus } from '@/constants/enums';
 import type { VoiceCommandDef } from '@/constants/voiceCommands';
 import { syncOfflineNow } from '@/features/sync/offlineSync';
 import type { ListenOutcome } from '@/services/speech/SpeechService';
+import { getQuickPosition } from '@/services/location/gps';
 import { enqueue } from '@/services/storage/offlineQueue';
 import { logger } from '@/utils/logger';
 
@@ -39,7 +40,7 @@ export function toVoiceLog({
     processingTimeMs: outcome.processingTimeMs > 0 ? Math.round(outcome.processingTimeMs) : null,
     isOffline: outcome.isOffline,
     executedAt: executedAt.toISOString(),
-    // TODO(Sprint 6): gắn vị trí GPS gần nhất
+    // Vị trí gắn lúc ghi (recordVoiceCommand) — không chờ GPS trong lượt ra lệnh
     latitude: null,
     longitude: null,
   };
@@ -47,7 +48,11 @@ export function toVoiceLog({
 
 /** Ghi vào hàng đợi offline rồi đồng bộ nếu có mạng (§13). Lỗi không ảnh hưởng lượt ra lệnh. */
 export function recordVoiceCommand(log: VoiceCommandLog): void {
-  enqueue('voice', log)
+  getQuickPosition()
+    .catch(() => null)
+    .then((p) =>
+      enqueue('voice', { ...log, latitude: p?.latitude ?? null, longitude: p?.longitude ?? null }),
+    )
     .then(syncOfflineNow)
     .catch((e: unknown) => logger.warn('Record voice command failed', e));
 }
