@@ -17,6 +17,7 @@ import { isNavigationAllowed } from '@/features/auth/licenseNotice';
 import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
 import { createFallDetector } from '@/features/emergency/fallDetector';
 import { registerFallSnapshotCamera } from '@/features/emergency/fallSnapshot';
+import { useCameraHeldByCall } from '@/features/call/cameraHold';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
@@ -26,6 +27,7 @@ import {
   recordDetectionEvent,
   startNavigationSession,
 } from './navigationSession';
+import { createFrameWatchdog } from './frameWatchdog';
 import {
   createGuidanceController,
   toGuidanceObjects,
@@ -49,6 +51,9 @@ const STATUS_STALE_MS = 4000;
 const ACCEL_INTERVAL_MS = 20;
 /** Vật phải xuất hiện ở 2 frame liên tiếp mới báo (khoảng 2 chu kỳ inference, cho phép trễ nhịp). */
 const CONFIRM_WINDOW_MS = 2000 / TARGET_INFERENCE_FPS;
+/** Camera ~3 khung/giây: 4 s không có khung nào = đã ngừng; lúc khởi động (camera + model) chờ lâu hơn. */
+const CAMERA_STALL_MS = 4000;
+const CAMERA_FIRST_FRAME_MS = 15_000;
 /** Hướng dẫn rẽ/tránh cũ hơn khoảng này thì bỏ, không đọc tin đã lỗi thời. */
 const GUIDANCE_MAX_AGE_MS = 1500;
 
@@ -77,6 +82,28 @@ export function useObstacleNavigation() {
     createFallDetector((event) => fallAlert.trigger(event)),
   );
   const fallDetector = useRef(fallDetectorInstance);
+  // Canh camera: YOLO dừng im lặng = người dùng tưởng vẫn được cảnh báo (§5.9)
+  const [watchdog] = useState(() =>
+    createFrameWatchdog({
+      stallMs: CAMERA_STALL_MS,
+      firstFrameMs: CAMERA_FIRST_FRAME_MS,
+      checkEveryMs: 1000,
+      now: Date.now,
+      setInterval: (fn, ms) => setInterval(fn, ms),
+      clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>),
+      onStall: () => {
+        say(Strings.navigation.cameraStalled, TtsPriority.DANGER);
+        void HapticService.warning();
+      },
+      onRecover: () => say(Strings.navigation.cameraRecovered),
+    }),
+  );
+  const heldByCall = useCameraHeldByCall();
+  const [foreground, setForeground] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => setForeground(s === 'active'));
+    return () => sub.remove();
+  }, []);
   const showStatus = useCallback((text: string) => {
     setLastAnnouncement(text);
     if (staleTimer.current) clearTimeout(staleTimer.current);
@@ -116,6 +143,7 @@ export function useObstacleNavigation() {
 
   const onResult = useCallback(
     (r: FrameResult) => {
+      watchdog.frame();
       fallDetector.current.onFrame(r.signature, Date.now());
       if (isFallAlertActive()) return; // đang đếm ngược té ngã → im lặng để nghe "tôi ổn"
       const confirmed = confirmAcrossFrames(
@@ -141,7 +169,7 @@ export function useObstacleNavigation() {
       showStatus(request.text);
       if (sessionId.current) logAlert(sessionId.current, pick, r.inferenceMs);
     },
-    [mode, getGuidance, showStatus],
+    [mode, getGuidance, showStatus, watchdog],
   );
 
   const detector = useObstacleDetector(MODEL, PREFERRED_DELEGATES, { onResult });
@@ -177,6 +205,13 @@ export function useObstacleNavigation() {
     );
     return () => sub.remove();
   }, [sessionActive]);
+
+  // Chỉ canh khi camera đáng lẽ phải chạy (chạy nền / cuộc gọi giữ camera đã có thông báo riêng)
+  useEffect(() => {
+    if (!sessionActive || !foreground || heldByCall) return;
+    watchdog.start();
+    return () => watchdog.stop();
+  }, [sessionActive, foreground, heldByCall, watchdog]);
 
   // Camera tắt khi app xuống nền (DetectionCamera) → phải báo, kẻo người dùng tưởng vẫn được cảnh báo
   useEffect(() => {

@@ -11,6 +11,7 @@ import {
 
 import { Notice } from '@/components/Notice';
 import { Strings } from '@/constants/strings.vi';
+import { logger } from '@/utils/logger';
 import { useCameraHeldByCall, useCameraUser } from '@/features/call/cameraHold';
 import { colors, radius } from '@/theme';
 
@@ -68,6 +69,8 @@ export function DetectionCamera({
         codeScanner={codeScanner}
         photo={photo}
         pixelFormat="yuv"
+        // Lỗi camera (bị app khác chiếm, phần cứng…): người dùng được báo qua bộ canh khung hình
+        onError={(e) => logger.warn('Camera error', e.code)}
       />
     </View>
   );

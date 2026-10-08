@@ -12,7 +12,7 @@ import { useObstacleNavigation } from '@/features/obstacle-detection/useObstacle
 import { ensureCallPermission } from '@/features/emergency/callContact';
 import { useVoice } from '@/features/voice-commands/VoiceProvider';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { ensureLocationPermission } from '@/services/location/gps';
+import { ensureLocationPermission, warnIfLocationServicesOff } from '@/services/location/gps';
 import { setGpsMode } from '@/services/location/gpsTracking';
 import { useAuthStore } from '@/stores/authStore';
 import { colors, radius, spacing } from '@/theme';
@@ -29,6 +29,7 @@ export default function HomeScreen() {
     void (async () => {
       if (active) await ensureCallPermission(); // té ngã offline có thể tự gọi người thân
       if (active && !(await ensureLocationPermission())) return;
+      if (active) await warnIfLocationServicesOff();
       await setGpsMode(active ? 'session' : 'low-power');
     })();
   }, [active]);
