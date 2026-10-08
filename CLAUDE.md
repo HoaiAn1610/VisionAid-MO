@@ -832,6 +832,9 @@ Sprint 9 — Settings, Hardening & Release
 | GAP-25 | Thấp | Đã có `ocr_confidence_threshold` + `LowConfidence` (`f3e85f0`), nhưng key `isPublic: false`; `decimal.TryParse` không chỉ định culture | `isPublic: true`; `CultureInfo.InvariantCulture` | Ngưỡng 0.5 phía client |
 | GAP-26 | Thấp | Đã có `errorCode` + `traceId` trong ProblemDetails (`f3e85f0`); "không thấy khuôn mặt" chưa có `errorCode` (chỉ `FACE_SERVICE_UNAVAILABLE`) | Thêm `NO_FACE_DETECTED` | 422 + `errorCode = FACE_SERVICE_UNAVAILABLE` → không khả dụng; 422 không có `errorCode` → không thấy mặt |
 | BR-37 | Thấp | Khóa Caregiver chính chỉ ghi log cảnh báo, chưa đánh dấu VIU cần gán lại | Làm theo SRS hoặc ghi ngoài phạm vi | — |
+| GAP-39 | Riêng tư | `UploadEventSnapshotHandler` không kiểm tra trạng thái → event `Dismissed` vẫn nhận ảnh hiện trường | Từ chối khi `Dismissed`; dismiss thì xóa ảnh đã có | Mobile chỉ gửi ảnh khi cảnh báo được gửi đi |
+| GAP-40 | Vận hành | Snapshot base64 (`PUT /snapshot`, `snapshotBase64`) không giới hạn kích thước (chỉ mặc định Kestrel ~30 MB) | Validator ≤ ~2 MB + `[RequestSizeLimit]` | Ảnh JPEG ≤ 480 px |
+| GAP-41 | Thấp | `EndCallHandler` luôn đặt `Ended`, kể cả reason `Missed` / chưa từng kết nối | Chưa kết nối + `Missed` → status `Missed` | Gửi reason `UserEnded` / `Missed` / `Failed` / `Cancelled` |
 
 ### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`, `2fe9c2c`, `0171a4d`, `f3e85f0`)
 | # | Kết quả |
