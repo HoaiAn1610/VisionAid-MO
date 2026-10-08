@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, Ref } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -50,6 +50,8 @@ interface Props {
   /** Nút chọn một trong nhiều (chế độ…): TalkBack đọc "đã chọn". */
   selected?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Để chuyển tiêu điểm TalkBack vào nút (lớp phủ vừa hiện). */
+  ref?: Ref<View>;
 }
 
 export function Button({
@@ -63,6 +65,7 @@ export function Button({
   disabled = false,
   selected,
   style,
+  ref,
 }: Props) {
   const v = variants[variant];
   const hero = size === 'hero';
@@ -71,6 +74,7 @@ export function Button({
 
   return (
     <Pressable
+      ref={ref}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}

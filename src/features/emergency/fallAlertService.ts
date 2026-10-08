@@ -1,6 +1,5 @@
 import * as Crypto from 'expo-crypto';
 import { useSyncExternalStore } from 'react';
-import { AccessibilityInfo } from 'react-native';
 
 import {
   createEmergencyEvent,
@@ -10,6 +9,7 @@ import {
 import { Strings } from '@/constants/strings.vi';
 import { matchIntent } from '@/features/voice-commands/intentMatcher';
 import { syncOfflineNow } from '@/features/sync/offlineSync';
+import { isScreenReaderOn } from '@/services/a11y/screenReader';
 import { HapticService } from '@/services/haptics/HapticService';
 import { getQuickPosition } from '@/services/location/gps';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
@@ -27,12 +27,6 @@ import { captureFallSnapshot } from './fallSnapshot';
 
 let state: FallAlertState = { phase: 'idle', remaining: 0 };
 
-// TalkBack bật → chạm một lần chỉ chọn lớp phủ, phải chạm hai lần mới hủy
-let screenReaderOn = false;
-AccessibilityInfo.isScreenReaderEnabled()
-  .then((on) => (screenReaderOn = on))
-  .catch(() => undefined);
-AccessibilityInfo.addEventListener('screenReaderChanged', (on) => (screenReaderOn = on));
 const listeners = new Set<() => void>();
 
 const controller = createFallAlert(
@@ -57,7 +51,8 @@ const controller = createFallAlert(
     captureSnapshot: captureFallSnapshot,
     uploadSnapshot: uploadEmergencySnapshot,
     detectedMessage: () =>
-      screenReaderOn ? Strings.fall.detectedScreenReader : Strings.fall.detected,
+      // TalkBack bật → chạm một lần chỉ chọn lớp phủ, phải chạm hai lần mới hủy
+      isScreenReaderOn() ? Strings.fall.detectedScreenReader : Strings.fall.detected,
   },
   (next) => {
     // Đã gửi / đã hủy → đóng mic đang nghe "tôi ổn"

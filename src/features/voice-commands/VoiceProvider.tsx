@@ -1,4 +1,5 @@
 import { router, usePathname } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 import {
   createContext,
   useCallback,
@@ -11,6 +12,7 @@ import {
 
 import { Strings } from '@/constants/strings.vi';
 import { callService } from '@/features/call/callService';
+import { isScreenReaderOn, screenReaderEnabled } from '@/services/a11y/screenReader';
 import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
 import { markSosConfirmedByVoice } from '@/features/emergency/sosConfirmation';
 import { NetworkMonitor } from '@/services/network/NetworkMonitor';
@@ -117,7 +119,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     (mode: ListenMode = 'manual') => {
       if (isFallAlertActive()) return; // mic đang dành cho "tôi ổn"
       if (callService.isActive()) return; // micro đang dùng cho cuộc gọi
-      if (mode === 'follow-up' && !canListenSilently()) return;
+      if (mode === 'follow-up' && (!canListenSilently() || isScreenReaderOn())) return;
       void start(mode);
     },
     [start],
@@ -129,7 +131,11 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     const volume = getMediaVolume();
     if (volume !== null && volume < MIN_MEDIA_VOLUME) setMediaVolume(MIN_MEDIA_VOLUME);
     ttsService.enqueue({ text: Strings.app.ready, priority: TtsPriority.SYSTEM });
-    void start('launch');
+    // TalkBack bật: TalkBack đang đọc màn hình → mic tự mở sẽ nghe nhầm giọng TalkBack thành lệnh
+    // (echo guard chỉ biết giọng TTS của app). Người dùng ra lệnh bằng phím âm lượng / nút.
+    void screenReaderEnabled().then((on) => {
+      if (!on) void start('launch');
+    });
   }, [start]);
 
   // Nút tăng/giảm âm lượng = nút ra lệnh: đang nghe → hủy, không thì bắt đầu nghe
@@ -162,8 +168,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   return (
     <VoiceContext.Provider value={api}>
-      {children}
+      {/* Sheet đang mở: ẩn màn bên dưới với TalkBack (accessibilityViewIsModal chỉ có trên iOS) */}
+      <View
+        style={styles.fill}
+        importantForAccessibility={phase === 'idle' ? 'auto' : 'no-hide-descendants'}
+      >
+        {children}
+      </View>
       <VoiceSheet phase={phase} heard={voice.heard} onCancel={cancel} />
     </VoiceContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({ fill: { flex: 1 } });

@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
+import { useAccessibilityFocusOnShow } from '@/services/a11y/screenReader';
 import { colors, spacing } from '@/theme';
 
 import { callService, useCallState } from './callService';
@@ -13,6 +15,8 @@ import { callService, useCallState } from './callService';
  */
 export function CallOverlay() {
   const { phase } = useCallState();
+  const endRef = useRef<View>(null);
+  useAccessibilityFocusOnShow(endRef, phase !== 'idle');
   if (phase === 'idle') return null;
   return (
     <View
@@ -24,6 +28,7 @@ export function CallOverlay() {
         {Strings.call.phase[phase]}
       </ThemedText>
       <Button
+        ref={endRef}
         size="hero"
         variant="danger"
         icon="phone-hangup"
