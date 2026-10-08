@@ -2,7 +2,11 @@ import * as Crypto from 'expo-crypto';
 import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-import { createEmergencyEvent, dismissEmergencyEvent } from '@/api/endpoints/emergency';
+import {
+  createEmergencyEvent,
+  dismissEmergencyEvent,
+  uploadEmergencySnapshot,
+} from '@/api/endpoints/emergency';
 import { Strings } from '@/constants/strings.vi';
 import { matchIntent } from '@/features/voice-commands/intentMatcher';
 import { syncOfflineNow } from '@/features/sync/offlineSync';
@@ -19,6 +23,7 @@ import { logger } from '@/utils/logger';
 import { executeCall } from './callContact';
 import { createFallAlert, type FallAlertState } from './fallAlert';
 import type { FallEvent } from './fallDetector';
+import { captureFallSnapshot } from './fallSnapshot';
 
 let state: FallAlertState = { phase: 'idle', remaining: 0 };
 
@@ -49,6 +54,8 @@ const controller = createFallAlert(
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     now: Date.now,
     newId: () => Crypto.randomUUID(),
+    captureSnapshot: captureFallSnapshot,
+    uploadSnapshot: uploadEmergencySnapshot,
     detectedMessage: () =>
       screenReaderOn ? Strings.fall.detectedScreenReader : Strings.fall.detected,
   },

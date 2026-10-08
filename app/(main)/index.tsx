@@ -56,7 +56,12 @@ export default function HomeScreen() {
             {nav.lastAnnouncement ?? Strings.navigation.clear}
           </ThemedText>
         </View>
-        <DetectionCamera frameProcessor={nav.frameProcessor} enabled={nav.active} />
+        <DetectionCamera
+          frameProcessor={nav.frameProcessor}
+          cameraRef={nav.cameraRef}
+          snapshotOnly
+          enabled={nav.active}
+        />
         {voiceButton}
         <Button
           variant="danger"

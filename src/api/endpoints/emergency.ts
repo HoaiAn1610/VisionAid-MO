@@ -65,6 +65,14 @@ export async function createEmergencyEvent(
   return apiResponseSchema(eventSchema).parse(res.data).data;
 }
 
+/** Ảnh hiện trường té ngã cho event đã tạo (backend `f3e85f0`, chỉ VIU chủ event). */
+export async function uploadEmergencySnapshot(id: string, imageBase64: string): Promise<void> {
+  await apiClient.put(`/api/emergency-events/${id}/snapshot`, {
+    imageBase64,
+    contentType: 'image/jpeg',
+  });
+}
+
 /** Hủy cảnh báo té ngã trong grace period; quá hạn → 422. */
 export async function dismissEmergencyEvent(id: string, notes?: string): Promise<void> {
   await apiClient.put(`/api/emergency-events/${id}/dismiss`, { notes });

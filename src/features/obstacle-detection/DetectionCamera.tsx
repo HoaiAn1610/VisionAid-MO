@@ -21,17 +21,26 @@ interface Props {
   codeScanner?: CodeScanner;
   /** Chụp ảnh tĩnh (đọc chữ, nhận diện người quen) qua `cameraRef.current.takePhoto()`. */
   cameraRef?: Ref<Camera>;
+  /** Chỉ cần `takeSnapshot` (ảnh té ngã) — không bật chế độ chụp ảnh, giữ format nhẹ cho YOLO. */
+  snapshotOnly?: boolean;
   /** Chỉ chạy camera khi đang cần (phiên dẫn đường / đang quét). */
   enabled: boolean;
 }
 
 /** Camera sau cho YOLO / quét QR / chụp ảnh. Tự tắt khi rời màn hình / app xuống nền (pin + quyền riêng tư). */
-export function DetectionCamera({ frameProcessor, codeScanner, cameraRef, enabled }: Props) {
+export function DetectionCamera({
+  frameProcessor,
+  codeScanner,
+  cameraRef,
+  snapshotOnly = false,
+  enabled,
+}: Props) {
+  const photo = cameraRef !== undefined && !snapshotOnly;
   const device = useCameraDevice('back');
   // 720p đủ cho model 320×320, nhẹ hơn 1080p/4K. Chụp ảnh: ~1080p đủ cho OCR, ảnh vẫn được nén lại.
   const format = useCameraFormat(device, [
     { videoResolution: { width: 1280, height: 720 } },
-    ...(cameraRef ? [{ photoResolution: { width: 1920, height: 1080 } }] : []),
+    ...(photo ? [{ photoResolution: { width: 1920, height: 1080 } }] : []),
   ]);
   const focused = useIsFocused();
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
@@ -57,7 +66,7 @@ export function DetectionCamera({ frameProcessor, codeScanner, cameraRef, enable
         isActive={running}
         frameProcessor={frameProcessor}
         codeScanner={codeScanner}
-        photo={cameraRef !== undefined}
+        photo={photo}
         pixelFormat="yuv"
       />
     </View>

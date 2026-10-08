@@ -2,7 +2,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Accelerometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
-import { useCameraPermission } from 'react-native-vision-camera';
+import { useCameraPermission, type Camera } from 'react-native-vision-camera';
 
 import { BusinessRules } from '@/constants/businessRules';
 import { Strings } from '@/constants/strings.vi';
@@ -16,6 +16,7 @@ import { TtsPriority, ttsService } from '@/services/tts/TtsService';
 import { isNavigationAllowed } from '@/features/auth/licenseNotice';
 import { fallAlert, isFallAlertActive } from '@/features/emergency/fallAlertService';
 import { createFallDetector } from '@/features/emergency/fallDetector';
+import { registerFallSnapshotCamera } from '@/features/emergency/fallSnapshot';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
@@ -68,6 +69,9 @@ export function useObstacleNavigation() {
   const wantActive = useRef(false);
   const staleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSeen = useRef(new Map<string, number>());
+  // Camera dẫn đường cũng chụp ảnh hiện trường khi té ngã (gửi cho người chăm sóc)
+  const cameraRef = useRef<Camera>(null);
+  useEffect(() => registerFallSnapshotCamera(cameraRef), []);
   // Phát hiện té ngã chỉ chạy trong phiên dẫn đường (cần camera, BR-26)
   const [fallDetectorInstance] = useState(() =>
     createFallDetector((event) => fallAlert.trigger(event)),
@@ -267,6 +271,7 @@ export function useObstacleNavigation() {
     stop,
     lastAnnouncement,
     frameProcessor: detector.frameProcessor,
+    cameraRef,
     modelState: detector.modelState,
   };
 }
