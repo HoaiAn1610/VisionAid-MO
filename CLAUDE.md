@@ -213,10 +213,10 @@ Launch
 4. **Mọi hành động phải có TTS xác nhận** (bắt đầu/kết thúc session, đổi mode, lưu setting, gửi SOS, lỗi...).
 5. Alert quan trọng = **TTS + Haptic** (fall countdown: rung theo nhịp mỗi giây; SOS sent: pattern rung riêng).
 6. Mọi tính năng cốt lõi truy cập được bằng **giọng nói hoặc 1 cử chỉ chạm đơn giản** — không yêu cầu nhìn màn hình.
-7. Tương thích **TalkBack**: khi TalkBack bật, tránh đọc đè — dùng `AccessibilityInfo.isScreenReaderEnabled()` để điều chỉnh (ví dụ ưu tiên `announceForAccessibility` cho thông báo UI, giữ `TtsService` cho cảnh báo vật cản/khẩn cấp).
+7. Tương thích **TalkBack**: khi TalkBack bật, tránh đọc đè — `src/services/a11y/screenReader.ts` (`isScreenReaderOn`). Đã chốt: TalkBack bật → **không tự mở mic** (lúc mở app, sau kết quả), vì echo guard chỉ biết giọng TTS của app, mic sẽ nghe nhầm giọng TalkBack thành lệnh; người dùng ra lệnh bằng phím âm lượng / nút. Lớp phủ và sheet (té ngã, cuộc gọi, nghe lệnh) tự chuyển tiêu điểm TalkBack (`useAccessibilityFocusOnShow`) và ẩn nội dung bên dưới bằng `importantForAccessibility="no-hide-descendants"` (`accessibilityViewIsModal` chỉ có trên iOS). Tiêu đề màn hình có `accessibilityRole="header"`.
 8. Voice command không nhận diện được hoặc confidence thấp → TTS yêu cầu nói lại, **KHÔNG** thực thi đoán mò.
-9. Mất quyền camera giữa session → không crash, TTS hướng dẫn cấp lại quyền (SRS 4.2.2).
-10. Mất GPS → dùng vị trí cuối cùng đã biết, không treo.
+9. Mất quyền camera giữa session → không crash, TTS hướng dẫn cấp lại quyền (SRS 4.2.2). (Android thu hồi quyền = giết tiến trình; mở lại app xin quyền như bình thường.) **Camera ngừng im lặng** (lỗi, bị app khác chiếm, frame processor treo) → bộ canh `frameWatchdog.ts`: 4 s không có khung (15 s lúc khởi động) → TTS cảnh báo + rung, có lại → báo tiếp tục.
+10. Mất GPS → dùng vị trí cuối cùng đã biết, không treo. Bắt đầu dẫn đường mà **Vị trí của máy đang tắt** → TTS báo người chăm sóc sẽ không thấy vị trí.
 11. Tất cả chuỗi tiếng Việt nằm trong `src/constants/strings.vi.ts` — không hard-code trong component.
 
 ---

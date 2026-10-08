@@ -206,7 +206,7 @@ Cả hai đã được Hội đồng/Mentor chốt vào phạm vi.
 
 ### Sprint 9: Settings, Hardening & Release
 
-**Trạng thái (2026-10-08, nhánh `feature/sprint9-settings`):** ✅ Màn Cài đặt: tốc độ / âm lượng đọc, chế độ cảnh báo, hồ sơ, đổi mật khẩu (đăng xuất sau khi đổi). ✅ Tùy chọn đồng bộ `/users/me/tts-preferences`, cache trên máy, an toàn khi offline. ⏳ Giọng nam/nữ (cần thử trên máy để map giọng vi-VN). ⏳ Các mục còn lại bên dưới.
+**Trạng thái (2026-10-08, nhánh `feature/sprint9-settings`):** ✅ Màn Cài đặt: tốc độ / âm lượng đọc, chế độ cảnh báo, hồ sơ, đổi mật khẩu (đăng xuất sau khi đổi). ✅ Tùy chọn đồng bộ `/users/me/tts-preferences`, cache trên máy, an toàn khi offline. ✅ Bộ canh camera (YOLO dừng im lặng → báo), cảnh báo Vị trí của máy đang tắt. ✅ Rà TalkBack: không tự mở mic khi TalkBack bật, tiêu điểm tự chuyển vào lớp phủ / sheet, ẩn nội dung bên dưới, tiêu đề là header. ⏳ Thử TalkBack trên máy thật. ⏳ Giọng nam/nữ (cần thử trên máy để map giọng vi-VN). ⏳ User Guide, dọn code, benchmark, hiệu chỉnh ngưỡng.
 
 | Task                                                                                                                                                            | Skill                                                 | Done khi                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
