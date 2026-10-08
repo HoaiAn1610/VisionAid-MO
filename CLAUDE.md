@@ -216,7 +216,7 @@ Launch
 7. Tương thích **TalkBack**: khi TalkBack bật, tránh đọc đè — `src/services/a11y/screenReader.ts` (`isScreenReaderOn`). Đã chốt: TalkBack bật → **không tự mở mic** (lúc mở app, sau kết quả), vì echo guard chỉ biết giọng TTS của app, mic sẽ nghe nhầm giọng TalkBack thành lệnh; người dùng ra lệnh bằng phím âm lượng / nút. Lớp phủ và sheet (té ngã, cuộc gọi, nghe lệnh) tự chuyển tiêu điểm TalkBack (`useAccessibilityFocusOnShow`) và ẩn nội dung bên dưới bằng `importantForAccessibility="no-hide-descendants"` (`accessibilityViewIsModal` chỉ có trên iOS). Tiêu đề màn hình có `accessibilityRole="header"`.
 8. Voice command không nhận diện được hoặc confidence thấp → TTS yêu cầu nói lại, **KHÔNG** thực thi đoán mò.
 9. Mất quyền camera giữa session → không crash, TTS hướng dẫn cấp lại quyền (SRS 4.2.2). (Android thu hồi quyền = giết tiến trình; mở lại app xin quyền như bình thường.) **Camera ngừng im lặng** (lỗi, bị app khác chiếm, frame processor treo) → bộ canh `frameWatchdog.ts`: 4 s không có khung (15 s lúc khởi động) → TTS cảnh báo + rung, có lại → báo tiếp tục.
-10. Mất GPS → dùng vị trí cuối cùng đã biết, không treo. Bắt đầu dẫn đường mà **Vị trí của máy đang tắt** → TTS báo người chăm sóc sẽ không thấy vị trí.
+10. Mất GPS → dùng vị trí cuối cùng đã biết, không treo. Bắt đầu dẫn đường mà **Vị trí của máy đang tắt** → TTS báo người chăm sóc sẽ không thấy vị trí. Đang dẫn đường mà mở màn khác (đọc chữ, QR, khuôn mặt, khẩn cấp, cài đặt) → camera dẫn đường tắt → TTS "Tạm dừng cảnh báo vật cản", quay về → "Tiếp tục cảnh báo vật cản".
 11. Tất cả chuỗi tiếng Việt nằm trong `src/constants/strings.vi.ts` — không hard-code trong component.
 
 ---

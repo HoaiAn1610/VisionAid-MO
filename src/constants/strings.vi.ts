@@ -144,6 +144,8 @@ export const Strings = {
     modelFailed: 'Không khởi động được nhận diện vật cản',
     paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
     resumed: 'Tiếp tục dẫn đường',
+    pausedOtherScreen: 'Tạm dừng cảnh báo vật cản',
+    resumedHome: 'Tiếp tục cảnh báo vật cản',
     cameraStalled:
       'Camera không hoạt động, cảnh báo vật cản đang tạm dừng. Hãy dừng lại và dùng gậy. Thử dừng rồi bắt đầu dẫn đường lại.',
     cameraRecovered: 'Camera đã hoạt động lại, tiếp tục cảnh báo vật cản',

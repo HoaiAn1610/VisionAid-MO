@@ -217,6 +217,24 @@ export function useObstacleNavigation() {
     return () => watchdog.stop();
   }, [sessionActive, foreground, heldByCall, focused, modelLoaded, watchdog]);
 
+  // Sang màn khác (đọc chữ, QR, khuôn mặt, khẩn cấp, cài đặt) → camera dẫn đường tắt: phải báo,
+  // kẻo người dùng tưởng vẫn được cảnh báo; quay về màn chính → báo tiếp tục.
+  // FEEDBACK: xếp sau, không cắt câu giới thiệu của màn vừa mở.
+  const leftHome = useRef(false);
+  useEffect(() => {
+    if (!sessionActive) {
+      leftHome.current = false;
+      return;
+    }
+    if (!focused) {
+      leftHome.current = true;
+      say(Strings.navigation.pausedOtherScreen, TtsPriority.FEEDBACK);
+    } else if (leftHome.current) {
+      leftHome.current = false;
+      say(Strings.navigation.resumedHome, TtsPriority.FEEDBACK);
+    }
+  }, [focused, sessionActive]);
+
   // Camera tắt khi app xuống nền (DetectionCamera) → phải báo, kẻo người dùng tưởng vẫn được cảnh báo
   useEffect(() => {
     if (!sessionActive) return;
