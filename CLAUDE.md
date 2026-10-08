@@ -534,7 +534,7 @@ Trigger (nút SOS / lệnh "gọi khẩn cấp" / cử chỉ) → Confirmation b
 - Chỉ role VIU mới tạo/dismiss được event; VIU chỉ dismiss được event của chính mình.
 
 ### 9.8 Battery Monitor (FE-14, BR-17)
-- Pin < **10%** → tự chuyển **Minimal Mode** + TTS "Pin yếu, đã chuyển sang chế độ tiết kiệm". Chỉ thông báo 1 lần mỗi lần xuống ngưỡng (không lặp).
+- Pin < **10%** → tự chuyển **Minimal Mode** + TTS "Pin yếu, đã chuyển sang chế độ tiết kiệm". Chỉ thông báo 1 lần mỗi lần xuống ngưỡng (không lặp). Minimal do pin là cờ **tạm thời** riêng (`settingsStore.batterySaver`, chế độ thực tế = `selectEffectiveMode`) — không ghi đè lựa chọn đã lưu của người dùng, đồng bộ tùy chọn cũng không xóa được. Tắt khi sạc lên trên ngưỡng hoặc khi người dùng tự chọn chế độ.
 - Gửi `batteryLevel` kèm mỗi điểm GPS.
 
 ### 9.9 Settings & Privacy
