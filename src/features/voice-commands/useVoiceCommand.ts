@@ -6,8 +6,8 @@ import type { CommandStatus } from '@/constants/enums';
 import { Strings } from '@/constants/strings.vi';
 import { HapticService } from '@/services/haptics/HapticService';
 import { OfflineSpeechUnavailableError, speechService } from '@/services/speech/SpeechService';
+import { preferences } from '@/features/settings/preferencesService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
-import { useSettingsStore } from '@/stores/settingsStore';
 
 import { getMediaVolume, setMediaVolume } from '../../../modules/volume-key';
 import { logger } from '@/utils/logger';
@@ -66,7 +66,6 @@ export function useVoiceCommand(navigation: NavigationControls) {
   const busy = useRef(false);
   const cancelled = useRef(false);
   const confirmation = useRef<VoiceConfirmation | null>(null);
-  const setDetectionMode = useSettingsStore((s) => s.setDetectionMode);
   const navRef = useRef(navigation);
   useEffect(() => {
     navRef.current = navigation;
@@ -142,9 +141,10 @@ export function useVoiceCommand(navigation: NavigationControls) {
             dismissFall: navRef.current.dismissFall,
             callCaregiver: navRef.current.callCaregiver,
             endCall: navRef.current.endCall,
-            setDetectionMode,
+            // Lưu lại + đồng bộ server như đổi trong màn Cài đặt
+            setDetectionMode: (detectionMode) => void preferences.update({ detectionMode }),
             speechRate: ttsService.getSettings().rate,
-            setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
+            setSpeechRate: (speedRate) => void preferences.update({ speedRate }),
             lastAnnouncement,
             mediaVolume: getMediaVolume(),
             setMediaVolume: (volume) => void setMediaVolume(volume),
@@ -163,7 +163,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
         setPhase('idle');
       }
     },
-    [confirm, setDetectionMode],
+    [confirm],
   );
 
   const cancel = useCallback(() => {

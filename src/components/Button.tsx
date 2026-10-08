@@ -47,6 +47,8 @@ interface Props {
   icon?: IconName;
   loading?: boolean;
   disabled?: boolean;
+  /** Nút chọn một trong nhiều (chế độ…): TalkBack đọc "đã chọn". */
+  selected?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -59,6 +61,7 @@ export function Button({
   icon,
   loading = false,
   disabled = false,
+  selected,
   style,
 }: Props) {
   const v = variants[variant];
@@ -71,7 +74,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: inactive, busy: loading }}
+      accessibilityState={{ disabled: inactive, busy: loading, selected }}
       disabled={inactive}
       onPress={() => {
         void HapticService.tap();

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import type { DetectionMode } from '@/constants/enums';
 
-// TODO(Sprint 7/8): đồng bộ detectionMode với /users/me/tts-preferences; pin < 10% → Minimal (BR-17).
+// Lưu + đồng bộ server qua features/settings/preferencesService; pin < 10% đặt Minimal tạm thời (không lưu).
 interface SettingsState {
   detectionMode: DetectionMode;
   setDetectionMode: (mode: DetectionMode) => void;
