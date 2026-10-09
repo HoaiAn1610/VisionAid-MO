@@ -27,7 +27,12 @@ export async function screenReaderEnabled(): Promise<boolean> {
  */
 export function useAccessibilityFocusOnShow(ref: RefObject<View | null>, visible: boolean): void {
   useEffect(() => {
-    const node = visible && ref.current ? findNodeHandle(ref.current) : null;
-    if (node) AccessibilityInfo.setAccessibilityFocus(node);
+    if (!visible || !screenReaderOn) return;
+    // Chờ 1 frame: effect chạy trước khi Fabric mount view native → "Unable to find viewState"
+    const frame = requestAnimationFrame(() => {
+      const node = ref.current ? findNodeHandle(ref.current) : null;
+      if (node) AccessibilityInfo.setAccessibilityFocus(node);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [ref, visible]);
 }
