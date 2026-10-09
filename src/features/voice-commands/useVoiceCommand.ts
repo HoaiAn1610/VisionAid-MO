@@ -6,8 +6,8 @@ import type { CommandStatus } from '@/constants/enums';
 import { Strings } from '@/constants/strings.vi';
 import { HapticService } from '@/services/haptics/HapticService';
 import { OfflineSpeechUnavailableError, speechService } from '@/services/speech/SpeechService';
+import { chooseDetectionMode, preferences } from '@/features/settings/preferencesService';
 import { TtsPriority, ttsService } from '@/services/tts/TtsService';
-import { useSettingsStore } from '@/stores/settingsStore';
 
 import { getMediaVolume, setMediaVolume } from '../../../modules/volume-key';
 import { logger } from '@/utils/logger';
@@ -36,6 +36,8 @@ interface NavigationControls {
   openLocation(): void;
   openEmergency(): void;
   dismissFall(): boolean;
+  callCaregiver(): void;
+  endCall(): boolean;
 }
 
 /** TalkBack đọc nội dung sheet khi mở → chờ đọc xong mới mở mic (echo guard chỉ biết TTS của app). */
@@ -64,7 +66,6 @@ export function useVoiceCommand(navigation: NavigationControls) {
   const busy = useRef(false);
   const cancelled = useRef(false);
   const confirmation = useRef<VoiceConfirmation | null>(null);
-  const setDetectionMode = useSettingsStore((s) => s.setDetectionMode);
   const navRef = useRef(navigation);
   useEffect(() => {
     navRef.current = navigation;
@@ -127,7 +128,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
         }
         let handled = false;
         try {
-          handled = runVoiceIntent(command.intent, {
+          runVoiceIntent(command.intent, {
             say,
             navigationActive: navRef.current.active,
             startNavigation: navRef.current.start,
@@ -138,13 +139,17 @@ export function useVoiceCommand(navigation: NavigationControls) {
             openLocation: navRef.current.openLocation,
             openEmergency: navRef.current.openEmergency,
             dismissFall: navRef.current.dismissFall,
-            setDetectionMode,
+            callCaregiver: navRef.current.callCaregiver,
+            endCall: navRef.current.endCall,
+            // Lưu lại + đồng bộ server như đổi trong màn Cài đặt
+            setDetectionMode: (detectionMode) => void chooseDetectionMode(detectionMode),
             speechRate: ttsService.getSettings().rate,
-            setSpeechRate: (rate) => ttsService.updateSettings({ rate }),
+            setSpeechRate: (speedRate) => void preferences.update({ speedRate }),
             lastAnnouncement,
             mediaVolume: getMediaVolume(),
             setMediaVolume: (volume) => void setMediaVolume(volume),
           });
+          handled = true; // lệnh ném lỗi → log Failed
         } finally {
           log(handled ? (confirmedAt ? 'Confirmed' : 'Success') : 'Failed', confirmedAt);
         }
@@ -159,7 +164,7 @@ export function useVoiceCommand(navigation: NavigationControls) {
         setPhase('idle');
       }
     },
-    [confirm, setDetectionMode],
+    [confirm],
   );
 
   const cancel = useCallback(() => {

@@ -1,5 +1,6 @@
 import { AppState } from 'react-native';
 
+import { ApiError } from '@/api/client';
 import { fetchEmergencyContacts } from '@/api/endpoints/emergency';
 import { saveEmergencyContacts } from '@/services/storage/emergencyContactsRepo';
 import { logger } from '@/utils/logger';
@@ -7,7 +8,13 @@ import { logger } from '@/utils/logger';
 function refreshEmergencyContacts(): void {
   fetchEmergencyContacts()
     .then(saveEmergencyContacts)
-    .catch((e: unknown) => logger.warn('Refresh emergency contacts failed', e));
+    .catch((e: unknown) =>
+      // Mất mạng (status 0): giữ cache cũ, lần mở app sau tải lại — không phải lỗi
+      (e instanceof ApiError && e.status === 0 ? logger.debug : logger.warn)(
+        'Refresh emergency contacts failed',
+        e instanceof ApiError ? e.status : e,
+      ),
+    );
 }
 
 /**

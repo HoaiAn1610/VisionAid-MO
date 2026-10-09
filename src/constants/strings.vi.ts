@@ -66,6 +66,53 @@ export const Strings = {
   },
   settings: {
     account: 'Tài khoản',
+    phone: (phone: string) => `Số điện thoại ${phone}`,
+    // Tốc độ / âm lượng giọng đọc (FE-02)
+    speedTitle: 'Tốc độ đọc',
+    speedValue: (rate: number) => `${rate.toLocaleString('vi-VN')} lần`,
+    slower: 'Đọc chậm hơn',
+    faster: 'Đọc nhanh hơn',
+    speedHint: 'Chạm hai lần để đổi tốc độ đọc',
+    speedChanged: (rate: number) => `Tốc độ đọc ${rate.toLocaleString('vi-VN')} lần`,
+    atLimit: 'Đã ở mức giới hạn',
+    volumeTitle: 'Âm lượng giọng đọc',
+    volumeValue: (v: number) => `${Math.round(v * 100)} phần trăm`,
+    quieter: 'Đọc nhỏ hơn',
+    louder: 'Đọc to hơn',
+    volumeHint: 'Chạm hai lần để đổi âm lượng giọng đọc',
+    volumeChanged: (v: number) => `Âm lượng giọng đọc ${Math.round(v * 100)} phần trăm`,
+    // Chế độ cảnh báo vật cản (FE-11)
+    modeTitle: 'Chế độ cảnh báo',
+    modeFull: 'Đầy đủ',
+    modeFullHint: 'Báo mọi vật cản',
+    modeMinimal: 'Tối giản',
+    modeMinimalHint: 'Chỉ báo vật nguy hiểm như xe cộ, bậc thang',
+    modeSelected: 'Đang chọn',
+    batterySaverNote:
+      'Pin yếu nên đang tạm dùng chế độ Tối giản. Chọn lại chế độ để bỏ, hoặc sạc pin.',
+    savedLocal: 'Đã lưu trên máy, sẽ đồng bộ khi có mạng',
+    changePassword: 'Đổi mật khẩu',
+    changePasswordHint: 'Chạm hai lần để mở màn đổi mật khẩu',
+  },
+  password: {
+    title: 'Đổi mật khẩu',
+    currentLabel: 'Mật khẩu hiện tại',
+    currentHint: 'Nhập mật khẩu đang dùng',
+    newLabel: 'Mật khẩu mới',
+    newHint: 'Ít nhất 8 ký tự, có chữ hoa, chữ thường, chữ số và ký tự đặc biệt',
+    confirmLabel: 'Nhập lại mật khẩu mới',
+    confirmHint: 'Nhập lại đúng mật khẩu mới',
+    submit: 'Đổi mật khẩu',
+    submitting: 'Đang đổi mật khẩu',
+    submitHint: 'Chạm hai lần để đổi mật khẩu',
+    empty: 'Vui lòng nhập đủ ba ô mật khẩu',
+    tooShort: 'Mật khẩu mới phải có ít nhất 8 ký tự',
+    tooLong: 'Mật khẩu mới không được quá 100 ký tự',
+    weak: 'Mật khẩu mới cần có chữ hoa, chữ thường, chữ số và ký tự đặc biệt',
+    same: 'Mật khẩu mới phải khác mật khẩu hiện tại',
+    mismatch: 'Hai lần nhập mật khẩu mới không giống nhau',
+    wrongCurrent: 'Mật khẩu hiện tại không đúng',
+    changed: 'Đã đổi mật khẩu. Vui lòng đăng nhập lại bằng mật khẩu mới',
   },
   screens: {
     ocr: 'Đọc chữ và mã QR',
@@ -73,7 +120,6 @@ export const Strings = {
     location: 'Tôi đang ở đâu',
     emergency: 'Khẩn cấp',
     settings: 'Cài đặt',
-    notImplemented: 'Tính năng đang được phát triển',
   },
   home: {
     title: 'Màn hình chính',
@@ -98,6 +144,11 @@ export const Strings = {
     modelFailed: 'Không khởi động được nhận diện vật cản',
     paused: 'Ứng dụng đã chạy nền, tạm dừng cảnh báo vật cản. Mở lại VisionAid để tiếp tục.',
     resumed: 'Tiếp tục dẫn đường',
+    pausedOtherScreen: 'Tạm dừng cảnh báo vật cản',
+    resumedHome: 'Tiếp tục cảnh báo vật cản',
+    cameraStalled:
+      'Camera không hoạt động, cảnh báo vật cản đang tạm dừng. Hãy dừng lại và dùng gậy. Thử dừng rồi bắt đầu dẫn đường lại.',
+    cameraRecovered: 'Camera đã hoạt động lại, tiếp tục cảnh báo vật cản',
   },
   license: {
     blocked:
@@ -185,6 +236,8 @@ export const Strings = {
     againHint: 'Chạm hai lần để xác định lại vị trí hiện tại',
     permissionExplain:
       'Để cho bạn biết mình đang ở đâu và chia sẻ vị trí với người chăm sóc, VisionAid cần quyền vị trí.',
+    servicesOff:
+      'Định vị trên điện thoại đang tắt. Người chăm sóc sẽ không thấy vị trí của bạn. Hãy bật Vị trí trong cài đặt nhanh.',
     permissionDenied:
       'Chưa có quyền vị trí nên chỉ đọc được vị trí đã lưu. Đang mở cài đặt, hãy bật quyền Vị trí cho VisionAid.',
   },
@@ -243,7 +296,6 @@ export const Strings = {
     quietest: 'Đã ở mức âm lượng nhỏ nhất',
     nothingToRepeat: 'Chưa có thông báo nào để đọc lại',
     help: (commands: string) => `Bạn có thể nói: ${commands}.`,
-    notImplemented: 'Tính năng này đang được phát triển',
     notUnderstood: 'Tôi chưa hiểu, vui lòng nói lại',
     wakeHint:
       'Khi cần ra lệnh, nhấn nút tăng hoặc giảm âm lượng. Muốn chỉnh âm lượng, hãy nói tăng âm lượng hoặc giảm âm lượng.',
@@ -266,5 +318,49 @@ export const Strings = {
     Near: 'ở gần',
     Medium: 'phía trước',
     Far: 'ở xa',
+  },
+  // Cuộc gọi video với người chăm sóc (WebRTC, §9.10) — VIU gửi camera sau + nghe tiếng
+  call: {
+    calling: 'Đang gọi người chăm sóc',
+    incoming: (name: string | null) => `${name ?? 'Người chăm sóc'} đang gọi. Tự động nghe máy`,
+    sosWaiting: 'Đang mở cuộc gọi video khẩn cấp với người chăm sóc',
+    connecting: 'Đang kết nối cuộc gọi. Tạm dừng cảnh báo vật cản',
+    connected:
+      'Đã kết nối. Người chăm sóc đang xem camera của bạn. Bấm phím âm lượng để kết thúc cuộc gọi',
+    ended: 'Đã kết thúc cuộc gọi',
+    noAnswer: 'Người chăm sóc chưa nghe máy',
+    rejected: 'Người chăm sóc đã từ chối cuộc gọi',
+    lost: 'Mất kết nối cuộc gọi',
+    failed: 'Không gọi được người chăm sóc. Vui lòng thử lại',
+    busy: 'Đang có cuộc gọi',
+    needsNetwork: 'Gọi người chăm sóc cần kết nối mạng',
+    maxDuration: 'Cuộc gọi đã đạt thời lượng tối đa và được kết thúc',
+    noCall: 'Không có cuộc gọi nào',
+    resumed: 'Đã bật lại cảnh báo vật cản',
+    overlayLabel: 'Đang trong cuộc gọi với người chăm sóc',
+    endButton: 'Kết thúc cuộc gọi',
+    endHint: 'Chạm hai lần để kết thúc cuộc gọi',
+    phase: {
+      outgoing: 'Đang gọi…',
+      waiting: 'Đang chờ người chăm sóc nghe máy…',
+      connecting: 'Đang kết nối…',
+      connected: 'Đang trong cuộc gọi',
+    },
+  },
+  // Hướng dẫn rẽ/tránh (Hybrid AI, §9.1) — cùng mẫu câu với TtsTemplateHelper.cs của backend
+  guidance: {
+    stop: 'Dừng lại, có vật cản phía trước',
+    proceed: 'Đường thông thoáng, tiếp tục đi',
+    turnLeft: (name: string | null, where: string | null) =>
+      `Có ${name ?? 'vật cản'} phía ${where ?? 'trước'}, hãy bước sang trái`,
+    turnRight: (name: string | null, where: string | null) =>
+      `Có ${name ?? 'vật cản'} phía ${where ?? 'trước'}, hãy bước sang phải`,
+    position: {
+      LEFT: 'bên trái',
+      CENTER_LEFT: 'trái trước',
+      CENTER: 'trước',
+      CENTER_RIGHT: 'phải trước',
+      RIGHT: 'bên phải',
+    },
   },
 } as const;

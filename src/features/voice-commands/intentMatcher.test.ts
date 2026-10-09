@@ -55,6 +55,13 @@ describe('matchIntent', () => {
     expect(intentOf('bắt đầu rồi dừng lại')).toBeNull();
   });
 
+  it('cụm dài chứa trọn cụm ngắn của lệnh khác → chọn cụm dài', () => {
+    expect(intentOf('kết thúc cuộc gọi')).toBe('END_CALL'); // không phải dừng dẫn đường
+    expect(intentOf('kết thúc')).toBe('STOP_NAVIGATION');
+    expect(intentOf('gọi người chăm sóc')).toBe('CALL_CAREGIVER');
+    expect(intentOf('kết thúc cuộc gọi rồi đọc chữ')).toBeNull(); // hai lệnh độc lập
+  });
+
   it('câu không chứa lệnh nào → null', () => {
     expect(intentOf('hôm nay trời đẹp quá')).toBeNull();
   });

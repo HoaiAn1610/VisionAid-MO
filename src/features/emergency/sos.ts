@@ -20,6 +20,8 @@ export interface SosDeps {
   announce(text: string): Promise<void>;
   call(plan: CallPlan): Promise<void>;
   now(): number;
+  /** UUID cho `clientEventId`. */
+  newId(): string;
 }
 
 export interface SosResult {
@@ -46,6 +48,7 @@ async function deliver(method: DetectionMethod, deps: SosDeps): Promise<boolean>
   const detectedAt = new Date(deps.now()).toISOString();
   const position = await deps.position();
   const payload: EmergencyEventPayload = {
+    clientEventId: deps.newId(),
     detectionMethod: method,
     detectedAt,
     latitude: position?.latitude ?? null,

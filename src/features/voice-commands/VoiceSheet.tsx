@@ -1,10 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
+import { useAccessibilityFocusOnShow } from '@/services/a11y/screenReader';
 import { colors, radius, spacing } from '@/theme';
 
 import type { VoicePhase } from './useVoiceCommand';
@@ -23,6 +24,8 @@ interface Props {
  */
 export function VoiceSheet({ phase, heard, onCancel }: Props) {
   const visible = phase !== 'idle';
+  const cancelRef = useRef<View>(null);
+  useAccessibilityFocusOnShow(cancelRef, visible);
 
   // Nút Back khi đang nghe = Hủy
   useEffect(() => {
@@ -47,6 +50,7 @@ export function VoiceSheet({ phase, heard, onCancel }: Props) {
             {heard ? <ThemedText variant="body">“{heard}”</ThemedText> : null}
           </View>
           <Button
+            ref={cancelRef}
             variant="secondary"
             icon="close"
             label={Strings.voice.cancel}

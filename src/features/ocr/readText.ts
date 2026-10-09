@@ -1,5 +1,6 @@
 import type { OcrTextLog, ServerOcrResult, UploadImage } from '@/api/endpoints/ocr';
 import { BusinessRules } from '@/constants/businessRules';
+import { configNumber } from '@/services/config/runtimeConfig';
 import type { TriggerMethod } from '@/constants/enums';
 import { logger } from '@/utils/logger';
 
@@ -50,7 +51,9 @@ export async function readText(
         const server = await deps.recognizeOnServer(image, trigger, SERVER_TIMEOUT_MS);
         const text = normalizeText(server.text);
         const confident =
-          server.confidence === null || server.confidence >= BusinessRules.OCR_MIN_CONFIDENCE;
+          server.confidence === null ||
+          server.confidence >=
+            configNumber('ocr_confidence_threshold', BusinessRules.OCR_MIN_CONFIDENCE);
         if (server.available && text && confident) return { text, source: 'server' };
       } catch (e) {
         logger.warn('Server OCR failed, using on-device', e);

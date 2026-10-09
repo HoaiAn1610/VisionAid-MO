@@ -9,6 +9,7 @@ type VolumeKeyEvents = { onPress(): void };
 interface VolumeKeyModule extends InstanceType<typeof NativeModule<VolumeKeyEvents>> {
   getVolume(): number;
   setVolume(fraction: number): number;
+  setSpeakerphone(on: boolean): void;
 }
 
 // Optional: không có trên iOS / Jest → tính năng tự tắt, không crash
@@ -30,4 +31,9 @@ export function getMediaVolume(): number | null {
 /** Đặt âm lượng media 0..1; trả mức thực tế sau khi làm tròn theo nấc của máy. */
 export function setMediaVolume(fraction: number): number | null {
   return VolumeKey?.setVolume(fraction) ?? null;
+}
+
+/** Bật / tắt loa ngoài cho cuộc gọi (chế độ giao tiếp). Không hỗ trợ → bỏ qua. */
+export function setSpeakerphone(on: boolean): void {
+  VolumeKey?.setSpeakerphone(on);
 }

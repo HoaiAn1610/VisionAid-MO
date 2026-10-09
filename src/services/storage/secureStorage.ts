@@ -6,6 +6,7 @@ const KEYS = {
   refreshToken: 'va_refresh_token',
   clientDeviceId: 'va_client_device_id',
   cachedUser: 'va_cached_user',
+  preferences: 'va_preferences',
 } as const;
 
 export interface TokenPair {
@@ -46,6 +47,15 @@ export async function getCachedUser(): Promise<string | null> {
 
 export async function saveCachedUser(json: string): Promise<void> {
   await SecureStore.setItemAsync(KEYS.cachedUser, json);
+}
+
+/** Tùy chọn đọc / chế độ của người dùng (JSON, có userId) — áp dụng ngay khi mở app, kể cả offline. */
+export async function getCachedPreferences(): Promise<string | null> {
+  return SecureStore.getItemAsync(KEYS.preferences);
+}
+
+export async function saveCachedPreferences(json: string): Promise<void> {
+  await SecureStore.setItemAsync(KEYS.preferences, json);
 }
 
 /** UUID v4 sinh một lần khi cài app, dùng chung cho refresh token và FCM token. */

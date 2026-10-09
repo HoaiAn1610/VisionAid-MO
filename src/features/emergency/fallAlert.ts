@@ -31,10 +31,18 @@ export interface FallAlertDeps {
   sentHaptic(): void;
   setTimer(fn: () => void, ms: number): unknown;
   now(): number;
+  /** UUID cho `clientEventId`. */
+  newId(): string;
   /** Câu báo té ngã — TalkBack bật thì phải nói "chạm hai lần". */
   detectedMessage(): string;
   clearTimer(handle: unknown): void;
+  /** Ảnh hiện trường (JPEG base64) chụp lúc té ngã; null nếu không chụp được. */
+  captureSnapshot(): Promise<string | null>;
+  uploadSnapshot(eventId: string, imageBase64: string): Promise<void>;
 }
+
+/** Offline: chờ ảnh tối đa chừng này rồi gửi cảnh báo + gọi người thân, không để ảnh làm trễ. */
+const SNAPSHOT_WAIT_MS = 2000;
 
 /**
  * Giây đọc to khi đếm ngược; các giây khác chỉ rung. Đọc ít để mic có khoảng lặng nghe "tôi ổn" —
@@ -59,6 +67,8 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
   let timer: unknown = null;
   let eventId: Promise<string | null> = Promise.resolve(null);
   let payload: EmergencyEventPayload | null = null;
+  /** Chụp ngay lúc té ngã; chỉ gửi khi cảnh báo được gửi đi (hủy → bỏ ảnh, giữ riêng tư). */
+  let snapshot: Promise<string | null> = Promise.resolve(null);
   let generation = 0;
 
   // Đọc qua hàm: TS thu hẹp kiểu `state` sau set() và không thấy nó đổi trong lúc await
@@ -78,11 +88,21 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
     if (gen !== generation) return; // đã reset cho lần té ngã khác
     if (id) {
       deps.say(Strings.fall.sent);
+      void snapshot
+        .then((image) => (image ? deps.uploadSnapshot(id, image) : undefined))
+        .catch((e: unknown) => logger.warn('Upload fall snapshot failed', e));
       return;
     }
-    // Offline / tạo event lỗi: gửi qua hàng đợi + tự gọi người liên hệ ưu tiên (§9.7)
+    // Offline / tạo event lỗi: gửi qua hàng đợi (kèm ảnh inline) + tự gọi người liên hệ ưu tiên (§9.7)
     if (payload) {
-      await deps.enqueue(payload).catch((e: unknown) => logger.error('Queue fall event failed', e));
+      const image = await Promise.race([
+        snapshot,
+        new Promise<null>((r) => deps.setTimer(() => r(null), SNAPSHOT_WAIT_MS)),
+      ]);
+      const queued: EmergencyEventPayload = image
+        ? { ...payload, snapshotBase64: image, snapshotContentType: 'image/jpeg' }
+        : payload;
+      await deps.enqueue(queued).catch((e: unknown) => logger.error('Queue fall event failed', e));
     }
     const plan = planEmergencyCall(await deps.contacts().catch(() => []));
     deps.say(`${Strings.fall.queued} ${describeCallPlan(plan)}`);
@@ -115,9 +135,12 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
       deps.tick();
       deps.say(deps.detectedMessage());
       timer = deps.setTimer(countDown, 1000);
+      // Chụp ngay: camera vẫn đang nhìn hiện trường (điện thoại nằm yên sau va chạm)
+      snapshot = deps.captureSnapshot().catch(() => null);
 
       // Có payload ngay (chưa có vị trí): GPS treo quá 15 s thì finish() vẫn đưa event vào hàng đợi
       payload = {
+        clientEventId: deps.newId(),
         detectionMethod: 'AccelerometerCamera',
         detectedAt,
         accelerometerData: fall.accelerometerData,
@@ -150,6 +173,7 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
       if (timer !== null) deps.clearTimer(timer);
       timer = null;
       const gen = ++generation; // chặn start() đang chờ GPS tạo event
+      snapshot = Promise.resolve(null); // hủy → không bao giờ gửi ảnh
       set({ phase: 'cancelled', remaining: 0 });
       const id = await eventId;
       if (gen !== generation) return;
@@ -176,6 +200,7 @@ export function createFallAlert(deps: FallAlertDeps, onChange: (s: FallAlertStat
       timer = null;
       eventId = Promise.resolve(null);
       payload = null;
+      snapshot = Promise.resolve(null);
       set({ phase: 'idle', remaining: 0 });
     },
   };

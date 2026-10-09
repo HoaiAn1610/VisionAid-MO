@@ -43,12 +43,14 @@ const config: ExpoConfig = {
       'android.permission.HIGH_SAMPLING_RATE_SENSORS',
       // expo-task-manager lưu lịch task GPS nền qua JobScheduler (persisted job)
       'android.permission.RECEIVE_BOOT_COMPLETED',
+      'android.permission.MODIFY_AUDIO_SETTINGS', // loa ngoài khi gọi WebRTC
     ],
   },
   plugins: [
     'expo-router',
     '@react-native-firebase/app',
     '@react-native-firebase/messaging',
+    '@config-plugins/react-native-webrtc',
     [
       'expo-splash-screen',
       {

@@ -59,7 +59,3 @@ export const type = {
 } as const satisfies Record<string, TextStyle>;
 
 export type TypeVariant = keyof typeof type;
-
-export const motion = {
-  fast: 120,
-} as const;

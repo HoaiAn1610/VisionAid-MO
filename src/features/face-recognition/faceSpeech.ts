@@ -11,13 +11,18 @@ export function describeIdentification(r: FaceIdentification): string {
 }
 
 /**
- * Mất mạng giữa chừng → cần mạng. 422 = không thấy khuôn mặt HOẶC FaceNet không chạy — backend chưa
- * phân biệt được (GAP-26) → hướng dẫn chụp lại. 5xx / timeout → tạm không khả dụng.
+ * Mất mạng giữa chừng → cần mạng. 422 có `errorCode: FACE_SERVICE_UNAVAILABLE` → FaceNet không chạy;
+ * 422 khác (không thấy khuôn mặt — backend chưa gắn mã, GAP-26) → hướng dẫn chụp lại.
+ * 5xx / timeout → tạm không khả dụng.
  */
 export function describeFaceError(error: unknown, online: boolean): string {
   if (error instanceof ApiError && error.status === 0 && !online) {
     return Strings.errors.faceNeedsNetwork;
   }
-  if (error instanceof ApiError && error.status === 422) return Strings.face.retake;
+  if (error instanceof ApiError && error.status === 422) {
+    return error.errorCode === 'FACE_SERVICE_UNAVAILABLE'
+      ? Strings.face.unavailable
+      : Strings.face.retake;
+  }
   return Strings.face.unavailable;
 }

@@ -26,6 +26,10 @@ export interface VoiceContext {
   openEmergency(): void;
   /** Hủy cảnh báo té ngã đang đếm ngược; false nếu không có cảnh báo nào. */
   dismissFall(): boolean;
+  /** Lệnh "gọi người chăm sóc" (WebRTC, §9.10). */
+  callCaregiver(): void;
+  /** Kết thúc cuộc gọi; false nếu không có cuộc gọi. */
+  endCall(): boolean;
   setDetectionMode(mode: DetectionMode): void;
   speechRate: number;
   setSpeechRate(rate: number): void;
@@ -36,22 +40,8 @@ export interface VoiceContext {
   setMediaVolume(volume: number): void;
 }
 
-/**
- * Thực thi một lệnh đã khớp (và đã xác nhận nếu là lệnh nguy hiểm). Luôn có phản hồi TTS (§5.4).
- * @returns false nếu tính năng của lệnh chưa có (voice log ghi `Failed`).
- */
-export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): boolean {
-  if (NOT_IMPLEMENTED.has(intent)) {
-    ctx.say(Strings.voice.notImplemented);
-    return false;
-  }
-  execute(intent, ctx);
-  return true;
-}
-
-const NOT_IMPLEMENTED = new Set<VoiceIntent>([]);
-
-function execute(intent: VoiceIntent, ctx: VoiceContext): void {
+/** Thực thi một lệnh đã khớp (và đã xác nhận nếu là lệnh nguy hiểm). Luôn có phản hồi TTS (§5.4). */
+export function runVoiceIntent(intent: VoiceIntent, ctx: VoiceContext): void {
   switch (intent) {
     case 'SCAN_QR':
       return ctx.openQrScanner(); // màn quét tự đọc hướng dẫn
@@ -104,6 +94,11 @@ function execute(intent: VoiceIntent, ctx: VoiceContext): void {
     }
     case 'HELP':
       return ctx.say(Strings.voice.help(VoiceCommands.map((c) => c.keywords[0]).join(', ')));
+    case 'CALL_CAREGIVER':
+      return ctx.callCaregiver();
+    case 'END_CALL':
+      if (!ctx.endCall()) ctx.say(Strings.call.noCall);
+      return;
     case 'REPEAT':
       return ctx.say(ctx.lastAnnouncement ?? Strings.voice.nothingToRepeat);
   }
