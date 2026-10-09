@@ -834,6 +834,7 @@ Sprint 9 — Settings, Hardening & Release
 | BR-37 | Thấp | Khóa Caregiver chính chỉ ghi log cảnh báo, chưa đánh dấu VIU cần gán lại | Làm theo SRS hoặc ghi ngoài phạm vi | — |
 | GAP-39 | Riêng tư | `UploadEventSnapshotHandler` không kiểm tra trạng thái → event `Dismissed` vẫn nhận ảnh hiện trường | Từ chối khi `Dismissed`; dismiss thì xóa ảnh đã có | Mobile chỉ gửi ảnh khi cảnh báo được gửi đi |
 | GAP-40 | Vận hành | Snapshot base64 (`PUT /snapshot`, `snapshotBase64`) không giới hạn kích thước (chỉ mặc định Kestrel ~30 MB) | Validator ≤ ~2 MB + `[RequestSizeLimit]` | Ảnh JPEG ≤ 480 px |
+| GAP-42 | Cao (UX) | `RefreshTokenHandler`: token đã rotate gửi lại → coi là reuse, thu hồi **mọi** phiên, không có khoảng ân hạn. Refresh tới server nhưng mất response (mạng chập chờn, thang máy) → lần sau app gửi token cũ → người khiếm thị bị đăng xuất. Đã gặp trên máy 09/10 khi tắt Wi-Fi rồi dữ liệu di động | Ân hạn ~60 s: token bị revoke có `ReplacedBy` vừa tạo, cùng `ClientDeviceId` → cấp lại cặp mới thay vì thu hồi tất cả | SignalR không refresh khi offline (giảm cửa sổ rủi ro, không loại bỏ) |
 | GAP-41 | Thấp | `EndCallHandler` luôn đặt `Ended`, kể cả reason `Missed` / chưa từng kết nối | Chưa kết nối + `Missed` → status `Missed` | Gửi reason `UserEnded` / `Missed` / `Failed` / `Cancelled` |
 
 ### Đã xử lý (commit `f4e2592`, `41bed01`, `8f2641a`, `a1e4df9`, `b878270`, `2fe9c2c`, `0171a4d`, `f3e85f0`)
