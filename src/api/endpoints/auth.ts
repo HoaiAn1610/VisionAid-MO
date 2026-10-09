@@ -10,6 +10,7 @@ export const userSchema = z.object({
   id: z.string(),
   email: z.string(),
   fullName: z.string(),
+  phoneNumber: z.string().nullable().optional(),
   role: z.string(),
   privacyConsentAcceptedAt: z.string().nullable(),
   privacyPolicyVersion: z.string().nullable(),
@@ -56,6 +57,11 @@ export async function logout(clientDeviceId: string): Promise<void> {
 
 export async function acceptPrivacyPolicy(policyVersion: string): Promise<void> {
   await apiClient.post('/api/auth/accept-privacy-policy', { policyVersion });
+}
+
+/** Đổi mật khẩu. Server thu hồi MỌI refresh token (kể cả máy này) → phải đăng nhập lại. Sai mật khẩu cũ → 403. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post('/api/auth/change-password', { currentPassword, newPassword });
 }
 
 export async function fetchMe(): Promise<User> {

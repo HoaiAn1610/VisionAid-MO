@@ -41,6 +41,8 @@ export async function fetchEmergencyContacts(): Promise<EmergencyContact[]> {
 
 /** Khớp `CreateEmergencyEventRequest`. `detectedAt` là giờ thiết bị — server tính grace từ đây. */
 export interface EmergencyEventPayload {
+  /** UUID sinh một lần cho mỗi sự cố — gửi lại (hàng đợi, timeout) không tạo event thứ hai (GAP-31). */
+  clientEventId: string;
   detectionMethod: DetectionMethod;
   detectedAt: string;
   latitude: number | null;
@@ -61,6 +63,14 @@ export async function createEmergencyEvent(
 ): Promise<EmergencyEvent> {
   const res = await apiClient.post('/api/emergency-events', payload);
   return apiResponseSchema(eventSchema).parse(res.data).data;
+}
+
+/** Ảnh hiện trường té ngã cho event đã tạo (backend `f3e85f0`, chỉ VIU chủ event). */
+export async function uploadEmergencySnapshot(id: string, imageBase64: string): Promise<void> {
+  await apiClient.put(`/api/emergency-events/${id}/snapshot`, {
+    imageBase64,
+    contentType: 'image/jpeg',
+  });
 }
 
 /** Hủy cảnh báo té ngã trong grace period; quá hạn → 422. */

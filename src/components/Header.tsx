@@ -27,7 +27,7 @@ export function Header({ title, back = false }: Props) {
           <MaterialCommunityIcons name="arrow-left" size={32} color={colors.text} />
         </Pressable>
       )}
-      <ThemedText variant="title" style={styles.title}>
+      <ThemedText variant="title" style={styles.title} accessibilityRole="header">
         {title}
       </ThemedText>
     </View>

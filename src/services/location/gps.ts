@@ -50,6 +50,13 @@ export async function ensureLocationPermission(): Promise<boolean> {
   return false;
 }
 
+/** Có quyền nhưng người dùng tắt Vị trí của máy → báo (người chăm sóc mất vị trí mà không ai biết). */
+export async function warnIfLocationServicesOff(): Promise<void> {
+  const enabled = await Location.hasServicesEnabledAsync().catch(() => true);
+  if (!enabled)
+    ttsService.enqueue({ text: Strings.location.servicesOff, priority: TtsPriority.SYSTEM });
+}
+
 /** Điểm GPS hiện tại; mất tín hiệu → vị trí cuối cùng đã biết; không có quyền → null. */
 export async function getCurrentPoint(): Promise<GpsPoint | null> {
   if (!(await Location.getForegroundPermissionsAsync()).granted) return null;

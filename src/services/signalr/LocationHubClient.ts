@@ -9,6 +9,7 @@ import {
 import { refreshSingleFlight } from '@/api/client';
 import { Env } from '@/config/env';
 import type { ArrivalNotification } from '@/features/location/arrivalNotice';
+import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { getTokens } from '@/services/storage/secureStorage';
 import { logger } from '@/utils/logger';
 
@@ -27,20 +28,52 @@ export function isTokenExpiring(token: string, nowMs: number): boolean {
 }
 
 /** Token cho mỗi lần (kết nối lại) hub. Auto-reconnect không qua interceptor axios → tự refresh. */
-async function freshAccessToken(): Promise<string> {
+export async function freshAccessToken(): Promise<string> {
   const token = (await getTokens())?.accessToken;
   if (!token) return '';
   if (!isTokenExpiring(token, Date.now())) return token;
+  // Offline: auto-reconnect gọi hàm này liên tục. Refresh lúc mạng chập chờn có thể tới server (token bị
+  // rotate) mà mất response → lần sau gửi token cũ = reuse → server thu hồi mọi phiên (đã gặp trên máy).
+  if (!NetworkMonitor.isOnline()) return token;
   return (await refreshSingleFlight().catch(() => null)) ?? token;
 }
 
+/** Event WebRTC server đẩy cho VIU (§9.10). Payload JSON camelCase. */
+export const WEBRTC_EVENTS = [
+  'WebRtcIncomingCall',
+  'WebRtcCallAccepted',
+  'WebRtcOffer',
+  'WebRtcAnswer',
+  'WebRtcIceCandidate',
+  'WebRtcCallEnded',
+  'WebRtcCallRejected',
+] as const;
+export type WebRtcEvent = (typeof WEBRTC_EVENTS)[number];
+
 /**
- * Hub `/hubs/location` (§11): VIU CHỈ NHẬN `ArrivalNotification` — hub không có method cho client
- * gọi, GPS luôn gửi qua REST. Server tự đưa VIU vào nhóm `viu_{userId}` theo JWT.
+ * Hub `/hubs/location` (§11): VIU nhận `ArrivalNotification` và signaling WebRTC; gọi lên hub chỉ
+ * để relay SDP / ICE. GPS luôn gửi qua REST. Server tự đưa VIU vào nhóm `viu_{userId}` theo JWT.
  */
 class LocationHubClientImpl {
   private connection: HubConnection | null = null;
   private starting: Promise<void> | null = null;
+  private readonly listeners = new Map<WebRtcEvent, Set<(payload: unknown) => void>>();
+
+  /** Nghe một event WebRTC (đăng ký trước hay sau `start` đều được). Trả hàm hủy. */
+  subscribe(event: WebRtcEvent, listener: (payload: unknown) => void): () => void {
+    let set = this.listeners.get(event);
+    if (!set) this.listeners.set(event, (set = new Set()));
+    set.add(listener);
+    return () => set.delete(listener);
+  }
+
+  /** Gọi method của hub (RelayOffer / RelayAnswer / RelayIceCandidate). Chưa kết nối → ném lỗi. */
+  async invoke(method: string, ...args: unknown[]): Promise<void> {
+    const connection = this.connection;
+    if (!connection) throw new Error('SignalR not started');
+    await this.ensureConnected();
+    await connection.invoke(method, ...args);
+  }
 
   start(onArrival: (n: ArrivalNotification) => void): void {
     if (this.connection) return;
@@ -50,9 +83,18 @@ class LocationHubClientImpl {
         accessTokenFactory: freshAccessToken,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-      .configureLogging(LogLevel.Warning)
+      // Thư viện log mức Error ở mỗi lần thử lại khi offline → chỉ để Critical; tự log khi bỏ cuộc
+      .configureLogging(LogLevel.Critical)
       .build();
+    connection.onclose((e) => {
+      if (e) logger.warn('SignalR closed', e.message);
+    });
     connection.on('ArrivalNotification', onArrival);
+    for (const event of WEBRTC_EVENTS) {
+      connection.on(event, (payload: unknown) => {
+        for (const listener of this.listeners.get(event) ?? []) listener(payload);
+      });
+    }
     this.connection = connection;
     void this.ensureConnected();
   }

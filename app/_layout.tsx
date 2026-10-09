@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAuthBootstrap } from '@/features/auth/useAuthBootstrap';
@@ -26,7 +27,15 @@ export default function RootLayout() {
   useAuthBootstrap();
 
   useEffect(() => {
-    if (status !== 'loading') void SplashScreen.hideAsync();
+    if (status === 'loading') return;
+    const hide = () => SplashScreen.hideAsync().catch(() => undefined);
+    void hide();
+    // Mở app lúc máy đang khóa ("Ok Google, mở VisionAid"): hideAsync khi Activity chưa hiện là no-op
+    // → splash che app cả sau khi mở khóa. Gọi lại mỗi khi app ra foreground.
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') void hide();
+    });
+    return () => sub.remove();
   }, [status]);
 
   useEffect(() => {

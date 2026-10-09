@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { AccessibilityInfo, findNodeHandle, Pressable, StyleSheet, View } from 'react-native';
+import { useRef } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { Strings } from '@/constants/strings.vi';
+import { useAccessibilityFocusOnShow } from '@/services/a11y/screenReader';
 import { colors, spacing } from '@/theme';
 
 import { fallAlert, useFallAlertState } from './fallAlertService';
@@ -17,10 +18,7 @@ export function FallAlertOverlay() {
   const active = phase === 'countdown';
 
   // TalkBack: phần dưới đã bị ẩn → đưa tiêu điểm lên lớp phủ, chạm hai lần ở đâu cũng là hủy
-  useEffect(() => {
-    const node = active && ref.current ? findNodeHandle(ref.current) : null;
-    if (node) AccessibilityInfo.setAccessibilityFocus(node);
-  }, [active]);
+  useAccessibilityFocusOnShow(ref, active);
 
   if (!active) return null;
   return (

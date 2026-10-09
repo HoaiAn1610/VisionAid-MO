@@ -92,7 +92,12 @@ export async function flushQueue(
       else await sender.send(payloads[0]);
     } catch (e) {
       if (classifySyncError(e) === 'retry') {
-        logger.warn(`Offline queue ${queue} paused`, e instanceof ApiError ? e.status : e);
+        // status 0 = mất mạng: chuyện thường khi offline, không cần cảnh báo mỗi lần thử
+        const offline = e instanceof ApiError && e.status === 0;
+        (offline ? logger.debug : logger.warn)(
+          `Offline queue ${queue} paused`,
+          e instanceof ApiError ? e.status : e,
+        );
         return 'retry-later';
       }
       // 400/409/422: payload không bao giờ hợp lệ được nữa. Emergency → mức error để dễ thấy

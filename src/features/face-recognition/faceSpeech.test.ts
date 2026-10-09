@@ -67,6 +67,10 @@ describe('describeFaceError', () => {
     expect(describeFaceError(new E(0), true)).toBe(Strings.face.unavailable);
     expect(describeFaceError(new E(422), true)).toBe(Strings.face.retake);
     expect(describeFaceError(new E(500), true)).toBe(Strings.face.unavailable);
+    // 422 có errorCode = FaceNet không chạy (không phải lỗi ảnh) → không bảo người dùng chụp lại
+    expect(
+      describeFaceError(new ApiError(422, '', '', undefined, 'FACE_SERVICE_UNAVAILABLE'), true),
+    ).toBe(Strings.face.unavailable);
     expect(describeFaceError(new Error('x'), true)).toBe(Strings.face.unavailable);
   });
 });

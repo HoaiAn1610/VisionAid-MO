@@ -33,6 +33,9 @@ function setup(over: Partial<FallAlertDeps> = {}) {
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     now: () => Date.parse('2026-10-06T10:00:06Z'), // đủ 2 tín hiệu 6 s sau va chạm
+    newId: () => 'fall-1',
+    captureSnapshot: jest.fn(async () => 'IMG'),
+    uploadSnapshot: jest.fn(async () => undefined),
     detectedMessage: () => Strings.fall.detected,
     ...over,
   };
@@ -51,6 +54,7 @@ describe('createFallAlert', () => {
     await alert.start(fall);
     expect(deps.say).toHaveBeenCalledWith(Strings.fall.detected);
     expect(deps.createEvent).toHaveBeenCalledWith({
+      clientEventId: 'fall-1',
       detectionMethod: 'AccelerometerCamera',
       detectedAt: '2026-10-06T10:00:06.000Z',
       accelerometerData: '{"peakG":3}',
@@ -66,6 +70,33 @@ describe('createFallAlert', () => {
     expect(alert.getState().phase).toBe('sent');
     expect(deps.enqueue).not.toHaveBeenCalled(); // server tự gửi khi hết grace
     expect(deps.call).not.toHaveBeenCalled();
+  });
+
+  it('ảnh hiện trường: chụp lúc té ngã, chỉ gửi khi cảnh báo được gửi đi', async () => {
+    const { alert, deps } = setup();
+    await alert.start(fall);
+    expect(deps.captureSnapshot).toHaveBeenCalledTimes(1);
+    expect(deps.uploadSnapshot).not.toHaveBeenCalled(); // còn đang đếm ngược
+    await runCountdown();
+    expect(deps.uploadSnapshot).toHaveBeenCalledWith('ev-1', 'IMG');
+  });
+
+  it('người dùng hủy → KHÔNG BAO GIỜ gửi ảnh (riêng tư)', async () => {
+    const { alert, deps } = setup();
+    await alert.start(fall);
+    await alert.cancel();
+    await runCountdown();
+    expect(deps.uploadSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('offline → ảnh đi kèm (inline) cảnh báo trong hàng đợi', async () => {
+    const { alert, deps } = setup({ isOnline: () => false });
+    await alert.start(fall);
+    await runCountdown();
+    expect(deps.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ snapshotBase64: 'IMG', snapshotContentType: 'image/jpeg' }),
+    );
+    expect(deps.uploadSnapshot).not.toHaveBeenCalled();
   });
 
   it('hủy trong 15 s → dismiss event, báo đã hủy, dừng đếm', async () => {

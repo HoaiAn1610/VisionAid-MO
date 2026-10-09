@@ -76,6 +76,7 @@ describe('auth endpoints — khớp contract backend (docs/specs/auth.md)', () =
       id: 'u1',
       email: 'viu@visionaid.vn',
       fullName: 'Người dùng',
+      phoneNumber: null,
       role: 'VisuallyImpaired',
       privacyConsentAcceptedAt: '2026-09-27T10:00:00+07:00',
       privacyPolicyVersion: '1.0',

@@ -14,6 +14,8 @@ import { useObstacleNavigation } from './useObstacleNavigation';
 
 const mockPermission = { hasPermission: true, requestPermission: jest.fn(async () => true) };
 jest.mock('react-native-vision-camera', () => ({ useCameraPermission: () => mockPermission }));
+let mockFocused = true;
+jest.mock('expo-router', () => ({ useIsFocused: () => mockFocused }));
 
 const mockDetector: {
   modelState: 'loading' | 'loaded' | 'error';
@@ -90,6 +92,28 @@ beforeEach(() => {
 });
 
 describe('useObstacleNavigation', () => {
+  afterEach(() => {
+    mockFocused = true;
+  });
+
+  it('đang dẫn đường mà sang màn khác → báo tạm dừng; quay về → báo tiếp tục', async () => {
+    const { result, rerender } = await renderHook(() => useObstacleNavigation());
+    await act(() => result.current.start());
+    mockFocused = false;
+    await rerender({});
+    expect(spoken()).toContain(Strings.navigation.pausedOtherScreen);
+    mockFocused = true;
+    await rerender({});
+    expect(spoken()).toContain(Strings.navigation.resumedHome);
+  });
+
+  it('chưa dẫn đường → sang màn khác không báo gì', async () => {
+    const { rerender } = await renderHook(() => useObstacleNavigation());
+    mockFocused = false;
+    await rerender({});
+    expect(spoken()).not.toContain(Strings.navigation.pausedOtherScreen);
+  });
+
   it('bắt đầu: tạo session, TTS "bắt đầu dẫn đường"; dừng: đóng session, TTS "đã dừng"', async () => {
     const { result } = await renderHook(() => useObstacleNavigation());
     await act(() => result.current.start());
