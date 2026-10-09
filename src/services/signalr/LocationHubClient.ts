@@ -9,6 +9,7 @@ import {
 import { refreshSingleFlight } from '@/api/client';
 import { Env } from '@/config/env';
 import type { ArrivalNotification } from '@/features/location/arrivalNotice';
+import { NetworkMonitor } from '@/services/network/NetworkMonitor';
 import { getTokens } from '@/services/storage/secureStorage';
 import { logger } from '@/utils/logger';
 
@@ -27,10 +28,13 @@ export function isTokenExpiring(token: string, nowMs: number): boolean {
 }
 
 /** Token cho mỗi lần (kết nối lại) hub. Auto-reconnect không qua interceptor axios → tự refresh. */
-async function freshAccessToken(): Promise<string> {
+export async function freshAccessToken(): Promise<string> {
   const token = (await getTokens())?.accessToken;
   if (!token) return '';
   if (!isTokenExpiring(token, Date.now())) return token;
+  // Offline: auto-reconnect gọi hàm này liên tục. Refresh lúc mạng chập chờn có thể tới server (token bị
+  // rotate) mà mất response → lần sau gửi token cũ = reuse → server thu hồi mọi phiên (đã gặp trên máy).
+  if (!NetworkMonitor.isOnline()) return token;
   return (await refreshSingleFlight().catch(() => null)) ?? token;
 }
 
@@ -79,8 +83,12 @@ class LocationHubClientImpl {
         accessTokenFactory: freshAccessToken,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-      .configureLogging(LogLevel.Warning)
+      // Thư viện log mức Error ở mỗi lần thử lại khi offline → chỉ để Critical; tự log khi bỏ cuộc
+      .configureLogging(LogLevel.Critical)
       .build();
+    connection.onclose((e) => {
+      if (e) logger.warn('SignalR closed', e.message);
+    });
     connection.on('ArrivalNotification', onArrival);
     for (const event of WEBRTC_EVENTS) {
       connection.on(event, (payload: unknown) => {
