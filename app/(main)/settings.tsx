@@ -35,9 +35,8 @@ export default function SettingsScreen() {
           {Strings.settings.speedTitle}
         </ThemedText>
         <ThemedText variant="title">{Strings.settings.speedValue(speedRate)}</ThemedText>
-        <View style={styles.row}>
+        <View style={styles.buttons}>
           <Button
-            style={styles.half}
             variant="secondary"
             icon="minus"
             label={Strings.settings.slower}
@@ -45,7 +44,6 @@ export default function SettingsScreen() {
             onPress={() => settingsActions.changeSpeed(false)}
           />
           <Button
-            style={styles.half}
             variant="secondary"
             icon="plus"
             label={Strings.settings.faster}
@@ -60,9 +58,8 @@ export default function SettingsScreen() {
           {Strings.settings.volumeTitle}
         </ThemedText>
         <ThemedText variant="title">{Strings.settings.volumeValue(volumeLevel)}</ThemedText>
-        <View style={styles.row}>
+        <View style={styles.buttons}>
           <Button
-            style={styles.half}
             variant="secondary"
             icon="volume-minus"
             label={Strings.settings.quieter}
@@ -70,7 +67,6 @@ export default function SettingsScreen() {
             onPress={() => settingsActions.changeVolume(false)}
           />
           <Button
-            style={styles.half}
             variant="secondary"
             icon="volume-plus"
             label={Strings.settings.louder}
@@ -132,6 +128,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     backgroundColor: colors.surface,
   },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  half: { flex: 1 },
+  // Xếp dọc: hai nút cạnh nhau chỉ còn ~120 px cho chữ, "Đọc chậm hơn" bị ngắt giữa từ
+  buttons: { gap: spacing.sm },
 });
